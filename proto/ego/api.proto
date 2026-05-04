@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package ego;
+
+option go_package = "ego-server/proto/ego";
+
+// --- Service ---
+
+service Ego {
+  rpc Login(LoginReq) returns (LoginRes);
+}
+
+// --- Login ---
+
+message LoginReq {
+  string account  = 1;
+  string password = 2;
+}
+
+message LoginRes {
+  string token   = 1;
+  bool   created  = 2;
+}
