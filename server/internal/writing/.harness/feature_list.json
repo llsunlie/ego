@@ -1,0 +1,16 @@
+{
+  "features": [
+    {
+      "id": "writing.create_moment",
+      "title": "Create Moment and return Echo",
+      "status": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "writing.generate_insight",
+      "title": "Generate current-session insight",
+      "status": "not_started",
+      "evidence": []
+    }
+  ]
+}

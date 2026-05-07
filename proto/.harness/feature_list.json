@@ -1,0 +1,13 @@
+{
+  "features": [
+    {
+      "id": "proto.root_contract",
+      "title": "Root proto contract is canonical",
+      "status": "passing",
+      "evidence": [
+        "proto/ego/api.proto",
+        "server/Makefile proto-gen reads ../proto/ego/api.proto"
+      ]
+    }
+  ]
+}

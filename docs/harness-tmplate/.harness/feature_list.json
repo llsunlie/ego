@@ -1,0 +1,25 @@
+{
+  "module": "[模块名占位]",
+  "features": [
+    {
+      "id": "task.id.001",
+      "title": "[任务标题占位]",
+      "status": "not_started",
+      "description": "详细描述该任务的预期产出、涉及的文件路径及实现要点。",
+      "acceptance_criteria": [
+        "标准1：代码通过静态检查",
+        "标准2：单元测试覆盖率达到 80%",
+        "标准3：[具体业务验证项占位]"
+      ],
+      "verification": "go test ./internal/[模块名]/...",
+      "evidence": [
+        "commit abc123",
+        "test output log"
+      ]
+    }
+  ],
+  "_meta": {
+    "status_enum": ["not_started", "in_progress", "blocked", "passing"],
+    "instructions": "Agent 在认领任务前需将 status 改为 in_progress，完成后需在 evidence 中记录验证结果。"
+  }
+}

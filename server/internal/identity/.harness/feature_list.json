@@ -1,0 +1,12 @@
+{
+  "features": [
+    {
+      "id": "identity.login",
+      "title": "Login with automatic registration",
+      "status": "passing",
+      "evidence": [
+        "server/internal/identity/adapter/grpc/handler_test.go"
+      ]
+    }
+  ]
+}
