@@ -2,10 +2,22 @@
 
 ## Current State
 
-- Login handler and tests have been moved into the identity bounded context.
-- Business logic is still colocated in the gRPC adapter and should be split into `app` later.
+Identity module has been fully refactored into proper DDD layers:
 
-## Next Best Step
+- `domain/` — User entity, UserRepository interface, domain errors (ErrUserNotFound, ErrInvalidPassword)
+- `app/` — LoginUseCase orchestrating login/register, PasswordHasher port, TokenIssuer port
+- `adapter/grpc/` — Thin handler: proto ↔ app mapping, error → gRPC status mapping
+- `adapter/postgres/` — UserRepository impl wrapping sqlc.Queries, sqlc ↔ domain mapping
+- `platform/auth/` — BcryptHasher + JWTIssuer satisfying app ports via Go structural typing
+- `cmd/ego/main.go` — Bootstrap wiring updated
 
-- Extract Login use case into `identity/app` when identity receives new behavior.
+All 5 handler test scenarios pass.
 
+## Next Steps
+
+- Add unit tests for LoginUseCase directly (with mocked ports)
+- Add unit tests for UserRepository against a test database
+
+## Blockers
+
+None.

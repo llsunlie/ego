@@ -2,80 +2,24 @@ package main
 
 import (
 	"log"
-	"net"
-	"net/http"
-	"strconv"
-	"time"
 
+	"ego-server/internal/bootstrap"
 	"ego-server/internal/config"
-	identitygrpc "ego-server/internal/identity/adapter/grpc"
-	"ego-server/internal/platform/auth"
-	"ego-server/internal/platform/postgres"
-	"ego-server/internal/platform/postgres/sqlc"
-
-	"github.com/improbable-eng/grpc-web/go/grpcweb"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
-
-	pb "ego-server/proto/ego"
 )
 
 func main() {
 	cfg := config.Load()
 
-	pool, err := postgres.Connect(cfg.DatabaseURL)
+	p, err := bootstrap.InitPlatform(cfg)
 	if err != nil {
-		log.Fatalf("db connect: %v", err)
+		log.Fatalf("init platform: %v", err)
 	}
-	defer pool.Close()
+	defer p.Close()
 
-	jwtKey := []byte(cfg.JWTSecret)
-	expHours, err := strconv.Atoi(cfg.JWTExpHours)
-	if err != nil {
-		log.Fatalf("invalid JWT_EXP_HOURS: %v", err)
-	}
-	jwtExp := time.Duration(expHours) * time.Hour
+	identityHandler := bootstrap.NewIdentityHandler(p)
+	server := bootstrap.NewServer(cfg, p, identityHandler)
 
-	server := grpc.NewServer(
-		grpc.UnaryInterceptor(auth.UnaryServerInterceptor(jwtKey)),
-	)
-
-	loginHandler := identitygrpc.NewHandler(sqlc.New(pool), jwtKey, jwtExp)
-	pb.RegisterEgoServer(server, loginHandler)
-	reflection.Register(server)
-
-	// gRPC for native clients
-	go func() {
-		lis, err := net.Listen("tcp", ":"+cfg.Port)
-		if err != nil {
-			log.Fatalf("gRPC listen: %v", err)
-		}
-		log.Printf("gRPC server listening on :%s", cfg.Port)
-		if err := server.Serve(lis); err != nil {
-			log.Fatalf("gRPC serve: %v", err)
-		}
-	}()
-
-	// gRPC-web for browser clients
-	wrapped := grpcweb.WrapServer(server,
-		grpcweb.WithOriginFunc(func(origin string) bool { return true }),
-		grpcweb.WithCorsForRegisteredEndpointsOnly(false),
-	)
-
-	httpSrv := &http.Server{
-		Addr: ":" + cfg.WebPort,
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if wrapped.IsGrpcWebRequest(r) || wrapped.IsAcceptableGrpcCorsRequest(r) {
-				wrapped.ServeHTTP(w, r)
-				return
-			}
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.WriteHeader(http.StatusOK)
-		}),
-	}
-
-	log.Printf("gRPC-web server listening on :%s", cfg.WebPort)
-	if err := httpSrv.ListenAndServe(); err != nil {
-		log.Fatalf("gRPC-web serve: %v", err)
+	if err := server.Serve(); err != nil {
+		log.Fatalf("serve: %v", err)
 	}
 }
