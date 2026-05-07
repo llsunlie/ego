@@ -1,0 +1,7 @@
+{
+  "features": [],
+  "notes": [
+    "This file indexes backend cross-module features only.",
+    "Module-local tasks belong in server/internal/{module}/.harness/feature_list.json."
+  ]
+}

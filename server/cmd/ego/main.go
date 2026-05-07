@@ -7,11 +7,11 @@ import (
 	"strconv"
 	"time"
 
-	"ego-server/internal/auth"
 	"ego-server/internal/config"
-	"ego-server/internal/db"
-	"ego-server/internal/db/sqlc"
-	"ego-server/internal/login"
+	identitygrpc "ego-server/internal/identity/adapter/grpc"
+	"ego-server/internal/platform/auth"
+	"ego-server/internal/platform/postgres"
+	"ego-server/internal/platform/postgres/sqlc"
 
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"google.golang.org/grpc"
@@ -23,7 +23,7 @@ import (
 func main() {
 	cfg := config.Load()
 
-	pool, err := db.Connect(cfg.DatabaseURL)
+	pool, err := postgres.Connect(cfg.DatabaseURL)
 	if err != nil {
 		log.Fatalf("db connect: %v", err)
 	}
@@ -40,7 +40,7 @@ func main() {
 		grpc.UnaryInterceptor(auth.UnaryServerInterceptor(jwtKey)),
 	)
 
-	loginHandler := login.NewHandler(sqlc.New(pool), jwtKey, jwtExp)
+	loginHandler := identitygrpc.NewHandler(sqlc.New(pool), jwtKey, jwtExp)
 	pb.RegisterEgoServer(server, loginHandler)
 	reflection.Register(server)
 

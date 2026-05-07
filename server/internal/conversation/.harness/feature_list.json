@@ -1,0 +1,16 @@
+{
+  "features": [
+    {
+      "id": "conversation.start_chat",
+      "title": "Start or restore past-self chat",
+      "status": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "conversation.send_message",
+      "title": "Send message and receive cited past-self reply",
+      "status": "not_started",
+      "evidence": []
+    }
+  ]
+}

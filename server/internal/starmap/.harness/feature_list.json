@@ -1,0 +1,22 @@
+{
+  "features": [
+    {
+      "id": "starmap.stash_trace",
+      "title": "Stash Trace as Star",
+      "status": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "starmap.list_constellations",
+      "title": "List Constellations for Starmap",
+      "status": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "starmap.get_constellation",
+      "title": "Get Constellation detail",
+      "status": "not_started",
+      "evidence": []
+    }
+  ]
+}

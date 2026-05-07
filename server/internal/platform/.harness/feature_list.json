@@ -1,0 +1,18 @@
+{
+  "features": [
+    {
+      "id": "platform.auth",
+      "title": "JWT auth primitives and interceptor",
+      "status": "passing",
+      "evidence": [
+        "server/internal/platform/auth/jwt_test.go"
+      ]
+    },
+    {
+      "id": "platform.postgres",
+      "title": "PostgreSQL pool and sqlc location",
+      "status": "in_progress",
+      "evidence": []
+    }
+  ]
+}
