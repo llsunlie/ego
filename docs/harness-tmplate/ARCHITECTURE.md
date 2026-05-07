@@ -1,5 +1,7 @@
 # ARCHITECTURE.md - 内部设计说明
 
+> 注意：以下为模板内容，当前模块还未进行方法架构设计
+
 ## 1. 领域模型 (Domain Model)
 - **聚合根 (Aggregate Root)**: [名称占位] - [核心职责说明]
 - **实体 (Entity)**: [名称占位]
