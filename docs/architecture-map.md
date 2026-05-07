@@ -1,4 +1,4 @@
-## 目录结构 (Repository Structure)
+## 项目整体目录结构 (Repository Structure)
 
 - `proto/` — 前后端 API 通信契约定义目录
 - `client/` — 项目前端代码目录
@@ -14,8 +14,3 @@
   - `internal/starmap/` — 星图沉淀与聚类限界上下文 (Star, Constellation, Insight 等)
   - `internal/conversation/` — 跨时空对话管理限界上下文 (ChatSession, ChatMessage 等)
 - `.harness/` — 全局跨模块集成进度与任务索引配置
-
-> **附：后端业务模块内部标准结构** (以 `internal/{module}/` 为例)
-> - `domain/` — 业务核心 (Entity, Value Object, Repo Interface)，**严禁**依赖具体的基础设施技术或 proto。
-> - `app/` — 用例编排层 (UseCase)，调度 Domain Port，不写具体 SQL 或底层 API 请求。
-> - `adapter/` — 端口适配器层，通常包含 `grpc/` (处理输入请求) 与 `postgres/` (实现持久化仓储)。
