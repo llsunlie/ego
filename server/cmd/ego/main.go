@@ -17,7 +17,9 @@ func main() {
 	defer p.Close()
 
 	identityHandler := bootstrap.NewIdentityHandler(p)
-	server := bootstrap.NewServer(cfg, p, identityHandler)
+	writingHandler := bootstrap.NewWritingHandler(p)
+	handler := bootstrap.NewEgoHandler(identityHandler, writingHandler)
+	server := bootstrap.NewServer(cfg, p, handler)
 
 	if err := server.Serve(); err != nil {
 		log.Fatalf("serve: %v", err)

@@ -1,0 +1,52 @@
+package grpc
+
+import (
+	"context"
+
+	"ego-server/internal/writing/app"
+
+	pb "ego-server/proto/ego"
+)
+
+type Handler struct {
+	pb.UnimplementedEgoServer
+	createMoment    *app.CreateMomentUseCase
+	generateInsight *app.GenerateInsightUseCase
+}
+
+func NewHandler(createMoment *app.CreateMomentUseCase, generateInsight *app.GenerateInsightUseCase) *Handler {
+	return &Handler{
+		createMoment:    createMoment,
+		generateInsight: generateInsight,
+	}
+}
+
+func (h *Handler) CreateMoment(ctx context.Context, req *pb.CreateMomentReq) (*pb.CreateMomentRes, error) {
+	output, err := h.createMoment.Execute(ctx, app.CreateMomentInput{
+		Content: req.Content,
+		TraceID: req.TraceId,
+		Topic:   req.Topic,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.CreateMomentRes{
+		Moment: momentToProto(output.Moment),
+		Echo:   echoToProto(output.Echo),
+	}, nil
+}
+
+func (h *Handler) GenerateInsight(ctx context.Context, req *pb.GenerateInsightReq) (*pb.GenerateInsightRes, error) {
+	output, err := h.generateInsight.Execute(ctx, app.GenerateInsightInput{
+		CurrentContent: req.CurrentContent,
+		EchoMomentID:   req.EchoMomentId,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.GenerateInsightRes{
+		Insight: insightToProto(output),
+	}, nil
+}

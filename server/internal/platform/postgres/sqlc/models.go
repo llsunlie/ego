@@ -6,7 +6,26 @@ package sqlc
 
 import (
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/pgvector/pgvector-go"
 )
+
+type Moment struct {
+	ID        pgtype.UUID
+	TraceID   pgtype.UUID
+	UserID    pgtype.UUID
+	Content   string
+	Embedding pgvector.Vector
+	Connected bool
+	CreatedAt pgtype.Timestamptz
+}
+
+type Trace struct {
+	ID        pgtype.UUID
+	UserID    pgtype.UUID
+	Topic     pgtype.Text
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
 
 type User struct {
 	ID           pgtype.UUID

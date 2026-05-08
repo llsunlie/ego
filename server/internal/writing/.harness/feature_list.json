@@ -1,16 +1,76 @@
 {
   "features": [
     {
-      "id": "writing.create_moment",
-      "title": "Create Moment and return Echo",
-      "status": "not_started",
-      "evidence": []
+      "id": "writing.domain.types",
+      "title": "Define domain types: Trace, Moment, Echo, Insight",
+      "status": "passing",
+      "evidence": ["domain/types.go"]
     },
     {
-      "id": "writing.generate_insight",
-      "title": "Generate current-session insight",
-      "status": "not_started",
-      "evidence": []
+      "id": "writing.domain.errors",
+      "title": "Define domain errors (TraceNotFound, MomentNotFound, InvalidContent)",
+      "status": "passing",
+      "evidence": ["domain/errors.go"]
+    },
+    {
+      "id": "writing.domain.ports",
+      "title": "Define domain ports: TraceRepository, MomentRepository, MomentReader, TraceReader, EmbeddingGenerator, EchoMatcher, InsightGenerator",
+      "status": "passing",
+      "evidence": ["domain/ports.go"]
+    },
+    {
+      "id": "writing.app.ports",
+      "title": "Define application-level port interfaces (dependencies for use cases)",
+      "status": "passing",
+      "evidence": ["app/ports.go"]
+    },
+    {
+      "id": "writing.app.create_moment",
+      "title": "Implement CreateMoment use case (create Trace + Moment, generate embedding, match Echo)",
+      "status": "passing",
+      "evidence": ["app/create_moment.go", "app/create_moment_test.go"]
+    },
+    {
+      "id": "writing.app.generate_insight",
+      "title": "Implement GenerateInsight use case (generate current-session insight via AI)",
+      "status": "passing",
+      "evidence": ["app/generate_insight.go", "app/generate_insight_test.go"]
+    },
+    {
+      "id": "writing.adapter.postgres.migration",
+      "title": "Create DB migration for moments and traces tables",
+      "status": "passing",
+      "evidence": ["internal/platform/postgres/migrations/002_moments.sql", "internal/platform/postgres/migrations/003_traces.sql"]
+    },
+    {
+      "id": "writing.adapter.postgres.sqlc",
+      "title": "Write sqlc queries for moments and traces CRUD",
+      "status": "passing",
+      "evidence": ["internal/platform/postgres/queries/moments.sql", "internal/platform/postgres/queries/traces.sql"]
+    },
+    {
+      "id": "writing.adapter.postgres.repos",
+      "title": "Implement TraceRepository, MomentRepository, MomentReader, TraceReader using sqlc",
+      "status": "passing",
+      "evidence": ["adapter/postgres/trace_repo.go", "adapter/postgres/moment_repo.go", "adapter/postgres/reader.go", "adapter/postgres/trace_repo_test.go", "adapter/postgres/moment_repo_test.go", "adapter/postgres/reader_test.go"]
+    },
+    {
+      "id": "writing.adapter.grpc.mapper",
+      "title": "Implement proto DTO ↔ domain model mapper",
+      "status": "passing",
+      "evidence": ["adapter/grpc/mapper.go", "adapter/grpc/mapper_test.go"]
+    },
+    {
+      "id": "writing.adapter.grpc.handler",
+      "title": "Implement gRPC handler for CreateMoment and GenerateInsight",
+      "status": "passing",
+      "evidence": ["adapter/grpc/handler.go", "adapter/grpc/handler_test.go"]
+    },
+    {
+      "id": "writing.bootstrap",
+      "title": "Wire Writing module in bootstrap (NewWritingHandler + composite registration)",
+      "status": "passing",
+      "evidence": ["bootstrap/writing.go", "bootstrap/composite.go", "bootstrap/server.go", "cmd/ego/main.go"]
     }
   ]
 }

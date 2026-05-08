@@ -21,11 +21,11 @@ type Server struct {
 	httpServer *http.Server
 }
 
-func NewServer(cfg *config.Config, p *Platform, identityHandler pb.EgoServer) *Server {
+func NewServer(cfg *config.Config, p *Platform, handler pb.EgoServer) *Server {
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(auth.UnaryServerInterceptor(p.JWTKey)),
 	)
-	pb.RegisterEgoServer(grpcServer, identityHandler)
+	pb.RegisterEgoServer(grpcServer, handler)
 	reflection.Register(grpcServer)
 
 	wrapped := grpcweb.WrapServer(grpcServer,
