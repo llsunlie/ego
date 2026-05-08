@@ -404,6 +404,66 @@ for s in stars:
 [ "$GC_HAS_STAR" = "YES" ] || fail "GetConstellation: stashed star $STAR_ID not found in constellation stars"
 pass "GetConstellation: stashed star $STAR_ID present"
 
+# ============================================================================
+# Smoke Test: F7 和那时的自己说说话 — Chat
+# ============================================================================
+
+info "=== Smoke F7: StartChat + SendMessage ==="
+
+# Start a new chat session with the stashed star
+REQ_SC=$(printf '{"starId":"%s","contextMomentIds":["%s","%s","%s"]}' "$STAR_ID" "$MOMENT1_ID" "$MOMENT2_ID" "$MOMENT3_ID")
+RES_SC=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ_SC" "$GRPC_ADDR" ego.Ego/StartChat 2>&1)
+echo "  StartChat: $RES_SC"
+
+CHAT_SESSION_ID=$(echo "$RES_SC" | python3 -c "import sys,json; print(json.load(sys.stdin)['chatSessionId'])")
+OPENING_CONTENT=$(echo "$RES_SC" | python3 -c "import sys,json; print(json.load(sys.stdin).get('opening',{}).get('content','NIL'))")
+OPENING_ROLE=$(echo "$RES_SC" | python3 -c "import sys,json; d=json.load(sys.stdin).get('opening',{}); print('PAST_SELF' if d.get('role') == 'PAST_SELF' else 'NIL')")
+HISTORY_LEN=$(echo "$RES_SC" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('history',[])))")
+
+[ -n "$CHAT_SESSION_ID" ] && [ "$CHAT_SESSION_ID" != "null" ] || fail "StartChat: chatSessionId is empty"
+[ -n "$OPENING_CONTENT" ] && [ "$OPENING_CONTENT" != "NIL" ] || fail "StartChat: opening content is empty"
+[ "$OPENING_ROLE" = "PAST_SELF" ] || fail "StartChat: expected PAST_SELF role, got $OPENING_ROLE"
+[ "$HISTORY_LEN" -ge 1 ] || fail "StartChat: expected at least 1 history message, got $HISTORY_LEN"
+pass "StartChat: session=$CHAT_SESSION_ID, opening=$OPENING_CONTENT"
+
+# Send first message
+REQ_SM1=$(printf '{"chatSessionId":"%s","content":"那时候的你，现在还好吗？"}' "$CHAT_SESSION_ID")
+RES_SM1=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ_SM1" "$GRPC_ADDR" ego.Ego/SendMessage 2>&1)
+echo "  SendMessage #1: $RES_SM1"
+
+REPLY1_CONTENT=$(echo "$RES_SM1" | python3 -c "import sys,json; print(json.load(sys.stdin).get('reply',{}).get('content','NIL'))")
+REPLY1_ROLE=$(echo "$RES_SM1" | python3 -c "import sys,json; d=json.load(sys.stdin).get('reply',{}); print('PAST_SELF' if d.get('role') == 'PAST_SELF' else 'NIL')")
+REPLY1_ID=$(echo "$RES_SM1" | python3 -c "import sys,json; print(json.load(sys.stdin).get('reply',{}).get('id','NIL'))")
+
+[ -n "$REPLY1_CONTENT" ] && [ "$REPLY1_CONTENT" != "NIL" ] || fail "SendMessage #1: reply content is empty"
+[ "$REPLY1_ROLE" = "PAST_SELF" ] || fail "SendMessage #1: expected PAST_SELF role, got $REPLY1_ROLE"
+[ -n "$REPLY1_ID" ] && [ "$REPLY1_ID" != "NIL" ] || fail "SendMessage #1: reply id is empty"
+pass "SendMessage #1: reply=$REPLY1_CONTENT"
+
+# Send second message (multi-turn)
+REQ_SM2=$(printf '{"chatSessionId":"%s","content":"谢谢你，我会继续往前走的"}' "$CHAT_SESSION_ID")
+RES_SM2=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ_SM2" "$GRPC_ADDR" ego.Ego/SendMessage 2>&1)
+echo "  SendMessage #2: $RES_SM2"
+
+REPLY2_CONTENT=$(echo "$RES_SM2" | python3 -c "import sys,json; print(json.load(sys.stdin).get('reply',{}).get('content','NIL'))")
+REPLY2_ROLE=$(echo "$RES_SM2" | python3 -c "import sys,json; d=json.load(sys.stdin).get('reply',{}); print('PAST_SELF' if d.get('role') == 'PAST_SELF' else 'NIL')")
+
+[ -n "$REPLY2_CONTENT" ] && [ "$REPLY2_CONTENT" != "NIL" ] || fail "SendMessage #2: reply content is empty"
+[ "$REPLY2_ROLE" = "PAST_SELF" ] || fail "SendMessage #2: expected PAST_SELF role, got $REPLY2_ROLE"
+pass "SendMessage #2: reply=$REPLY2_CONTENT"
+
+# Resume session: StartChat with existing chatSessionId
+REQ_RESUME=$(printf '{"starId":"%s","chatSessionId":"%s"}' "$STAR_ID" "$CHAT_SESSION_ID")
+RES_RESUME=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ_RESUME" "$GRPC_ADDR" ego.Ego/StartChat 2>&1)
+echo "  StartChat (resume): $RES_RESUME"
+
+RESUME_SESSION_ID=$(echo "$RES_RESUME" | python3 -c "import sys,json; print(json.load(sys.stdin)['chatSessionId'])")
+RESUME_HISTORY_LEN=$(echo "$RES_RESUME" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('history',[])))")
+
+[ "$RESUME_SESSION_ID" = "$CHAT_SESSION_ID" ] || fail "Resume: session ID mismatch"
+[ "$RESUME_HISTORY_LEN" -ge 3 ] || fail "Resume: expected at least 3 history messages, got $RESUME_HISTORY_LEN"
+pass "StartChat (resume): restored session with $RESUME_HISTORY_LEN messages"
+
 # All smoke tests passed
 # ============================================================================
 
@@ -414,7 +474,8 @@ echo -e "${GREEN}========================================${RESET}"
 echo ""
 echo "  F1 Write+Observe     : PASS"
 echo "  F2 ContinueTrace     : PASS"
-echo "  F3 StashTrace         : PASS"
+echo "  F3 StashTrace        : PASS"
+echo "  F7 Chat              : PASS"
 echo "  ListTraces           : PASS"
 echo "  GetTraceDetail       : PASS"
 echo "  GetRandomMoments     : PASS"
