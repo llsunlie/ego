@@ -327,6 +327,83 @@ GRM_DEF_COUNT=$(echo "$RES_GRM_DEF" | python3 -c "import sys,json; print(len(jso
 pass "GetRandomMoments default count: $GRM_DEF_COUNT moments"
 
 # ============================================================================
+
+# ============================================================================
+# Smoke Test: F3 StashTrace — 收进星图
+# ============================================================================
+
+info "=== Smoke F3: StashTrace → Constellation ==="
+
+# Stash the trace from F1/F2
+	REQ_STASH=$(printf '{"traceId":"%s"}' "$MOMENT1_TRACE")
+RES_STASH=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ_STASH" "$GRPC_ADDR" ego.Ego/StashTrace 2>&1)
+echo "  StashTrace: $RES_STASH"
+
+STAR_ID=$(echo "$RES_STASH" | python3 -c "import sys,json; print(json.load(sys.stdin)['star']['id'])")
+STAR_TOPIC=$(echo "$RES_STASH" | python3 -c "import sys,json; print(json.load(sys.stdin)['star']['topic'])")
+STAR_TRACE=$(echo "$RES_STASH" | python3 -c "import sys,json; print(json.load(sys.stdin)['star']['traceId'])")
+
+[ -n "$STAR_ID" ] && [ "$STAR_ID" != "null" ] || fail "StashTrace: star.id is empty"
+[ -n "$STAR_TOPIC" ] && [ "$STAR_TOPIC" != "null" ] || fail "StashTrace: star.topic is empty"
+[ "$STAR_TRACE" = "$MOMENT1_TRACE" ] || fail "StashTrace: star.traceId mismatch, expected $MOMENT1_TRACE, got $STAR_TRACE"
+	pass "StashTrace: star created id=$STAR_ID topic=$STAR_TOPIC"
+
+# Verify second stash returns error (already stashed)
+	REQ_STASH2=$(printf '{"traceId":"%s"}' "$MOMENT1_TRACE")
+RES_STASH2=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ_STASH2" "$GRPC_ADDR" ego.Ego/StashTrace 2>&1) || true
+echo "  StashTrace (duplicate): $RES_STASH2"
+if echo "$RES_STASH2" | grep -qi "already"; then
+  pass "StashTrace: duplicate rejected"
+else
+  fail "StashTrace: expected error for duplicate stash, got: $RES_STASH2"
+fi
+
+# ListConstellations
+RES_LC=$($GRPCURL -plaintext -H "$AUTH" -d '{}' "$GRPC_ADDR" ego.Ego/ListConstellations 2>&1)
+echo "  ListConstellations: $RES_LC"
+
+LC_COUNT=$(echo "$RES_LC" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('constellations',[])))")
+LC_TOTAL=$(echo "$RES_LC" | python3 -c "import sys,json; print(json.load(sys.stdin).get('totalStarCount',0))")
+
+[ "$LC_COUNT" -ge 1 ] || fail "ListConstellations: expected at least 1 constellation, got $LC_COUNT"
+[ "$LC_TOTAL" -ge 1 ] || fail "ListConstellations: expected totalStarCount >= 1, got $LC_TOTAL"
+pass "ListConstellations: $LC_COUNT constellation(s), $LC_TOTAL star(s) total"
+
+# Get first constellation ID
+LC1_ID=$(echo "$RES_LC" | python3 -c "import sys,json; print(json.load(sys.stdin)['constellations'][0]['id'])")
+LC1_NAME=$(echo "$RES_LC" | python3 -c "import sys,json; print(json.load(sys.stdin)['constellations'][0]['name'])")
+LC1_STAR_COUNT=$(echo "$RES_LC" | python3 -c "import sys,json; print(json.load(sys.stdin)['constellations'][0]['starCount'])")
+
+# GetConstellation
+	REQ_GC=$(printf '{"constellationId":"%s"}' "$LC1_ID")
+RES_GC=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ_GC" "$GRPC_ADDR" ego.Ego/GetConstellation 2>&1)
+echo "  GetConstellation: $RES_GC"
+
+GC_NAME=$(echo "$RES_GC" | python3 -c "import sys,json; print(json.load(sys.stdin)['constellation']['name'])")
+GC_STAR_COUNT=$(echo "$RES_GC" | python3 -c "import sys,json; print(json.load(sys.stdin)['constellation']['starCount'])")
+GC_STARS_LEN=$(echo "$RES_GC" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('stars',[])))")
+GC_MOMENTS_LEN=$(echo "$RES_GC" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('moments',[])))")
+GC_STAR_IDS=$(echo "$RES_GC" | python3 -c "import sys,json; print(len(json.load(sys.stdin)['constellation'].get('starIds',[])))")
+
+[ "$GC_NAME" = "$LC1_NAME" ] || fail "GetConstellation: name mismatch"
+[ "$GC_STARS_LEN" -ge 1 ] || fail "GetConstellation: expected at least 1 star, got $GC_STARS_LEN"
+[ "$GC_STARS_LEN" = "$GC_STAR_IDS" ] || fail "GetConstellation: stars count ($GC_STARS_LEN) != star_ids count ($GC_STAR_IDS)"
+[ "$GC_MOMENTS_LEN" -ge 1 ] || fail "GetConstellation: expected at least 1 moment, got $GC_MOMENTS_LEN"
+[ "$GC_STAR_COUNT" = "$LC1_STAR_COUNT" ] || fail "GetConstellation: star_count mismatch"
+pass "GetConstellation: name=$GC_NAME, $GC_STARS_LEN star(s), $GC_MOMENTS_LEN moment(s)"
+
+# Verify the stashed star appears in constellation
+GC_HAS_STAR=$(echo "$RES_GC" | python3 -c "
+import sys, json
+stars = json.load(sys.stdin).get('stars', [])
+for s in stars:
+    if s['id'] == '$STAR_ID':
+        print('YES')
+        break
+")
+[ "$GC_HAS_STAR" = "YES" ] || fail "GetConstellation: stashed star $STAR_ID not found in constellation stars"
+pass "GetConstellation: stashed star $STAR_ID present"
+
 # All smoke tests passed
 # ============================================================================
 
@@ -337,6 +414,7 @@ echo -e "${GREEN}========================================${RESET}"
 echo ""
 echo "  F1 Write+Observe     : PASS"
 echo "  F2 ContinueTrace     : PASS"
+echo "  F3 StashTrace         : PASS"
 echo "  ListTraces           : PASS"
 echo "  GetTraceDetail       : PASS"
 echo "  GetRandomMoments     : PASS"

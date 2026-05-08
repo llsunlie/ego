@@ -8,6 +8,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Constellation struct {
+	ID                   pgtype.UUID
+	UserID               pgtype.UUID
+	Name                 string
+	ConstellationInsight string
+	StarIds              []pgtype.UUID
+	TopicPrompts         []string
+	CreatedAt            pgtype.Timestamptz
+	UpdatedAt            pgtype.Timestamptz
+}
+
 type Echo struct {
 	ID               pgtype.UUID
 	MomentID         pgtype.UUID
@@ -34,6 +45,14 @@ type Moment struct {
 	Content    string
 	Embeddings []byte
 	CreatedAt  pgtype.Timestamptz
+}
+
+type Star struct {
+	ID        pgtype.UUID
+	UserID    pgtype.UUID
+	TraceID   pgtype.UUID
+	Topic     string
+	CreatedAt pgtype.Timestamptz
 }
 
 type Trace struct {

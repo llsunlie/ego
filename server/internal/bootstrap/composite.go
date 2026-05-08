@@ -14,13 +14,15 @@ type EgoHandler struct {
 	identity pb.EgoServer
 	writing  pb.EgoServer
 	timeline pb.EgoServer
+	starmap  pb.EgoServer
 }
 
-func NewEgoHandler(identity, writing, timeline pb.EgoServer) *EgoHandler {
+func NewEgoHandler(identity, writing, timeline, starmap pb.EgoServer) *EgoHandler {
 	return &EgoHandler{
 		identity: identity,
 		writing:  writing,
 		timeline: timeline,
+		starmap:  starmap,
 	}
 }
 
@@ -51,4 +53,18 @@ func (h *EgoHandler) GetTraceDetail(ctx context.Context, req *pb.GetTraceDetailR
 // Memory Dot — delegated to timeline.
 func (h *EgoHandler) GetRandomMoments(ctx context.Context, req *pb.GetRandomMomentsReq) (*pb.GetRandomMomentsRes, error) {
 	return h.timeline.GetRandomMoments(ctx, req)
+}
+
+// Stash — delegated to starmap.
+func (h *EgoHandler) StashTrace(ctx context.Context, req *pb.StashTraceReq) (*pb.StashTraceRes, error) {
+	return h.starmap.StashTrace(ctx, req)
+}
+
+// Constellation — delegated to starmap.
+func (h *EgoHandler) ListConstellations(ctx context.Context, req *pb.ListConstellationsReq) (*pb.ListConstellationsRes, error) {
+	return h.starmap.ListConstellations(ctx, req)
+}
+
+func (h *EgoHandler) GetConstellation(ctx context.Context, req *pb.GetConstellationReq) (*pb.GetConstellationRes, error) {
+	return h.starmap.GetConstellation(ctx, req)
 }
