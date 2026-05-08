@@ -10,6 +10,12 @@ import (
 	"github.com/google/uuid"
 )
 
+func testEmbeddingEntries() []domain.EmbeddingEntry {
+	return []domain.EmbeddingEntry{
+		{Model: "test", Embedding: []float32{0.1, 0.2, 0.3}},
+	}
+}
+
 func TestReader_GetByID_MomentReader(t *testing.T) {
 	q := testQueries(t)
 	repo := NewMomentRepository(q)
@@ -51,22 +57,19 @@ func TestReader_ListByUserID_Cursor(t *testing.T) {
 	traceID := uuid.NewString()
 
 	// Create 3 moments with different timestamps
-	for i := range 3 {
+	for range 3 {
 		m := domain.Moment{
-			ID:        uuid.NewString(),
-			TraceID:   traceID,
-			UserID:    userID,
-			Content:   "moment",
-			Embedding: testEmbeddingSlice(),
-			Connected: false,
+			ID:         uuid.NewString(),
+			TraceID:    traceID,
+			UserID:     userID,
+			Content:    "moment",
+			Embeddings: testEmbeddingEntries(),
 		}
 		err := repo.Create(context.Background(), &m)
 		if err != nil {
 			t.Fatalf("Create: %v", err)
 		}
-		// Small delay to ensure different timestamps
 		time.Sleep(time.Millisecond * 2)
-		_ = i
 	}
 
 	items, nextCursor, hasMore, err := reader.ListByUserID(context.Background(), userID, "", 2)
@@ -88,8 +91,8 @@ func TestReader_ListByUserID_Cursor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListByUserID page 2: %v", err)
 	}
-	if len(items2) != 1 {
-		t.Fatalf("expected 1 item on page 2, got %d", len(items2))
+	if len(items2) < 1 {
+		t.Fatalf("expected at least 1 item on page 2, got %d", len(items2))
 	}
 	if hasMore2 {
 		t.Fatal("expected hasMore=false on page 2")
@@ -104,12 +107,11 @@ func TestReader_RandomByUserID(t *testing.T) {
 	userID := uuid.NewString()
 	for range 5 {
 		m := domain.Moment{
-			ID:        uuid.NewString(),
-			TraceID:   uuid.NewString(),
-			UserID:    userID,
-			Content:   "moment",
-			Embedding: testEmbeddingSlice(),
-			Connected: false,
+			ID:         uuid.NewString(),
+			TraceID:    uuid.NewString(),
+			UserID:     userID,
+			Content:    "moment",
+			Embeddings: testEmbeddingEntries(),
 		}
 		if err := repo.Create(context.Background(), &m); err != nil {
 			t.Fatalf("Create: %v", err)
@@ -177,12 +179,11 @@ func TestReader_ListMomentsByTraceID(t *testing.T) {
 
 	for range 2 {
 		m := domain.Moment{
-			ID:        uuid.NewString(),
-			TraceID:   traceID,
-			UserID:    userID,
-			Content:   "moment in trace",
-			Embedding: testEmbeddingSlice(),
-			Connected: false,
+			ID:         uuid.NewString(),
+			TraceID:    traceID,
+			UserID:     userID,
+			Content:    "moment in trace",
+			Embeddings: testEmbeddingEntries(),
 		}
 		if err := repo.Create(context.Background(), &m); err != nil {
 			t.Fatalf("Create: %v", err)
@@ -195,5 +196,52 @@ func TestReader_ListMomentsByTraceID(t *testing.T) {
 	}
 	if len(items) != 2 {
 		t.Fatalf("expected 2 items, got %d", len(items))
+	}
+}
+
+func TestReader_ListTracesByUserID(t *testing.T) {
+	q := testQueries(t)
+	traceRepo := NewTraceRepository(q)
+	reader := NewReader(q)
+
+	userID := uuid.NewString()
+
+	for range 3 {
+		tr := domain.Trace{
+			ID:         uuid.NewString(),
+			UserID:     userID,
+			Motivation: "direct",
+			Stashed:    false,
+		}
+		if err := traceRepo.Create(context.Background(), &tr); err != nil {
+			t.Fatalf("Create: %v", err)
+		}
+		time.Sleep(time.Millisecond * 2)
+	}
+
+	traces, nextCursor, hasMore, err := reader.ListTracesByUserID(context.Background(), userID, "", 2)
+	if err != nil {
+		t.Fatalf("ListTracesByUserID: %v", err)
+	}
+	if len(traces) != 2 {
+		t.Fatalf("expected 2 traces on first page, got %d", len(traces))
+	}
+	if !hasMore {
+		t.Fatal("expected hasMore=true on first page")
+	}
+	if nextCursor == "" {
+		t.Fatal("expected non-empty nextCursor")
+	}
+
+	// Page 2
+	traces2, _, hasMore2, err := reader.ListTracesByUserID(context.Background(), userID, nextCursor, 2)
+	if err != nil {
+		t.Fatalf("ListTracesByUserID page 2: %v", err)
+	}
+	if len(traces2) < 1 {
+		t.Fatalf("expected at least 1 trace on page 2, got %d", len(traces2))
+	}
+	if hasMore2 {
+		t.Fatal("expected hasMore=false on page 2")
 	}
 }

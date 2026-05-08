@@ -33,17 +33,29 @@ func (m *mockMomentRepo) GetByID(ctx context.Context, id string) (*domain.Moment
 func (m *mockMomentRepo) ListByTraceID(ctx context.Context, traceID string) ([]domain.Moment, error) { return m.listByTraceFn(ctx, traceID) }
 func (m *mockMomentRepo) ListByUserID(ctx context.Context, userID string) ([]domain.Moment, error) { return m.listByUserFn(ctx, userID) }
 
-type mockEmbeddingGen struct {
-	generateFn func(ctx context.Context, content string) ([]float32, error)
+type mockEchoRepo struct {
+	createFn         func(ctx context.Context, echo *domain.Echo) error
+	findByMomentIDFn func(ctx context.Context, momentID string) (*domain.Echo, error)
 }
 
-func (m *mockEmbeddingGen) Generate(ctx context.Context, content string) ([]float32, error) { return m.generateFn(ctx, content) }
+func (m *mockEchoRepo) Create(ctx context.Context, echo *domain.Echo) error { return m.createFn(ctx, echo) }
+func (m *mockEchoRepo) FindByMomentID(ctx context.Context, momentID string) (*domain.Echo, error) {
+	return m.findByMomentIDFn(ctx, momentID)
+}
+
+type mockEmbeddingGen struct {
+	generateFn func(ctx context.Context, content string) ([]domain.EmbeddingEntry, error)
+}
+
+func (m *mockEmbeddingGen) Generate(ctx context.Context, content string) ([]domain.EmbeddingEntry, error) {
+	return m.generateFn(ctx, content)
+}
 
 type mockEchoMatcher struct {
-	matchFn func(ctx context.Context, current *domain.Moment, history []domain.Moment) (*domain.Echo, error)
+	matchFn func(ctx context.Context, current *domain.Moment, history []domain.Moment) ([]domain.MatchedMoment, error)
 }
 
-func (m *mockEchoMatcher) Match(ctx context.Context, current *domain.Moment, history []domain.Moment) (*domain.Echo, error) {
+func (m *mockEchoMatcher) Match(ctx context.Context, current *domain.Moment, history []domain.Moment) ([]domain.MatchedMoment, error) {
 	return m.matchFn(ctx, current, history)
 }
 
@@ -60,7 +72,7 @@ func withUserID(ctx context.Context, userID string) context.Context {
 // --- Tests ---
 
 func TestCreateMoment_EmptyContent(t *testing.T) {
-	uc := NewCreateMomentUseCase(nil, nil, nil, nil, nil)
+	uc := NewCreateMomentUseCase(nil, nil, nil, nil, nil, nil)
 	_, err := uc.Execute(withUserID(context.Background(), "user-1"), CreateMomentInput{Content: ""})
 	if !errors.Is(err, domain.ErrEmptyContent) {
 		t.Fatalf("expected ErrEmptyContent, got %v", err)
@@ -68,7 +80,7 @@ func TestCreateMoment_EmptyContent(t *testing.T) {
 }
 
 func TestCreateMoment_MissingUserID(t *testing.T) {
-	uc := NewCreateMomentUseCase(nil, nil, nil, nil, nil)
+	uc := NewCreateMomentUseCase(nil, nil, nil, nil, nil, nil)
 	_, err := uc.Execute(context.Background(), CreateMomentInput{Content: "hello"})
 	if err == nil {
 		t.Fatal("expected error for missing user_id")
@@ -101,24 +113,28 @@ func TestCreateMoment_NewTrace(t *testing.T) {
 		},
 	}
 
+	echos := &mockEchoRepo{
+		createFn: func(ctx context.Context, echo *domain.Echo) error { return nil },
+	}
+
 	embedding := &mockEmbeddingGen{
-		generateFn: func(ctx context.Context, content string) ([]float32, error) {
-			return []float32{0.1, 0.2}, nil
+		generateFn: func(ctx context.Context, content string) ([]domain.EmbeddingEntry, error) {
+			return []domain.EmbeddingEntry{{Model: "test", Embedding: []float32{0.1, 0.2}}}, nil
 		},
 	}
 
 	echo := &mockEchoMatcher{
-		matchFn: func(ctx context.Context, current *domain.Moment, history []domain.Moment) (*domain.Echo, error) {
-			return &domain.Echo{ID: "echo-1", Similarity: 0.8}, nil
+		matchFn: func(ctx context.Context, current *domain.Moment, history []domain.Moment) ([]domain.MatchedMoment, error) {
+			return []domain.MatchedMoment{{MomentID: "old-1", Similarity: 0.8}}, nil
 		},
 	}
 
 	ids := &mockIDGen{id: "id-seq"}
 
-	uc := NewCreateMomentUseCase(traces, moments, embedding, echo, ids)
+	uc := NewCreateMomentUseCase(traces, moments, echos, embedding, echo, ids)
 	output, err := uc.Execute(withUserID(context.Background(), userID), CreateMomentInput{
-		Content: "first moment",
-		Topic:   "my topic",
+		Content:    "first moment",
+		Motivation: "direct",
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -129,8 +145,8 @@ func TestCreateMoment_NewTrace(t *testing.T) {
 	if output.Echo == nil {
 		t.Fatal("expected non-nil Echo")
 	}
-	if output.Echo.ID != "echo-1" {
-		t.Fatalf("expected Echo.ID echo-1, got %s", output.Echo.ID)
+	if output.Echo.MatchedMomentIDs[0] != "old-1" {
+		t.Fatalf("expected MatchedMomentIDs[0] 'old-1', got %q", output.Echo.MatchedMomentIDs[0])
 	}
 }
 
@@ -150,24 +166,28 @@ func TestCreateMoment_ExistingTrace(t *testing.T) {
 		},
 	}
 
+	echos := &mockEchoRepo{
+		createFn: func(ctx context.Context, echo *domain.Echo) error { return nil },
+	}
+
 	embedding := &mockEmbeddingGen{
-		generateFn: func(ctx context.Context, content string) ([]float32, error) {
-			return []float32{0.1, 0.2}, nil
+		generateFn: func(ctx context.Context, content string) ([]domain.EmbeddingEntry, error) {
+			return []domain.EmbeddingEntry{{Model: "test", Embedding: []float32{0.1}}}, nil
 		},
 	}
 
 	echo := &mockEchoMatcher{
-		matchFn: func(ctx context.Context, current *domain.Moment, history []domain.Moment) (*domain.Echo, error) {
+		matchFn: func(ctx context.Context, current *domain.Moment, history []domain.Moment) ([]domain.MatchedMoment, error) {
 			if len(history) != 2 {
 				t.Fatalf("expected 2 history moments, got %d", len(history))
 			}
-			return &domain.Echo{ID: "echo-1"}, nil
+			return []domain.MatchedMoment{{MomentID: "old-1", Similarity: 0.7}}, nil
 		},
 	}
 
 	ids := &mockIDGen{id: "seq-1"}
 
-	uc := NewCreateMomentUseCase(traces, moments, embedding, echo, ids)
+	uc := NewCreateMomentUseCase(traces, moments, echos, embedding, echo, ids)
 	output, err := uc.Execute(withUserID(context.Background(), userID), CreateMomentInput{
 		Content: "continuing",
 		TraceID: "existing-trace",
@@ -189,7 +209,7 @@ func TestCreateMoment_TraceNotFound(t *testing.T) {
 		},
 	}
 
-	uc := NewCreateMomentUseCase(traces, nil, nil, nil, &mockIDGen{id: "x"})
+	uc := NewCreateMomentUseCase(traces, nil, nil, nil, nil, &mockIDGen{id: "x"})
 	_, err := uc.Execute(withUserID(context.Background(), userID), CreateMomentInput{
 		Content: "hello",
 		TraceID: "nonexistent",
@@ -208,7 +228,7 @@ func TestCreateMoment_TraceNotOwnedByUser(t *testing.T) {
 		},
 	}
 
-	uc := NewCreateMomentUseCase(traces, nil, nil, nil, &mockIDGen{id: "x"})
+	uc := NewCreateMomentUseCase(traces, nil, nil, nil, nil, &mockIDGen{id: "x"})
 	_, err := uc.Execute(withUserID(context.Background(), userID), CreateMomentInput{
 		Content: "hello",
 		TraceID: "trace-1",
@@ -237,14 +257,14 @@ func TestCreateMoment_EmbeddingFailure_RollsBackTrace(t *testing.T) {
 	}
 
 	embedding := &mockEmbeddingGen{
-		generateFn: func(ctx context.Context, content string) ([]float32, error) {
+		generateFn: func(ctx context.Context, content string) ([]domain.EmbeddingEntry, error) {
 			return nil, errors.New("AI service unavailable")
 		},
 	}
 
 	ids := &mockIDGen{id: "seq-1"}
 
-	uc := NewCreateMomentUseCase(traces, nil, embedding, nil, ids)
+	uc := NewCreateMomentUseCase(traces, nil, nil, embedding, nil, ids)
 	_, err := uc.Execute(withUserID(context.Background(), userID), CreateMomentInput{
 		Content: "hello",
 	})
@@ -272,14 +292,14 @@ func TestCreateMoment_EchoWithNoHistory(t *testing.T) {
 	}
 
 	embedding := &mockEmbeddingGen{
-		generateFn: func(ctx context.Context, content string) ([]float32, error) {
-			return []float32{0.1}, nil
+		generateFn: func(ctx context.Context, content string) ([]domain.EmbeddingEntry, error) {
+			return []domain.EmbeddingEntry{{Model: "test", Embedding: []float32{0.1}}}, nil
 		},
 	}
 
 	ids := &mockIDGen{id: "s"}
 
-	uc := NewCreateMomentUseCase(traces, moments, embedding, nil, ids)
+	uc := NewCreateMomentUseCase(traces, moments, nil, embedding, nil, ids)
 	output, err := uc.Execute(withUserID(context.Background(), userID), CreateMomentInput{
 		Content: "first ever",
 	})
@@ -307,20 +327,20 @@ func TestCreateMoment_EchoMatchingError(t *testing.T) {
 	}
 
 	embedding := &mockEmbeddingGen{
-		generateFn: func(ctx context.Context, content string) ([]float32, error) {
-			return []float32{0.1}, nil
+		generateFn: func(ctx context.Context, content string) ([]domain.EmbeddingEntry, error) {
+			return []domain.EmbeddingEntry{{Model: "test", Embedding: []float32{0.1}}}, nil
 		},
 	}
 
 	echo := &mockEchoMatcher{
-		matchFn: func(ctx context.Context, current *domain.Moment, history []domain.Moment) (*domain.Echo, error) {
+		matchFn: func(ctx context.Context, current *domain.Moment, history []domain.Moment) ([]domain.MatchedMoment, error) {
 			return nil, errors.New("match failed")
 		},
 	}
 
 	ids := &mockIDGen{id: "s"}
 
-	uc := NewCreateMomentUseCase(traces, moments, embedding, echo, ids)
+	uc := NewCreateMomentUseCase(traces, moments, nil, embedding, echo, ids)
 	_, err := uc.Execute(withUserID(context.Background(), userID), CreateMomentInput{
 		Content: "test",
 	})

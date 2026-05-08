@@ -33,19 +33,13 @@ func (r *TraceRepository) Create(ctx context.Context, trace *domain.Trace) error
 
 	now := time.Now()
 	trace.CreatedAt = now
-	trace.UpdatedAt = now
-
-	var topic pgtype.Text
-	if trace.Topic != "" {
-		topic = pgtype.Text{String: trace.Topic, Valid: true}
-	}
 
 	return r.queries.CreateTrace(ctx, sqlc.CreateTraceParams{
-		ID:        pgtype.UUID{Bytes: [16]byte(uid), Valid: true},
-		UserID:    pgtype.UUID{Bytes: [16]byte(userID), Valid: true},
-		Topic:     topic,
-		CreatedAt: pgtype.Timestamptz{Time: now, Valid: true},
-		UpdatedAt: pgtype.Timestamptz{Time: now, Valid: true},
+		ID:         pgtype.UUID{Bytes: [16]byte(uid), Valid: true},
+		UserID:     pgtype.UUID{Bytes: [16]byte(userID), Valid: true},
+		Motivation: trace.Motivation,
+		Stashed:    trace.Stashed,
+		CreatedAt:  pgtype.Timestamptz{Time: now, Valid: true},
 	})
 }
 
@@ -80,18 +74,9 @@ func (r *TraceRepository) Update(ctx context.Context, trace *domain.Trace) error
 		return err
 	}
 
-	now := time.Now()
-	trace.UpdatedAt = now
-
-	var topic pgtype.Text
-	if trace.Topic != "" {
-		topic = pgtype.Text{String: trace.Topic, Valid: true}
-	}
-
 	return r.queries.UpdateTrace(ctx, sqlc.UpdateTraceParams{
-		ID:        pgtype.UUID{Bytes: [16]byte(uid), Valid: true},
-		Topic:     topic,
-		UpdatedAt: pgtype.Timestamptz{Time: now, Valid: true},
+		ID:      pgtype.UUID{Bytes: [16]byte(uid), Valid: true},
+		Stashed: trace.Stashed,
 	})
 }
 
@@ -99,16 +84,11 @@ func toDomainTrace(row sqlc.Trace) *domain.Trace {
 	id, _ := uuid.FromBytes(row.ID.Bytes[:])
 	userID, _ := uuid.FromBytes(row.UserID.Bytes[:])
 
-	topic := ""
-	if row.Topic.Valid {
-		topic = row.Topic.String
-	}
-
 	return &domain.Trace{
-		ID:        id.String(),
-		UserID:    userID.String(),
-		Topic:     topic,
-		CreatedAt: row.CreatedAt.Time,
-		UpdatedAt: row.UpdatedAt.Time,
+		ID:         id.String(),
+		UserID:     userID.String(),
+		Motivation: row.Motivation,
+		Stashed:    row.Stashed,
+		CreatedAt:  row.CreatedAt.Time,
 	}
 }

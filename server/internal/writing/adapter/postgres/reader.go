@@ -149,3 +149,51 @@ func (r *Reader) ListMomentsByTraceID(ctx context.Context, traceID string) ([]do
 	}
 	return moments, nil
 }
+
+func (r *Reader) ListTracesByUserID(ctx context.Context, userID string, cursor string, pageSize int32) ([]domain.Trace, string, bool, error) {
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, "", false, err
+	}
+
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+
+	var cursorTime pgtype.Timestamptz
+	if cursor != "" {
+		cursorTrace, err := r.GetTraceByID(ctx, cursor)
+		if err != nil {
+			return nil, "", false, err
+		}
+		cursorTime = pgtype.Timestamptz{Time: cursorTrace.CreatedAt, Valid: true}
+	} else {
+		cursorTime = pgtype.Timestamptz{Time: time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true}
+	}
+
+	rows, err := r.queries.ListTracesByUserIDCursor(ctx, sqlc.ListTracesByUserIDCursorParams{
+		UserID:     pgtype.UUID{Bytes: [16]byte(uid), Valid: true},
+		Limit:      pageSize + 1,
+		CursorTime: cursorTime,
+	})
+	if err != nil {
+		return nil, "", false, err
+	}
+
+	traces := make([]domain.Trace, len(rows))
+	for i, row := range rows {
+		traces[i] = *toDomainTrace(row)
+	}
+
+	hasMore := int32(len(traces)) == pageSize+1
+	if hasMore {
+		traces = traces[:pageSize]
+	}
+
+	nextCursor := ""
+	if len(traces) > 0 {
+		nextCursor = traces[len(traces)-1].ID
+	}
+
+	return traces, nextCursor, hasMore, nil
+}

@@ -9,7 +9,6 @@ import (
 	"context"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/pgvector/pgvector-go"
 )
 
 const countMomentsByUserID = `-- name: CountMomentsByUserID :one
@@ -24,18 +23,17 @@ func (q *Queries) CountMomentsByUserID(ctx context.Context, userID pgtype.UUID) 
 }
 
 const createMoment = `-- name: CreateMoment :exec
-INSERT INTO moments (id, trace_id, user_id, content, embedding, connected, created_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO moments (id, trace_id, user_id, content, embeddings, created_at)
+VALUES ($1, $2, $3, $4, $5, $6)
 `
 
 type CreateMomentParams struct {
-	ID        pgtype.UUID
-	TraceID   pgtype.UUID
-	UserID    pgtype.UUID
-	Content   string
-	Embedding pgvector.Vector
-	Connected bool
-	CreatedAt pgtype.Timestamptz
+	ID         pgtype.UUID
+	TraceID    pgtype.UUID
+	UserID     pgtype.UUID
+	Content    string
+	Embeddings []byte
+	CreatedAt  pgtype.Timestamptz
 }
 
 func (q *Queries) CreateMoment(ctx context.Context, arg CreateMomentParams) error {
@@ -44,15 +42,14 @@ func (q *Queries) CreateMoment(ctx context.Context, arg CreateMomentParams) erro
 		arg.TraceID,
 		arg.UserID,
 		arg.Content,
-		arg.Embedding,
-		arg.Connected,
+		arg.Embeddings,
 		arg.CreatedAt,
 	)
 	return err
 }
 
 const getMomentByID = `-- name: GetMomentByID :one
-SELECT id, trace_id, user_id, content, embedding, connected, created_at
+SELECT id, trace_id, user_id, content, embeddings, created_at
 FROM moments WHERE id = $1
 `
 
@@ -64,15 +61,14 @@ func (q *Queries) GetMomentByID(ctx context.Context, id pgtype.UUID) (Moment, er
 		&i.TraceID,
 		&i.UserID,
 		&i.Content,
-		&i.Embedding,
-		&i.Connected,
+		&i.Embeddings,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const listMomentsByTraceID = `-- name: ListMomentsByTraceID :many
-SELECT id, trace_id, user_id, content, embedding, connected, created_at
+SELECT id, trace_id, user_id, content, embeddings, created_at
 FROM moments WHERE trace_id = $1 ORDER BY created_at ASC
 `
 
@@ -90,8 +86,7 @@ func (q *Queries) ListMomentsByTraceID(ctx context.Context, traceID pgtype.UUID)
 			&i.TraceID,
 			&i.UserID,
 			&i.Content,
-			&i.Embedding,
-			&i.Connected,
+			&i.Embeddings,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -105,7 +100,7 @@ func (q *Queries) ListMomentsByTraceID(ctx context.Context, traceID pgtype.UUID)
 }
 
 const listMomentsByUserID = `-- name: ListMomentsByUserID :many
-SELECT id, trace_id, user_id, content, embedding, connected, created_at
+SELECT id, trace_id, user_id, content, embeddings, created_at
 FROM moments WHERE user_id = $1 ORDER BY created_at DESC
 `
 
@@ -123,8 +118,7 @@ func (q *Queries) ListMomentsByUserID(ctx context.Context, userID pgtype.UUID) (
 			&i.TraceID,
 			&i.UserID,
 			&i.Content,
-			&i.Embedding,
-			&i.Connected,
+			&i.Embeddings,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -138,7 +132,7 @@ func (q *Queries) ListMomentsByUserID(ctx context.Context, userID pgtype.UUID) (
 }
 
 const listMomentsByUserIDCursor = `-- name: ListMomentsByUserIDCursor :many
-SELECT id, trace_id, user_id, content, embedding, connected, created_at
+SELECT id, trace_id, user_id, content, embeddings, created_at
 FROM moments
 WHERE user_id = $1 AND created_at < $3::timestamptz
 ORDER BY created_at DESC
@@ -165,8 +159,7 @@ func (q *Queries) ListMomentsByUserIDCursor(ctx context.Context, arg ListMoments
 			&i.TraceID,
 			&i.UserID,
 			&i.Content,
-			&i.Embedding,
-			&i.Connected,
+			&i.Embeddings,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -180,7 +173,7 @@ func (q *Queries) ListMomentsByUserIDCursor(ctx context.Context, arg ListMoments
 }
 
 const randomMomentsByUserID = `-- name: RandomMomentsByUserID :many
-SELECT id, trace_id, user_id, content, embedding, connected, created_at
+SELECT id, trace_id, user_id, content, embeddings, created_at
 FROM moments WHERE user_id = $1 ORDER BY random() LIMIT $2
 `
 
@@ -203,8 +196,7 @@ func (q *Queries) RandomMomentsByUserID(ctx context.Context, arg RandomMomentsBy
 			&i.TraceID,
 			&i.UserID,
 			&i.Content,
-			&i.Embedding,
-			&i.Connected,
+			&i.Embeddings,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err

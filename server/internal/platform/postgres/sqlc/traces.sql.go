@@ -12,25 +12,25 @@ import (
 )
 
 const createTrace = `-- name: CreateTrace :exec
-INSERT INTO traces (id, user_id, topic, created_at, updated_at)
+INSERT INTO traces (id, user_id, motivation, stashed, created_at)
 VALUES ($1, $2, $3, $4, $5)
 `
 
 type CreateTraceParams struct {
-	ID        pgtype.UUID
-	UserID    pgtype.UUID
-	Topic     pgtype.Text
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
+	ID         pgtype.UUID
+	UserID     pgtype.UUID
+	Motivation string
+	Stashed    bool
+	CreatedAt  pgtype.Timestamptz
 }
 
 func (q *Queries) CreateTrace(ctx context.Context, arg CreateTraceParams) error {
 	_, err := q.db.Exec(ctx, createTrace,
 		arg.ID,
 		arg.UserID,
-		arg.Topic,
+		arg.Motivation,
+		arg.Stashed,
 		arg.CreatedAt,
-		arg.UpdatedAt,
 	)
 	return err
 }
@@ -45,7 +45,7 @@ func (q *Queries) DeleteTrace(ctx context.Context, id pgtype.UUID) error {
 }
 
 const getTraceByID = `-- name: GetTraceByID :one
-SELECT id, user_id, topic, created_at, updated_at
+SELECT id, user_id, motivation, stashed, created_at
 FROM traces WHERE id = $1
 `
 
@@ -55,24 +55,63 @@ func (q *Queries) GetTraceByID(ctx context.Context, id pgtype.UUID) (Trace, erro
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
-		&i.Topic,
+		&i.Motivation,
+		&i.Stashed,
 		&i.CreatedAt,
-		&i.UpdatedAt,
 	)
 	return i, err
 }
 
+const listTracesByUserIDCursor = `-- name: ListTracesByUserIDCursor :many
+SELECT id, user_id, motivation, stashed, created_at
+FROM traces
+WHERE user_id = $1 AND created_at < $3::timestamptz
+ORDER BY created_at DESC
+LIMIT $2
+`
+
+type ListTracesByUserIDCursorParams struct {
+	UserID     pgtype.UUID
+	Limit      int32
+	CursorTime pgtype.Timestamptz
+}
+
+func (q *Queries) ListTracesByUserIDCursor(ctx context.Context, arg ListTracesByUserIDCursorParams) ([]Trace, error) {
+	rows, err := q.db.Query(ctx, listTracesByUserIDCursor, arg.UserID, arg.Limit, arg.CursorTime)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Trace
+	for rows.Next() {
+		var i Trace
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Motivation,
+			&i.Stashed,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateTrace = `-- name: UpdateTrace :exec
-UPDATE traces SET topic = $2, updated_at = $3 WHERE id = $1
+UPDATE traces SET stashed = $2 WHERE id = $1
 `
 
 type UpdateTraceParams struct {
-	ID        pgtype.UUID
-	Topic     pgtype.Text
-	UpdatedAt pgtype.Timestamptz
+	ID      pgtype.UUID
+	Stashed bool
 }
 
 func (q *Queries) UpdateTrace(ctx context.Context, arg UpdateTraceParams) error {
-	_, err := q.db.Exec(ctx, updateTrace, arg.ID, arg.Topic, arg.UpdatedAt)
+	_, err := q.db.Exec(ctx, updateTrace, arg.ID, arg.Stashed)
 	return err
 }
