@@ -3,7 +3,7 @@
 ## Current State
 
 - Auth: JWT primitives and gRPC interceptor implemented, tests passing.
-- Postgres: Docker Compose configured (pgvector/pgvector:pg16), volume fixed to managed Docker volume. Connection pool (`Connect()`) tested. Migrations (`001_users.sql`) applied. sqlc queries (`CreateUser`, `GetUserByAccount`) tested — 6 tests passing.
+- Postgres: Docker Compose configured (pgvector/pgvector:pg16), volume fixed to managed Docker volume. Connection pool (`Connect()`) tested. Migrations (`001_users.sql`, `002_moments.sql`, `003_traces.sql`) applied. sqlc queries tested — 21 tests passing (3 users + 7 moments + 5 traces + 2 connection).
 - grpc: placeholder (README only, no code).
 - ai: placeholder (README only, no code).
 - eventbus: placeholder (README only, no code).

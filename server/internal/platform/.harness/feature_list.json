@@ -14,7 +14,9 @@
       "status": "passing",
       "evidence": [
         "server/internal/platform/postgres/postgres_test.go",
-        "server/internal/platform/postgres/sqlc/users_test.go"
+        "server/internal/platform/postgres/sqlc/users_test.go",
+        "server/internal/platform/postgres/sqlc/moments_test.go",
+        "server/internal/platform/postgres/sqlc/traces_test.go"
       ]
     }
   ]
