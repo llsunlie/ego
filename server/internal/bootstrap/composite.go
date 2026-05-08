@@ -15,14 +15,16 @@ type EgoHandler struct {
 	writing  pb.EgoServer
 	timeline pb.EgoServer
 	starmap  pb.EgoServer
+	chat     pb.EgoServer
 }
 
-func NewEgoHandler(identity, writing, timeline, starmap pb.EgoServer) *EgoHandler {
+func NewEgoHandler(identity, writing, timeline, starmap, chat pb.EgoServer) *EgoHandler {
 	return &EgoHandler{
 		identity: identity,
 		writing:  writing,
 		timeline: timeline,
 		starmap:  starmap,
+		chat:     chat,
 	}
 }
 
@@ -67,4 +69,13 @@ func (h *EgoHandler) ListConstellations(ctx context.Context, req *pb.ListConstel
 
 func (h *EgoHandler) GetConstellation(ctx context.Context, req *pb.GetConstellationReq) (*pb.GetConstellationRes, error) {
 	return h.starmap.GetConstellation(ctx, req)
+}
+
+// Chat — delegated to chat.
+func (h *EgoHandler) StartChat(ctx context.Context, req *pb.StartChatReq) (*pb.StartChatRes, error) {
+	return h.chat.StartChat(ctx, req)
+}
+
+func (h *EgoHandler) SendMessage(ctx context.Context, req *pb.SendMessageReq) (*pb.SendMessageRes, error) {
+	return h.chat.SendMessage(ctx, req)
 }

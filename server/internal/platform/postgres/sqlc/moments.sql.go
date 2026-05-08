@@ -67,6 +67,38 @@ func (q *Queries) GetMomentByID(ctx context.Context, id pgtype.UUID) (Moment, er
 	return i, err
 }
 
+const listMomentsByIDs = `-- name: ListMomentsByIDs :many
+SELECT id, trace_id, user_id, content, embeddings, created_at
+FROM moments WHERE id = ANY($1::UUID[])
+`
+
+func (q *Queries) ListMomentsByIDs(ctx context.Context, dollar_1 []pgtype.UUID) ([]Moment, error) {
+	rows, err := q.db.Query(ctx, listMomentsByIDs, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Moment
+	for rows.Next() {
+		var i Moment
+		if err := rows.Scan(
+			&i.ID,
+			&i.TraceID,
+			&i.UserID,
+			&i.Content,
+			&i.Embeddings,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMomentsByTraceID = `-- name: ListMomentsByTraceID :many
 SELECT id, trace_id, user_id, content, embeddings, created_at
 FROM moments WHERE trace_id = $1 ORDER BY created_at ASC

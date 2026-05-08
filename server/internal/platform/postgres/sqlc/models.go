@@ -8,6 +8,24 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type ChatMessage struct {
+	ID                pgtype.UUID
+	UserID            pgtype.UUID
+	SessionID         pgtype.UUID
+	Role              string
+	Content           string
+	ReferencedMoments []byte
+	CreatedAt         pgtype.Timestamptz
+}
+
+type ChatSession struct {
+	ID               pgtype.UUID
+	UserID           pgtype.UUID
+	StarID           pgtype.UUID
+	ContextMomentIds []pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+}
+
 type Constellation struct {
 	ID                   pgtype.UUID
 	UserID               pgtype.UUID

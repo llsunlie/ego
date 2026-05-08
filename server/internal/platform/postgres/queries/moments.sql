@@ -27,3 +27,7 @@ FROM moments WHERE user_id = $1 ORDER BY random() LIMIT $2;
 
 -- name: CountMomentsByUserID :one
 SELECT COUNT(*) FROM moments WHERE user_id = $1;
+
+-- name: ListMomentsByIDs :many
+SELECT id, trace_id, user_id, content, embeddings, created_at
+FROM moments WHERE id = ANY($1::UUID[]);
