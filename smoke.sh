@@ -55,8 +55,8 @@ info "starting PostgreSQL via docker compose..."
 cd "$PROJECT_DIR"
 # Clean data: remove volume and bind-mount directory, then recreate
 docker compose down --volumes --remove-orphans 2>/dev/null || true
-rm -rf ./data 2>/dev/null || true
-mkdir -p ./data
+	docker run --rm -v "$PROJECT_DIR/data:/data" alpine:latest sh -c "rm -rf /data/*" 2>/dev/null || rm -rf ./data 2>/dev/null || true
+	mkdir -p ./data
 docker compose up -d postgres
 
 # wait for PG to be ready
@@ -287,6 +287,46 @@ for item in json.load(sys.stdin)['items']:
 pass "trace detail: item #2 has echo + insight"
 
 # ============================================================================
+# Smoke Test: GetRandomMoments — 记忆光点盲盒
+# ============================================================================
+
+info "=== Smoke: GetRandomMoments ==="
+
+# With explicit count
+REQ_GRM='{"count":2}'
+RES_GRM=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ_GRM" "$GRPC_ADDR" ego.Ego/GetRandomMoments 2>&1)
+echo "  GetRandomMoments (count=2): $RES_GRM"
+
+GRM_COUNT=$(echo "$RES_GRM" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('moments',[])))")
+[ "$GRM_COUNT" -eq 2 ] || fail "GetRandomMoments: expected 2 moments, got $GRM_COUNT"
+pass "GetRandomMoments: $GRM_COUNT moments returned"
+
+# Verify each moment has required fields
+GRM1_ID=$(echo "$RES_GRM" | python3 -c "import sys,json; m=json.load(sys.stdin)['moments']; print(m[0]['id'])")
+GRM1_CONTENT=$(echo "$RES_GRM" | python3 -c "import sys,json; m=json.load(sys.stdin)['moments']; print(m[0]['content'])")
+GRM1_TRACE=$(echo "$RES_GRM" | python3 -c "import sys,json; m=json.load(sys.stdin)['moments']; print(m[0]['traceId'])")
+
+[ -n "$GRM1_ID" ] && [ "$GRM1_ID" != "null" ] || fail "GetRandomMoments: moment.id is empty"
+[ -n "$GRM1_CONTENT" ] && [ "$GRM1_CONTENT" != "null" ] || fail "GetRandomMoments: moment.content is empty"
+[ -n "$GRM1_TRACE" ] && [ "$GRM1_TRACE" != "null" ] || fail "GetRandomMoments: moment.traceId is empty"
+pass "GetRandomMoments: all moments have id, content, traceId"
+
+# All returned moments should belong to the current user's trace
+for i in $(seq 0 $((GRM_COUNT - 1))); do
+  M_TRACE=$(echo "$RES_GRM" | python3 -c "import sys,json; m=json.load(sys.stdin)['moments']; print(m[$i]['traceId'])")
+  [ "$M_TRACE" = "$MOMENT1_TRACE" ] || fail "GetRandomMoments: moment[$i] traceId=$M_TRACE, expected $MOMENT1_TRACE (user's only trace)"
+done
+pass "GetRandomMoments: all moments belong to user's trace"
+
+# Default count (no count specified → default 3)
+RES_GRM_DEF=$($GRPCURL -plaintext -H "$AUTH" -d '{}' "$GRPC_ADDR" ego.Ego/GetRandomMoments 2>&1)
+echo "  GetRandomMoments (default): $RES_GRM_DEF"
+GRM_DEF_COUNT=$(echo "$RES_GRM_DEF" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('moments',[])))")
+# With only 3 total moments, default count of 3 should return at most 3
+[ "$GRM_DEF_COUNT" -le 3 ] || fail "GetRandomMoments default: expected <= 3, got $GRM_DEF_COUNT"
+pass "GetRandomMoments default count: $GRM_DEF_COUNT moments"
+
+# ============================================================================
 # All smoke tests passed
 # ============================================================================
 
@@ -295,8 +335,9 @@ echo -e "${GREEN}========================================${RESET}"
 echo -e "${GREEN}  All smoke tests passed!${RESET}"
 echo -e "${GREEN}========================================${RESET}"
 echo ""
-echo "  F1 Write+Observe    : PASS"
-echo "  F2 ContinueTrace    : PASS"
-echo "  ListTraces          : PASS"
-echo "  GetTraceDetail      : PASS"
+echo "  F1 Write+Observe     : PASS"
+echo "  F2 ContinueTrace     : PASS"
+echo "  ListTraces           : PASS"
+echo "  GetTraceDetail       : PASS"
+echo "  GetRandomMoments     : PASS"
 echo ""

@@ -18,7 +18,8 @@ func main() {
 
 	identityHandler := bootstrap.NewIdentityHandler(p)
 	writingHandler := bootstrap.NewWritingHandler(p)
-	handler := bootstrap.NewEgoHandler(identityHandler, writingHandler)
+	timelineHandler := bootstrap.NewTimelineHandler(p)
+	handler := bootstrap.NewEgoHandler(identityHandler, writingHandler, timelineHandler)
 	server := bootstrap.NewServer(cfg, p, handler)
 
 	if err := server.Serve(); err != nil {
