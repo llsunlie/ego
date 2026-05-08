@@ -3,8 +3,7 @@ CREATE TABLE moments (
   trace_id   UUID NOT NULL,
   user_id    UUID NOT NULL,
   content    TEXT NOT NULL,
-  embedding  vector(1536),
-  connected  BOOLEAN NOT NULL DEFAULT false,
+  embeddings JSONB NOT NULL DEFAULT '[]'::JSONB,
   created_at TIMESTAMPTZ NOT NULL
 );
 

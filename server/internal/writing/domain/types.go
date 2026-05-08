@@ -6,39 +6,63 @@ import "time"
 // A Trace is auto-created when the user writes their first Moment,
 // and subsequent Moments can be added to the same Trace ("顺着再想想").
 type Trace struct {
-	ID        string
-	UserID    string
-	Topic     string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID         string
+	UserID     string
+	Motivation string // 'direct' | 'trace:<id>' | 'constellation:<id>'
+	Stashed    bool
+	CreatedAt  time.Time
 }
 
 // Moment is an entity representing a single piece of writing by the user.
 // Each Moment belongs to exactly one Trace.
 type Moment struct {
-	ID        string
-	TraceID   string
-	UserID    string
-	Content   string
-	Embedding []float32
-	Connected bool
-	CreatedAt time.Time
+	ID         string
+	TraceID    string
+	UserID     string
+	Content    string
+	Embeddings []EmbeddingEntry
+	CreatedAt  time.Time
 }
 
-// Echo is a value object representing the matched historical Moment
-// along with alternative candidates for the user to explore.
+// EmbeddingEntry holds an embedding vector with its model identifier.
+// Multiple entries allow coexistence of embeddings from different model versions.
+type EmbeddingEntry struct {
+	Model     string    `json:"model"`
+	Embedding []float32 `json:"embedding"`
+}
+
+// Echo is an entity representing a single historical echo match result.
+// Persisted per-Moment: one Echo per CreateMoment call.
 type Echo struct {
-	ID           string
-	TargetMoment Moment
-	Candidates   []Moment
-	Similarity   float64
+	ID               string
+	MomentID         string
+	UserID           string
+	MatchedMomentIDs []string
+	Similarities     []float64
+	CreatedAt        time.Time
 }
 
-// Insight is an entity representing a current-session AI-generated observation.
-// Writing generates this on-the-fly and returns it without persisting.
-// Constellation-level insights are owned by the Starmap module.
+// Insight is an entity representing an AI-generated second-person observation
+// for a specific Moment, based on its Echo.
 type Insight struct {
 	ID               string
+	UserID           string
+	MomentID         string
+	EchoID           string
 	Text             string
 	RelatedMomentIDs []string
+	CreatedAt        time.Time
+}
+
+// MatchedMoment is a value object pairing a historical Moment ID with its similarity score.
+type MatchedMoment struct {
+	MomentID   string
+	Similarity float64
+}
+
+// TraceItem groups a Moment with its Echos and Insight for trace detail views.
+type TraceItem struct {
+	Moment  Moment
+	Echos   []Echo
+	Insight *Insight
 }

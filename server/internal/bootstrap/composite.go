@@ -36,3 +36,12 @@ func (h *EgoHandler) CreateMoment(ctx context.Context, req *pb.CreateMomentReq) 
 func (h *EgoHandler) GenerateInsight(ctx context.Context, req *pb.GenerateInsightReq) (*pb.GenerateInsightRes, error) {
 	return h.writing.GenerateInsight(ctx, req)
 }
+
+// Trace — delegated to writing.
+func (h *EgoHandler) ListTraces(ctx context.Context, req *pb.ListTracesReq) (*pb.ListTracesRes, error) {
+	return h.writing.ListTraces(ctx, req)
+}
+
+func (h *EgoHandler) GetTraceDetail(ctx context.Context, req *pb.GetTraceDetailReq) (*pb.GetTraceDetailRes, error) {
+	return h.writing.GetTraceDetail(ctx, req)
+}

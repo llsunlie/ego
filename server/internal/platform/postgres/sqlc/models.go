@@ -6,25 +6,42 @@ package sqlc
 
 import (
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/pgvector/pgvector-go"
 )
 
+type Echo struct {
+	ID               pgtype.UUID
+	MomentID         pgtype.UUID
+	UserID           pgtype.UUID
+	MatchedMomentIds []pgtype.UUID
+	Similarities     []float64
+	CreatedAt        pgtype.Timestamptz
+}
+
+type Insight struct {
+	ID               pgtype.UUID
+	UserID           pgtype.UUID
+	MomentID         pgtype.UUID
+	EchoID           pgtype.UUID
+	Text             string
+	RelatedMomentIds []pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+}
+
 type Moment struct {
-	ID        pgtype.UUID
-	TraceID   pgtype.UUID
-	UserID    pgtype.UUID
-	Content   string
-	Embedding pgvector.Vector
-	Connected bool
-	CreatedAt pgtype.Timestamptz
+	ID         pgtype.UUID
+	TraceID    pgtype.UUID
+	UserID     pgtype.UUID
+	Content    string
+	Embeddings []byte
+	CreatedAt  pgtype.Timestamptz
 }
 
 type Trace struct {
-	ID        pgtype.UUID
-	UserID    pgtype.UUID
-	Topic     pgtype.Text
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
+	ID         pgtype.UUID
+	UserID     pgtype.UUID
+	Motivation string
+	Stashed    bool
+	CreatedAt  pgtype.Timestamptz
 }
 
 type User struct {

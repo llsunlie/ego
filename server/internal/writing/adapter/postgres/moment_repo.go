@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -11,7 +12,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/pgvector/pgvector-go"
 )
 
 type MomentRepository struct {
@@ -39,19 +39,18 @@ func (r *MomentRepository) Create(ctx context.Context, moment *domain.Moment) er
 	now := time.Now()
 	moment.CreatedAt = now
 
-	embedding := pgvector.NewVector(make([]float32, 0))
-	if len(moment.Embedding) > 0 {
-		embedding = pgvector.NewVector(moment.Embedding)
+	embeddingsJSON, err := json.Marshal(moment.Embeddings)
+	if err != nil {
+		return err
 	}
 
 	return r.queries.CreateMoment(ctx, sqlc.CreateMomentParams{
-		ID:        pgtype.UUID{Bytes: [16]byte(uid), Valid: true},
-		TraceID:   pgtype.UUID{Bytes: [16]byte(traceID), Valid: true},
-		UserID:    pgtype.UUID{Bytes: [16]byte(userID), Valid: true},
-		Content:   moment.Content,
-		Embedding: embedding,
-		Connected: false,
-		CreatedAt: pgtype.Timestamptz{Time: now, Valid: true},
+		ID:         pgtype.UUID{Bytes: [16]byte(uid), Valid: true},
+		TraceID:    pgtype.UUID{Bytes: [16]byte(traceID), Valid: true},
+		UserID:     pgtype.UUID{Bytes: [16]byte(userID), Valid: true},
+		Content:    moment.Content,
+		Embeddings: embeddingsJSON,
+		CreatedAt:  pgtype.Timestamptz{Time: now, Valid: true},
 	})
 }
 
@@ -113,18 +112,20 @@ func toDomainMoment(row sqlc.Moment) *domain.Moment {
 	traceID, _ := uuid.FromBytes(row.TraceID.Bytes[:])
 	userID, _ := uuid.FromBytes(row.UserID.Bytes[:])
 
-	var embedding []float32
-	if vec := row.Embedding.Slice(); vec != nil {
-		embedding = vec
+	var embeddings []domain.EmbeddingEntry
+	if len(row.Embeddings) > 0 {
+		json.Unmarshal(row.Embeddings, &embeddings)
+	}
+	if embeddings == nil {
+		embeddings = []domain.EmbeddingEntry{}
 	}
 
 	return &domain.Moment{
-		ID:        id.String(),
-		TraceID:   traceID.String(),
-		UserID:    userID.String(),
-		Content:   row.Content,
-		Embedding: embedding,
-		Connected: row.Connected,
-		CreatedAt: row.CreatedAt.Time,
+		ID:         id.String(),
+		TraceID:    traceID.String(),
+		UserID:     userID.String(),
+		Content:    row.Content,
+		Embeddings: embeddings,
+		CreatedAt:  row.CreatedAt.Time,
 	}
 }

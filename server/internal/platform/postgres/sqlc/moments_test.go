@@ -7,36 +7,29 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/pgvector/pgvector-go"
 )
 
-func testEmbedding() pgvector.Vector {
-	v := make([]float32, 1536)
-	v[0] = 0.1
-	v[1] = 0.2
-	v[2] = 0.3
-	return pgvector.NewVector(v)
+func testEmbeddings() []byte {
+	return []byte(`[{"model":"test","embedding":[0.1,0.2,0.3]}]`)
 }
 
 func createTestMoment(t *testing.T, q *Queries, userID string) (moment Moment) {
 	t.Helper()
 	moment = Moment{
-		ID:        pgUUID(uuid.New().String()),
-		TraceID:   pgUUID(uuid.New().String()),
-		UserID:    pgUUID(userID),
-		Content:   "test content " + uuid.NewString(),
-		Embedding: testEmbedding(),
-		Connected: false,
-		CreatedAt: pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true},
+		ID:         pgUUID(uuid.New().String()),
+		TraceID:    pgUUID(uuid.New().String()),
+		UserID:     pgUUID(userID),
+		Content:    "test content " + uuid.NewString(),
+		Embeddings: testEmbeddings(),
+		CreatedAt:  pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true},
 	}
 	err := q.CreateMoment(context.Background(), CreateMomentParams{
-		ID:        moment.ID,
-		TraceID:   moment.TraceID,
-		UserID:    moment.UserID,
-		Content:   moment.Content,
-		Embedding: moment.Embedding,
-		Connected: moment.Connected,
-		CreatedAt: moment.CreatedAt,
+		ID:         moment.ID,
+		TraceID:    moment.TraceID,
+		UserID:     moment.UserID,
+		Content:    moment.Content,
+		Embeddings: moment.Embeddings,
+		CreatedAt:  moment.CreatedAt,
 	})
 	if err != nil {
 		t.Fatalf("CreateMoment: %v", err)
@@ -54,13 +47,12 @@ func TestCreateMoment(t *testing.T) {
 	now := time.Now().UTC()
 
 	err := q.CreateMoment(context.Background(), CreateMomentParams{
-		ID:        pgUUID(id.String()),
-		TraceID:   pgUUID(uuid.New().String()),
-		UserID:    pgUUID(userID.String()),
-		Content:   "hello world",
-		Embedding: testEmbedding(),
-		Connected: false,
-		CreatedAt: pgtype.Timestamptz{Time: now, Valid: true},
+		ID:         pgUUID(id.String()),
+		TraceID:    pgUUID(uuid.New().String()),
+		UserID:     pgUUID(userID.String()),
+		Content:    "hello world",
+		Embeddings: testEmbeddings(),
+		CreatedAt:  pgtype.Timestamptz{Time: now, Valid: true},
 	})
 	if err != nil {
 		t.Fatalf("CreateMoment: %v", err)
@@ -107,13 +99,12 @@ func TestListMomentsByTraceID(t *testing.T) {
 	// Create 2 moments sharing the same trace_id
 	for range 2 {
 		err := q.CreateMoment(context.Background(), CreateMomentParams{
-			ID:        pgUUID(uuid.New().String()),
-			TraceID:   pgUUID(traceID.String()),
-			UserID:    pgUUID(userID.String()),
-			Content:   "moment in trace",
-			Embedding: testEmbedding(),
-			Connected: false,
-			CreatedAt: pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true},
+			ID:         pgUUID(uuid.New().String()),
+			TraceID:    pgUUID(traceID.String()),
+			UserID:     pgUUID(userID.String()),
+			Content:    "moment in trace",
+			Embeddings: testEmbeddings(),
+			CreatedAt:  pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true},
 		})
 		if err != nil {
 			t.Fatalf("CreateMoment: %v", err)
@@ -179,42 +170,38 @@ func TestListMomentsByUserIDCursor(t *testing.T) {
 	t3 := time.Now().UTC()
 
 	m1 := Moment{
-		ID:        pgUUID(uuid.New().String()),
-		TraceID:   pgUUID(uuid.New().String()),
-		UserID:    pgUUID(userID.String()),
-		Content:   "first",
-		Embedding: testEmbedding(),
-		Connected: false,
-		CreatedAt: pgtype.Timestamptz{Time: t1, Valid: true},
+		ID:         pgUUID(uuid.New().String()),
+		TraceID:    pgUUID(uuid.New().String()),
+		UserID:     pgUUID(userID.String()),
+		Content:    "first",
+		Embeddings: testEmbeddings(),
+		CreatedAt:  pgtype.Timestamptz{Time: t1, Valid: true},
 	}
 	m2 := Moment{
-		ID:        pgUUID(uuid.New().String()),
-		TraceID:   pgUUID(uuid.New().String()),
-		UserID:    pgUUID(userID.String()),
-		Content:   "second",
-		Embedding: testEmbedding(),
-		Connected: false,
-		CreatedAt: pgtype.Timestamptz{Time: t2, Valid: true},
+		ID:         pgUUID(uuid.New().String()),
+		TraceID:    pgUUID(uuid.New().String()),
+		UserID:     pgUUID(userID.String()),
+		Content:    "second",
+		Embeddings: testEmbeddings(),
+		CreatedAt:  pgtype.Timestamptz{Time: t2, Valid: true},
 	}
 	m3 := Moment{
-		ID:        pgUUID(uuid.New().String()),
-		TraceID:   pgUUID(uuid.New().String()),
-		UserID:    pgUUID(userID.String()),
-		Content:   "third",
-		Embedding: testEmbedding(),
-		Connected: false,
-		CreatedAt: pgtype.Timestamptz{Time: t3, Valid: true},
+		ID:         pgUUID(uuid.New().String()),
+		TraceID:    pgUUID(uuid.New().String()),
+		UserID:     pgUUID(userID.String()),
+		Content:    "third",
+		Embeddings: testEmbeddings(),
+		CreatedAt:  pgtype.Timestamptz{Time: t3, Valid: true},
 	}
 
 	for _, m := range []Moment{m1, m2, m3} {
 		err := q.CreateMoment(context.Background(), CreateMomentParams{
-			ID:        m.ID,
-			TraceID:   m.TraceID,
-			UserID:    m.UserID,
-			Content:   m.Content,
-			Embedding: m.Embedding,
-			Connected: m.Connected,
-			CreatedAt: m.CreatedAt,
+			ID:         m.ID,
+			TraceID:    m.TraceID,
+			UserID:     m.UserID,
+			Content:    m.Content,
+			Embeddings: m.Embeddings,
+			CreatedAt:  m.CreatedAt,
 		})
 		if err != nil {
 			t.Fatalf("CreateMoment: %v", err)

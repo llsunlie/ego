@@ -13,6 +13,7 @@ import (
 type CreateMomentUseCase struct {
 	traces    domain.TraceRepository
 	moments   domain.MomentRepository
+	echos     domain.EchoRepository
 	embedding domain.EmbeddingGenerator
 	echo      domain.EchoMatcher
 	ids       IDGenerator
@@ -21,6 +22,7 @@ type CreateMomentUseCase struct {
 func NewCreateMomentUseCase(
 	traces domain.TraceRepository,
 	moments domain.MomentRepository,
+	echos domain.EchoRepository,
 	embedding domain.EmbeddingGenerator,
 	echo domain.EchoMatcher,
 	ids IDGenerator,
@@ -28,6 +30,7 @@ func NewCreateMomentUseCase(
 	return &CreateMomentUseCase{
 		traces:    traces,
 		moments:   moments,
+		echos:     echos,
 		embedding: embedding,
 		echo:      echo,
 		ids:       ids,
@@ -35,9 +38,9 @@ func NewCreateMomentUseCase(
 }
 
 type CreateMomentInput struct {
-	Content string
-	TraceID string
-	Topic   string
+	Content    string
+	TraceID    string
+	Motivation string
 }
 
 type CreateMomentOutput struct {
@@ -58,7 +61,11 @@ func (uc *CreateMomentUseCase) Execute(ctx context.Context, input CreateMomentIn
 	var newTrace bool
 	traceID := input.TraceID
 	if traceID == "" {
-		trace, err := uc.createTrace(ctx, userID, input.Topic)
+		motivation := input.Motivation
+		if motivation == "" {
+			motivation = "direct"
+		}
+		trace, err := uc.createTrace(ctx, userID, motivation)
 		if err != nil {
 			return nil, fmt.Errorf("create trace: %w", err)
 		}
@@ -93,13 +100,13 @@ func (uc *CreateMomentUseCase) Execute(ctx context.Context, input CreateMomentIn
 	}, nil
 }
 
-func (uc *CreateMomentUseCase) createTrace(ctx context.Context, userID, topic string) (*domain.Trace, error) {
+func (uc *CreateMomentUseCase) createTrace(ctx context.Context, userID, motivation string) (*domain.Trace, error) {
 	trace := &domain.Trace{
-		ID:        uc.ids.New(),
-		UserID:    userID,
-		Topic:     topic,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:         uc.ids.New(),
+		UserID:     userID,
+		Motivation: motivation,
+		Stashed:    false,
+		CreatedAt:  time.Now(),
 	}
 	if err := uc.traces.Create(ctx, trace); err != nil {
 		return nil, err
@@ -108,19 +115,18 @@ func (uc *CreateMomentUseCase) createTrace(ctx context.Context, userID, topic st
 }
 
 func (uc *CreateMomentUseCase) createMoment(ctx context.Context, userID, traceID, content string) (*domain.Moment, error) {
-	embedding, err := uc.embedding.Generate(ctx, content)
+	embeddings, err := uc.embedding.Generate(ctx, content)
 	if err != nil {
 		return nil, fmt.Errorf("generate embedding: %w", err)
 	}
 
 	moment := &domain.Moment{
-		ID:        uc.ids.New(),
-		TraceID:   traceID,
-		UserID:    userID,
-		Content:   content,
-		Embedding: embedding,
-		Connected: false,
-		CreatedAt: time.Now(),
+		ID:         uc.ids.New(),
+		TraceID:    traceID,
+		UserID:     userID,
+		Content:    content,
+		Embeddings: embeddings,
+		CreatedAt:  time.Now(),
 	}
 
 	if err := uc.moments.Create(ctx, moment); err != nil {
@@ -140,7 +146,35 @@ func (uc *CreateMomentUseCase) matchEcho(ctx context.Context, moment *domain.Mom
 		return nil, nil
 	}
 
-	return uc.echo.Match(ctx, moment, history)
+	matches, err := uc.echo.Match(ctx, moment, history)
+	if err != nil {
+		return nil, err
+	}
+	if len(matches) == 0 {
+		return nil, nil
+	}
+
+	matchedIDs := make([]string, len(matches))
+	similarities := make([]float64, len(matches))
+	for i, m := range matches {
+		matchedIDs[i] = m.MomentID
+		similarities[i] = m.Similarity
+	}
+
+	echo := &domain.Echo{
+		ID:               uc.ids.New(),
+		MomentID:         moment.ID,
+		UserID:           userID,
+		MatchedMomentIDs: matchedIDs,
+		Similarities:     similarities,
+		CreatedAt:        time.Now(),
+	}
+
+	if err := uc.echos.Create(ctx, echo); err != nil {
+		return nil, fmt.Errorf("persist echo: %w", err)
+	}
+
+	return echo, nil
 }
 
 func excludeSelf(moments []domain.Moment, selfID string) []domain.Moment {
