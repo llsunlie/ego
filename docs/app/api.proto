@@ -1,0 +1,296 @@
+syntax = "proto3";
+
+package ego;
+
+option go_package = "ego-server/proto/ego";
+
+// =========================================================================
+// ego · 前后端 gRPC 协议
+// 派生自 docs/app/entity-relationships.md
+// 后端: Go · gRPC server
+// 前端: Flutter · grpc-dart
+// =========================================================================
+
+service Ego {
+  // ─── Auth（认证）─────────────────────────────────────
+  rpc Login(LoginReq) returns (LoginRes);
+
+  // ─── Moment（话语）─────────────────────────────────────
+  // 写下一句话，保存 Moment + Echo，返回回声
+  rpc CreateMoment(CreateMomentReq) returns (CreateMomentRes);
+
+  // 获取 AI 观察（per-Moment，结合 Echo）
+  rpc GenerateInsight(GenerateInsightReq) returns (GenerateInsightRes);
+
+  // ─── Trace（写作会话）─────────────────────────────────
+  // 获取过往 Trace 列表（游标分页，按月分组）
+  rpc ListTraces(ListTracesReq) returns (ListTracesRes);
+
+  // 获取 Trace 详情（Item[] = <Moment, Echo[], Insight>）
+  rpc GetTraceDetail(GetTraceDetailReq) returns (GetTraceDetailRes);
+
+  // ─── Memory Dot（记忆光点盲盒）────────────────────────
+  // 随机获取 N 条历史话语
+  rpc GetRandomMoments(GetRandomMomentsReq) returns (GetRandomMomentsRes);
+
+  // ─── Stash（收进星图）─────────────────────────────────
+  // 将 Trace 寄存为 Star，触发异步聚类
+  rpc StashTrace(StashTraceReq) returns (StashTraceRes);
+
+  // ─── Constellation（星座）──────────────────────────────
+  // 获取所有星座列表（星图页渲染用）
+  rpc ListConstellations(ListConstellationsReq) returns (ListConstellationsRes);
+
+  // 获取星座详情（含 insight、Stars、topic_prompts）
+  rpc GetConstellation(GetConstellationReq) returns (GetConstellationRes);
+
+  // ─── Chat（和那时的自己说说话）──────────────────────────
+  // 开始一次对话（后端构建 past-self 上下文）
+  rpc StartChat(StartChatReq) returns (StartChatRes);
+
+  // 发送消息并获取回复
+  rpc SendMessage(SendMessageReq) returns (SendMessageRes);
+}
+
+// =========================================================================
+// Auth
+// =========================================================================
+
+message LoginReq {
+  string account  = 1;
+  string password = 2;
+}
+
+message LoginRes {
+  string token   = 1;  // JWT token，后续请求通过 metadata 传递
+  bool   created = 2;  // true = 本次自动注册
+}
+
+// =========================================================================
+// 基础消息类型
+// =========================================================================
+
+message Moment {
+  string id         = 1;
+  string content    = 2;  // 用户写的原话
+  string trace_id   = 3;
+  int64  created_at = 4;  // unix timestamp ms
+}
+
+message Echo {
+  string   id                 = 1;
+  string   moment_id          = 2;  // 为哪个 Moment 匹配的
+  repeated string matched_moment_ids = 3;  // 匹配到的历史 Moment id 列表（按相似度降序）
+  repeated float  similarities       = 4;  // 对应相似度，与 matched_moment_ids 一一对应
+}
+
+message Insight {
+  string   id                 = 1;
+  string   moment_id          = 2;  // 为哪个 Moment 生成的观察
+  string   echo_id            = 3;  // 基于哪个 Echo 生成
+  string   text               = 4;  // 第二人称观察文本
+  repeated string related_moment_ids = 5;
+}
+
+message Star {
+  string id       = 1;
+  string trace_id = 2;  // 关联的 Trace
+  string topic    = 3;  // AI 生成的主题文本
+}
+
+message Constellation {
+  string   id                   = 1;
+  string   name                 = 2;  // 主题标签名
+  string   constellation_insight = 3; // Constellation 级 AI 观察
+  repeated string star_ids      = 4;  // 包含的 Star id 列表
+  repeated string topic_prompts = 5;  // 话题引子列表
+  int32    star_count           = 6;  // 包含的 Star 数量（方便前端判断状态）
+  int64    created_at           = 7;
+  int64    updated_at           = 8;
+}
+
+message ChatMessage {
+  string   id          = 1;
+  ChatRole role        = 2;
+  string   content     = 3;
+  repeated MomentReference referenced = 4;  // 标注引用来源
+  int64    timestamp   = 5;
+}
+
+message MomentReference {
+  string date    = 1;  // "X月X日"
+  string snippet = 2;  // 原话片段
+}
+
+enum ChatRole {
+  CHAT_ROLE_UNSPECIFIED = 0;
+  USER       = 1;
+  PAST_SELF  = 2;
+}
+
+// =========================================================================
+// Moment
+// =========================================================================
+
+message CreateMomentReq {
+  string content = 1;
+  string trace_id = 2;  // 继续已有 Trace（"顺着再想想"场景），空则新建 Trace
+}
+
+message CreateMomentRes {
+  Moment moment = 1;  // 已保存的 Moment
+  Echo   echo   = 2;  // 匹配到的回声（含候选列表）
+}
+
+// =========================================================================
+// Insight
+// =========================================================================
+
+message GenerateInsightReq {
+  string moment_id = 1;  // 基于哪个 Moment
+  string echo_id   = 2;  // 基于哪个 Echo
+}
+
+message GenerateInsightRes {
+  Insight insight = 1;
+}
+
+// =========================================================================
+// Trace
+// =========================================================================
+
+message Trace {
+  string id         = 1;
+  string motivation = 2;  // 'direct' | 'trace:<id>' | 'constellation:<id>'
+  bool   stashed    = 3;  // 是否已收进星图
+  int64  created_at = 4;
+}
+
+message TraceItem {
+  Moment          moment   = 1;
+  repeated Echo   echos    = 2;
+  Insight         insight  = 3;  // 可能为空（尚未生成）
+}
+
+message ListTracesReq {
+  string cursor    = 1;  // 游标（上一页最后一条的 id），首次请求为空
+  int32  page_size = 2;  // 每页条数，默认 20
+}
+
+message ListTracesRes {
+  repeated Trace traces      = 1;  // Trace 列表（不含 Item，轻量）
+  string         next_cursor = 2;  // 下一页游标，为空表示到底
+  bool           has_more    = 3;
+}
+
+message GetTraceDetailReq {
+  string trace_id = 1;
+}
+
+message GetTraceDetailRes {
+  Trace              trace = 1;
+  repeated TraceItem items = 2;  // <Moment, Echo[], Insight>[]
+}
+
+// =========================================================================
+// Memory Dot
+// =========================================================================
+
+message GetRandomMomentsReq {
+  int32 count = 1;  // 获取数量，默认 3
+}
+
+message GetRandomMomentsRes {
+  repeated Moment moments = 1;
+}
+
+// =========================================================================
+// Stash
+// =========================================================================
+
+message StashTraceReq {
+  string trace_id = 1;  // 要寄存的 Trace id
+}
+
+message StashTraceRes {
+  Star star = 1;  // 新生成的 Star
+}
+
+// =========================================================================
+// Constellation
+// =========================================================================
+
+message ListConstellationsReq {
+  // 无参数，返回所有星座（数量可控，不需要分页）
+}
+
+message ListConstellationsRes {
+  repeated Constellation constellations = 1;
+  int32 total_star_count               = 2;  // 用于星图空状态："已有 N 颗星"
+}
+
+message GetConstellationReq {
+  string constellation_id = 1;
+}
+
+message GetConstellationRes {
+  Constellation constellation    = 1;
+  // ① ✦ 我发现（constellation_insight 已在 Constellation 消息中）
+  // ② 主题里说过的话（关联的所有 Moment）
+  repeated Moment moments        = 2;
+  // ③ 和那时的自己说说话（Star 列表，前端组装为 PastSelfCard）
+  repeated Star stars            = 3;
+  // ④ ✦ 我想和你聊聊（topic_prompts 已在 Constellation 消息中）
+}
+
+// =========================================================================
+// Chat
+// =========================================================================
+
+message StartChatReq {
+  string star_id                    = 1;  // 对应一个 Star
+  repeated string context_moment_ids = 2;  // 上下文 Moment id 列表
+  string chat_session_id            = 3;  // 可选，传入旧 session_id 恢复对话
+}
+
+message StartChatRes {
+  string                  chat_session_id = 1;
+  ChatMessage             opening         = 2;  // AI 开场白（新建时）或最后一条 AI 消息（恢复时）
+  repeated ChatMessage    history         = 3;  // 恢复时返回历史消息，新建时为空
+}
+
+message SendMessageReq {
+  string chat_session_id = 1;
+  string content         = 2;  // 用户发送的内容
+}
+
+message SendMessageRes {
+  ChatMessage reply = 1;  // AI（past-self）回复
+}
+
+// =========================================================================
+// 认证约定（不在 proto 中体现，统一约定）
+//
+// 除 Login 外所有 RPC 需通过 gRPC metadata 传递 JWT token：
+//   Authorization: Bearer <token>
+//
+// 后端 interceptor 统一解析 JWT 获取 user_id，注入 context。
+// JWT 无效或过期时返回 UNAUTHENTICATED。
+//
+// =========================================================================
+// 异常约定（不在 proto 中体现，后端统一处理）
+//
+// 所有 RPC 统一返回 HTTP 200，业务错误码在 response header 中：
+//   x-ego-code: 0      正常
+//   x-ego-code: 10001  参数校验失败
+//   x-ego-code: 10002  资源不存在（Moment/Trace/Constellation/ChatSession）
+//   x-ego-code: 10003  认证失败（JWT 无效/过期）
+//   x-ego-code: 20001  AI 服务超时（Echo/Insight/Chat 降级可用）
+//   x-ego-code: 20002  AI 服务不可用
+//   x-ego-code: 30001  内部错误
+//
+// AI 类接口超时策略：
+//   Echo 匹配：5s 超时，echo 返回 null
+//   Insight 生成：10s 超时，降级为不展示
+//   Chat 回复：15s 超时，提示"我那时候想不起来，换个话题？"
+// =========================================================================
