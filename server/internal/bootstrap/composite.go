@@ -13,12 +13,14 @@ type EgoHandler struct {
 	pb.UnimplementedEgoServer
 	identity pb.EgoServer
 	writing  pb.EgoServer
+	timeline pb.EgoServer
 }
 
-func NewEgoHandler(identity, writing pb.EgoServer) *EgoHandler {
+func NewEgoHandler(identity, writing, timeline pb.EgoServer) *EgoHandler {
 	return &EgoHandler{
 		identity: identity,
 		writing:  writing,
+		timeline: timeline,
 	}
 }
 
@@ -37,11 +39,16 @@ func (h *EgoHandler) GenerateInsight(ctx context.Context, req *pb.GenerateInsigh
 	return h.writing.GenerateInsight(ctx, req)
 }
 
-// Trace — delegated to writing.
+// Trace — delegated to timeline.
 func (h *EgoHandler) ListTraces(ctx context.Context, req *pb.ListTracesReq) (*pb.ListTracesRes, error) {
-	return h.writing.ListTraces(ctx, req)
+	return h.timeline.ListTraces(ctx, req)
 }
 
 func (h *EgoHandler) GetTraceDetail(ctx context.Context, req *pb.GetTraceDetailReq) (*pb.GetTraceDetailRes, error) {
-	return h.writing.GetTraceDetail(ctx, req)
+	return h.timeline.GetTraceDetail(ctx, req)
+}
+
+// Memory Dot — delegated to timeline.
+func (h *EgoHandler) GetRandomMoments(ctx context.Context, req *pb.GetRandomMomentsReq) (*pb.GetRandomMomentsRes, error) {
+	return h.timeline.GetRandomMoments(ctx, req)
 }

@@ -43,24 +43,3 @@ func insightToProto(i *domain.Insight) *pb.Insight {
 		RelatedMomentIds: i.RelatedMomentIDs,
 	}
 }
-
-func traceToProto(t domain.Trace) *pb.Trace {
-	return &pb.Trace{
-		Id:         t.ID,
-		Motivation: t.Motivation,
-		Stashed:    t.Stashed,
-		CreatedAt:  t.CreatedAt.UnixMilli(),
-	}
-}
-
-func traceItemToProto(item domain.TraceItem) *pb.TraceItem {
-	echos := make([]*pb.Echo, len(item.Echos))
-	for i, e := range item.Echos {
-		echos[i] = echoToProto(&e)
-	}
-	return &pb.TraceItem{
-		Moment:  momentToProto(item.Moment),
-		Echos:   echos,
-		Insight: insightToProto(item.Insight),
-	}
-}

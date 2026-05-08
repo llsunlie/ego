@@ -4,14 +4,16 @@
 
 Writing module fully aligned with updated design docs (`docs/app/entity-relationships.md`, `docs/app/api.proto`). All unit tests and smoke tests pass. Build: `go build ./...` succeeds.
 
+**ListTraces** and **GetTraceDetail** RPCs moved to Timeline module (2026-05-08). Writing now only handles write operations: CreateMoment and GenerateInsight.
+
 ### Test summary
 
 | Layer | Tests | Status |
 |---|---|---|
 | `app/` | 13 | All pass |
-| `adapter/grpc/` | 18 (including 3 smoke, 5 handler, 5 mapper) | All pass |
+| `adapter/grpc/` | 11 (including 3 smoke, 4 handler, 4 mapper) | All pass |
 | `adapter/postgres/` | 17 | Require running PostgreSQL |
-| `smoke.sh` | 5 (F1, F2, F9, ListTraces, GetTraceDetail) | All pass |
+| `smoke.sh` | 5 (F1, F2, ListTraces, GetTraceDetail, GetRandomMoments) | All pass |
 
 ### Completed layers
 
@@ -32,7 +34,7 @@ Writing module fully aligned with updated design docs (`docs/app/entity-relation
 3. **Echo 持久化**: Echo 从临时值对象变为持久化实体，支持 GetTraceDetail 回溯。初始冷启动时 echo 为 nil。
 4. **Insight 持久化**: Writing 生成的会话级 Insight 持久化到 `insights` 表（与 Starmap 星座级 Insight 共享）。
 5. **游标分页**: `ListTraces` 和 `ListByUserID` 使用 cursor（最后一条 ID）→ created_at 转换做 SQL 查询。
-6. **Composite gRPC handler**: `bootstrap/composite.go` 路由 RPC 到各模块 handler。Writing 负责 CreateMoment、GenerateInsight、ListTraces、GetTraceDetail。
+6. **Composite gRPC handler**: `bootstrap/composite.go` 路由 RPC 到各模块 handler。Writing 负责 CreateMoment、GenerateInsight。
 
 ## Known Gaps
 
@@ -42,5 +44,5 @@ Writing module fully aligned with updated design docs (`docs/app/entity-relation
 ## Next Steps
 
 1. 实现真实 `EmbeddingGenerator`、`EchoMatcher`、`InsightGenerator` 通过 `platform/ai`
-2. 实现 `StashTrace`、`GetRandomMoments` RPC（当前返回 Unimplemented）
-3. 继续 `timeline` 或 `starmap` 模块实现
+2. 实现 `StashTrace` RPC（当前返回 Unimplemented）— 属于 `starmap` 模块
+3. 继续 `starmap` 模块实现
