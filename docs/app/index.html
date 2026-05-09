@@ -1,0 +1,2035 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ego · 交互演示</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500&family=Noto+Serif+SC:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; font-family: 'Inter', 'Noto Serif SC', -apple-system, "PingFang SC", sans-serif; background: #0a0a14; color: #e8e8f0; overflow: hidden; font-weight: 300; letter-spacing: 0.3px; }
+
+  .phone {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 375px; height: 760px;
+    background: radial-gradient(ellipse at 50% 40%, rgba(18,18,35,1) 0%, rgba(12,12,22,1) 60%, rgba(8,8,16,1) 100%);
+    border-radius: 44px; overflow: hidden;
+    box-shadow: 0 30px 90px rgba(0,0,0,0.6), 0 0 0 10px #1a1a28, 0 0 0 11px #2a2a3a;
+  }
+  .notch {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 130px; height: 28px; background: #000; border-radius: 0 0 18px 18px; z-index: 100;
+  }
+  .statusbar {
+    position: absolute; top: 0; left: 0; right: 0; height: 44px;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 28px; font-size: 13px; font-weight: 600; z-index: 50; color: #e8e8f0;
+  }
+
+  .page {
+    position: absolute; top: 44px; left: 0; right: 0; bottom: 0;
+    display: none; flex-direction: column; align-items: center;
+    padding: 20px 24px 30px;
+    opacity: 0; transition: opacity 0.5s ease;
+  }
+  .page.active { display: flex; opacity: 1; }
+  .page-title { font-size: 13px; color: #7a7a90; margin-top: 8px; margin-bottom: 4px; letter-spacing: 5px; font-weight: 200; }
+  .page-subtitle { font-size: 10px; color: #4a4a60; letter-spacing: 2px; font-weight: 200; margin-bottom: 16px; }
+
+  /* ============ 主屏 / 说话 / 回声 / 回响 都在同一个page里 ============ */
+
+  .main-stage { flex: 1; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; transition: all 0.8s ease; }
+
+  .light-main {
+    width: 140px; height: 140px;
+    border-radius: 46% 54% 52% 48% / 50% 47% 53% 50%;
+    background: radial-gradient(circle at 48% 46%,
+      rgba(255,255,255,1) 0%,
+      rgba(220,240,255,0.9) 12%,
+      rgba(160,205,255,0.6) 30%,
+      rgba(120,175,250,0.25) 55%,
+      transparent 80%);
+    filter: blur(3px);
+    animation: egoBreath 5s ease-in-out infinite, egoSoft 15s ease-in-out infinite;
+    transition: all 0.8s ease;
+    position: relative;
+  }
+  /* 内部光核：让中心更实更亮 */
+  .light-main::before {
+    content: ''; position: absolute;
+    top: 25%; left: 25%; width: 50%; height: 50%;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.9) 0%, rgba(200,225,255,0.4) 50%, transparent 100%);
+    filter: blur(2px);
+    animation: coreGlow 3s ease-in-out infinite;
+  }
+  @keyframes coreGlow {
+    0%, 100% { transform: scale(0.9); opacity: 0.7; }
+    50% { transform: scale(1.15); opacity: 1; }
+  }
+  .light-main.small { width: 55px; height: 55px; margin-top: -100px; border-radius: 50%; }
+  .light-main.small::before { display: none; }
+
+  .light-contour, .light-contour.c2 { display: none; }
+
+  @keyframes egoBreath {
+    0%, 100% { transform: scale(1); opacity: 0.92; }
+    50% { transform: scale(1.12); opacity: 1; }
+  }
+  @keyframes egoSoft {
+    0%   { border-radius: 46% 54% 52% 48% / 50% 47% 53% 50%; }
+    33%  { border-radius: 52% 48% 50% 50% / 48% 52% 50% 50%; }
+    66%  { border-radius: 48% 52% 48% 52% / 52% 48% 52% 48%; }
+    100% { border-radius: 46% 54% 52% 48% / 50% 47% 53% 50%; }
+  }
+
+  .light-contour {
+    position: absolute; top: -25%; left: -25%; width: 150%; height: 150%;
+    border-radius: 55% 45% 50% 50% / 48% 52% 48% 52%;
+    background: radial-gradient(ellipse at 48% 48%,
+      rgba(160,200,255,0.2) 0%,
+      rgba(140,180,240,0.08) 50%,
+      transparent 80%);
+    filter: blur(10px);
+    pointer-events: none;
+    animation: haloMorph 14s ease-in-out infinite;
+  }
+  .light-contour.c2 {
+    top: -40%; left: -40%; width: 180%; height: 180%;
+    border-radius: 48% 52% 45% 55% / 52% 45% 55% 48%;
+    background: radial-gradient(ellipse at 52% 50%,
+      rgba(180,210,255,0.1) 0%,
+      rgba(140,180,240,0.03) 55%,
+      transparent 80%);
+    filter: blur(18px);
+    animation: haloMorph 18s ease-in-out infinite reverse;
+  }
+  @keyframes haloMorph {
+    0%, 100% { border-radius: 55% 45% 50% 50% / 48% 52% 48% 52%; transform: scale(1) rotate(0deg); opacity: 0.85; }
+    33%  { border-radius: 48% 52% 55% 45% / 52% 48% 50% 50%; transform: scale(1.06) rotate(5deg); opacity: 0.95; }
+    66%  { border-radius: 52% 48% 45% 55% / 50% 55% 45% 50%; transform: scale(0.97) rotate(-3deg); opacity: 1; }
+  }
+
+  .light-label { margin-top: 30px; font-size: 14px; color: #a8a8c0; letter-spacing: 1px; transition: all 0.5s; }
+
+  /* 星空背景粒子 */
+  .bg-star {
+    position: absolute; border-radius: 50%;
+    background: rgba(255,255,255,0.8);
+    pointer-events: none;
+  }
+  @keyframes twinkle1 { 0%,100%{ opacity: 0.15; } 50%{ opacity: 0.7; } }
+  @keyframes twinkle2 { 0%,100%{ opacity: 0.1; } 50%{ opacity: 0.5; } }
+  @keyframes twinkle3 { 0%,100%{ opacity: 0.2; } 50%{ opacity: 0.9; } }
+  .light-sub { margin-top: 6px; font-size: 11px; color: #5a5a70; transition: all 0.5s; }
+  .hide { opacity: 0; height: 0; overflow: hidden; margin: 0; }
+
+  /* 寄存的光点 */
+  .satellites { position: absolute; width: 340px; height: 340px; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; transition: opacity 0.5s; }
+  .satellite {
+    position: absolute; top: 50%; left: 50%;
+    width: 14px; height: 14px; margin: -7px 0 0 -7px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,220,150,1) 0%, rgba(255,180,80,0.5) 60%, transparent 100%);
+    filter: blur(1px);
+    transform-origin: 0 0;
+    pointer-events: auto; cursor: pointer;
+    animation: orbit 30s linear infinite;
+  }
+  .satellite.s2 { animation-duration: 45s; animation-delay: -10s; background: radial-gradient(circle, rgba(200,255,220,1) 0%, rgba(120,200,160,0.5) 60%, transparent 100%); }
+  .satellite.s3.ready { top: 20%; left: 75%; animation: orbit-pulse 2s ease-in-out infinite; width: 20px; height: 20px; margin: -10px 0 0 -10px; }
+
+  /* 记忆光点（可点的盲盒） */
+  .memory-orb {
+    position: absolute; width: 16px; height: 16px;
+    border-radius: 50%; cursor: pointer;
+    pointer-events: auto;
+    transition: all 0.4s;
+  }
+  .memory-orb::after {
+    content: ''; position: absolute; top: -4px; left: -4px; right: -4px; bottom: -4px;
+    border-radius: 50%; background: inherit; filter: blur(5px); opacity: 0.5;
+  }
+  .memory-orb:hover { transform: scale(1.5); }
+  .memory-orb:hover::after { opacity: 0.9; }
+  .memory-orb.orb-warm {
+    background: radial-gradient(circle, rgba(255,230,180,1) 0%, rgba(255,200,120,0.4) 70%, transparent 100%);
+    animation: orbFloat1 20s ease-in-out infinite, orbPulse 3s ease-in-out infinite;
+  }
+  .memory-orb.orb-cool {
+    background: radial-gradient(circle, rgba(180,210,255,1) 0%, rgba(140,180,240,0.4) 70%, transparent 100%);
+    animation: orbFloat2 25s ease-in-out infinite, orbPulse 4s ease-in-out infinite;
+  }
+  .memory-orb.orb-soft {
+    background: radial-gradient(circle, rgba(230,200,255,1) 0%, rgba(190,160,230,0.4) 70%, transparent 100%);
+    animation: orbFloat3 22s ease-in-out infinite, orbPulse 3.5s ease-in-out infinite;
+  }
+  @keyframes orbFloat1 {
+    0%, 100% { top: 15%; right: 18%; }
+    25% { top: 18%; right: 22%; }
+    50% { top: 12%; right: 15%; }
+    75% { top: 20%; right: 20%; }
+  }
+  @keyframes orbFloat2 {
+    0%, 100% { bottom: 22%; left: 12%; }
+    25% { bottom: 18%; left: 15%; }
+    50% { bottom: 25%; left: 10%; }
+    75% { bottom: 20%; left: 18%; }
+  }
+  @keyframes orbFloat3 {
+    0%, 100% { bottom: 18%; right: 15%; }
+    25% { bottom: 22%; right: 12%; }
+    50% { bottom: 15%; right: 18%; }
+    75% { bottom: 20%; right: 10%; }
+  }
+  @keyframes orbPulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+
+  /* 信封弹层 */
+  .memory-letter-overlay {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(6px);
+    display: none; align-items: center; justify-content: center;
+    z-index: 200; padding: 0 30px;
+  }
+  .memory-letter-overlay.show { display: flex; }
+
+  .memory-envelope {
+    width: 100%; max-width: 280px; position: relative;
+    animation: envelopeOpen 0.8s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+  }
+  @keyframes envelopeOpen {
+    0% { transform: scale(0.3) rotate(-5deg); opacity: 0; }
+    50% { transform: scale(1.05) rotate(1deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0); opacity: 1; }
+  }
+
+  .envelope-flap {
+    width: 100%; height: 50px;
+    background: linear-gradient(135deg, rgba(60,50,30,0.95) 0%, rgba(45,38,22,0.95) 100%);
+    clip-path: polygon(0 100%, 50% 0, 100% 100%);
+    border-bottom: 1px solid rgba(255,220,150,0.15);
+    position: relative; z-index: 2;
+  }
+  .envelope-flap::after {
+    content: '✦'; position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+    font-size: 10px; color: rgba(255,220,150,0.5);
+  }
+
+  .envelope-body {
+    background: linear-gradient(180deg, rgba(40,34,20,0.95) 0%, rgba(30,26,15,0.95) 100%);
+    border: 1px solid rgba(255,220,150,0.15); border-top: none;
+    border-radius: 0 0 14px 14px;
+    padding: 28px 22px 22px;
+    margin-top: -2px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+  }
+
+  .envelope-date {
+    font-size: 10px; color: #8a7a60; letter-spacing: 2px; text-align: center;
+    margin-bottom: 16px; font-weight: 200;
+  }
+  .envelope-text {
+    font-size: 15px; color: #f0e6d0; line-height: 1.9; text-align: center;
+    font-weight: 300; font-style: italic;
+  }
+  .envelope-close {
+    margin-top: 18px; text-align: center; font-size: 11px; color: #8a7a60;
+    cursor: pointer; letter-spacing: 2px; font-weight: 200;
+    transition: color 0.3s;
+  }
+  .envelope-close:hover { color: #d4b88a; }
+  @keyframes orbit {
+    from { transform: rotate(0deg) translateX(160px) rotate(0deg); }
+    to   { transform: rotate(360deg) translateX(160px) rotate(-360deg); }
+  }
+  @keyframes orbit-pulse {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.9; box-shadow: 0 0 10px rgba(255,220,120,0.6);}
+    50%      { transform: translate(-50%, -50%) scale(1.4); opacity: 1; box-shadow: 0 0 30px rgba(255,220,120,1);}
+  }
+
+  /* 写字输入区（主屏下拉出现） */
+  .whisper-slot {
+    width: 100%; max-height: 0; overflow: hidden;
+    transition: max-height 0.6s ease;
+  }
+  .whisper-slot.open { max-height: 300px; }
+  .whisper-input {
+    width: 100%; min-height: 120px; background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 18px;
+    padding: 16px; color: #e8e8f0; font-size: 15px; line-height: 1.7;
+    outline: none; resize: none; font-family: inherit; margin-top: 10px;
+  }
+  .whisper-input::placeholder { color: #4a4a60; }
+  .whisper-tip { font-size: 11px; color: #5a5a70; text-align: center; margin-top: 10px; letter-spacing: 1px; }
+
+  /* 回声卡 */
+  .echo-slot {
+    width: 100%; max-height: 0; overflow: hidden;
+    transition: max-height 0.8s ease, margin 0.8s ease;
+  }
+  .echo-slot.open { max-height: 600px; margin-top: 10px; }
+
+  .echo-box {
+    width: 100%; padding: 28px 20px; text-align: center;
+    border-radius: 18px; background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .echo-from { font-size: 11px; color: #5a5a70; margin-bottom: 14px; letter-spacing: 1.5px; }
+  .echo-text { font-size: 16px; color: #d8d8e8; line-height: 1.8; font-weight: 300; }
+
+  .echo-section-label {
+    margin-top: 18px; padding-top: 14px; border-top: 1px dashed rgba(255,255,255,0.06);
+    font-size: 10px; color: #6a6a80; letter-spacing: 2px; font-weight: 200;
+    margin-bottom: 4px;
+  }
+
+  .echo-more {
+    margin-top: 16px; padding-top: 12px; border-top: 1px dashed rgba(255,255,255,0.08);
+    font-size: 11px; color: #7a7a90; letter-spacing: 1px; cursor: pointer;
+    transition: color 0.3s;
+  }
+  .echo-more:hover { color: #cca880; }
+
+  .more-echoes {
+    max-height: 0; overflow: hidden; transition: max-height 0.5s ease;
+    display: flex; flex-direction: column; gap: 8px; margin-top: 0;
+  }
+  .more-echoes.show { max-height: 400px; margin-top: 10px; }
+  .echo-alt {
+    padding: 14px 16px; background: rgba(255,255,255,0.02);
+    border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);
+    cursor: pointer; transition: all 0.3s;
+  }
+  .echo-alt:hover { background: rgba(255,220,150,0.05); border-color: rgba(255,220,150,0.2); }
+  .echo-alt-date { font-size: 10px; color: #5a5a70; letter-spacing: 1.5px; margin-bottom: 6px; }
+  .echo-alt-text { font-size: 13px; color: #b8b8c8; line-height: 1.6; }
+
+  .echo-secondary {
+    margin-top: 14px; text-align: center; font-size: 11px; color: #7a7a90;
+    letter-spacing: 1.5px; cursor: pointer; padding: 8px;
+    transition: color 0.3s;
+  }
+  .echo-secondary:hover { color: #ffcc88; }
+
+  /* 主动作：顺着再想想 */
+  .echo-main-action {
+    display: flex; justify-content: center; margin-top: 20px;
+  }
+  .echo-continue {
+    padding: 13px 40px; font-size: 14px;
+    background: linear-gradient(135deg, rgba(255,220,150,0.12) 0%, rgba(255,200,120,0.08) 100%);
+    border: 1px solid rgba(255,200,120,0.35); color: #ffd98a;
+    border-radius: 26px; cursor: pointer;
+    transition: all 0.3s; letter-spacing: 1px;
+  }
+  .echo-continue:hover {
+    background: linear-gradient(135deg, rgba(255,220,150,0.2) 0%, rgba(255,200,120,0.15) 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 0 20px rgba(255,200,120,0.15);
+  }
+
+  /* 辅动作：收进星图 */
+  .echo-save {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    margin-top: 14px; padding: 10px 20px; font-size: 12px;
+    color: #a8a8c0; letter-spacing: 1.5px;
+    cursor: pointer; transition: all 0.3s;
+  }
+  .echo-save:hover { color: #ffd98a; }
+  .echo-save .save-icon {
+    font-size: 11px; color: #cca880;
+    transition: transform 0.3s;
+  }
+  .echo-save:hover .save-icon { transform: scale(1.2); }
+
+  /* 退出 */
+  .echo-exit {
+    margin-top: 8px; text-align: center; font-size: 11px;
+    color: #5a5a70; letter-spacing: 1.5px; cursor: pointer;
+    padding: 6px; transition: color 0.3s;
+  }
+  .echo-exit:hover { color: #8a8aa0; }
+
+  /* 收进星图的仪式感动效 */
+  .flying-star {
+    position: fixed; width: 24px; height: 24px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(255,240,180,0.95) 30%, rgba(255,200,100,0.6) 60%, rgba(255,180,80,0.2) 85%, transparent 100%);
+    filter: blur(0.3px); pointer-events: none; z-index: 500;
+    box-shadow: 0 0 30px rgba(255,240,180,0.9), 0 0 60px rgba(255,200,120,0.6), 0 0 90px rgba(255,180,80,0.3);
+  }
+
+  .star-trail {
+    position: fixed; width: 10px; height: 10px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,220,150,0.8) 0%, rgba(255,180,80,0.3) 60%, transparent 100%);
+    filter: blur(1px); pointer-events: none; z-index: 499;
+  }
+
+  /* 起飞时的光晕涟漪 */
+  .liftoff-ripple {
+    position: fixed; border-radius: 50%; pointer-events: none; z-index: 498;
+    border: 2px solid rgba(255,220,150,0.8);
+    box-shadow: 0 0 30px rgba(255,220,150,0.6), inset 0 0 20px rgba(255,220,150,0.3);
+  }
+  @keyframes ripple {
+    0% { opacity: 0.9; transform: translate(-50%, -50%) scale(0.3); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(2.5); }
+  }
+
+  /* 落点炸开的星屑 */
+  .starburst-particle {
+    position: fixed; width: 4px; height: 4px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(255,220,150,0.6) 70%, transparent 100%);
+    filter: blur(0.5px); pointer-events: none; z-index: 501;
+    box-shadow: 0 0 8px rgba(255,220,150,0.8);
+  }
+
+  .card-glow {
+    animation: cardGlow 1.2s ease-out;
+  }
+  @keyframes cardGlow {
+    0% { box-shadow: 0 0 0 rgba(255,220,120,0); }
+    30% { box-shadow: 0 0 50px rgba(255,220,120,0.5), inset 0 0 30px rgba(255,220,120,0.2); }
+    100% { box-shadow: 0 0 0 rgba(255,220,120,0); }
+  }
+  .tab-pulse {
+    animation: tabPulse 1.4s ease-out;
+  }
+  @keyframes tabPulse {
+    0% { background: rgba(255,255,255,0.04); box-shadow: none; }
+    30% { background: rgba(255,220,120,0.35); box-shadow: 0 0 30px rgba(255,220,120,0.6); }
+    100% { background: rgba(255,255,255,0.04); box-shadow: none; }
+  }
+
+  /* 连接线 */
+  .connector {
+    width: 1px; height: 24px; background: linear-gradient(180deg, rgba(255,220,150,0), rgba(255,220,150,0.6), rgba(255,220,150,0));
+    margin: 10px auto; opacity: 0; transition: opacity 1s;
+  }
+  .connector.show { opacity: 1; animation: shimmer 2s ease-in-out infinite; }
+  @keyframes shimmer { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+  /* 光看到的卡 */
+  .resonance-box {
+    width: 100%; padding: 22px 20px; text-align: center;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(255,220,150,0.08) 0%, rgba(200,180,255,0.05) 100%);
+    border: 1px solid rgba(255,220,150,0.25);
+    opacity: 0; transform: translateY(10px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
+  .resonance-box.show { opacity: 1; transform: translateY(0); }
+  .resonance-tag { font-size: 10px; color: #cca880; letter-spacing: 2.5px; margin-bottom: 12px; }
+  .resonance-text { font-size: 14px; color: #f0e6d2; line-height: 1.8; font-weight: 300; }
+
+  /* 按钮 */
+  .btn-primary {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
+    color: #d0d0e0; padding: 13px 36px; border-radius: 26px; font-size: 13px;
+    cursor: pointer; transition: all 0.3s;
+    backdrop-filter: blur(10px);
+    font-family: inherit; font-weight: 300; letter-spacing: 2px;
+  }
+  .btn-primary:hover, .btn-primary:active { background: rgba(255,255,255,0.1); transform: translateY(-1px); }
+  .actions { display: flex; gap: 10px; width: 100%; margin-top: 14px; }
+  .btn-ghost {
+    flex: 1; background: transparent; border: 1px solid rgba(255,255,255,0.12);
+    color: #a8a8c0; padding: 11px; border-radius: 20px; font-size: 12px;
+    cursor: pointer; transition: all 0.3s;
+    font-family: inherit; font-weight: 300; letter-spacing: 1px;
+  }
+  .btn-ghost:hover { background: rgba(255,255,255,0.05); color: #e8e8f0; }
+  .btn-ghost.primary { border-color: rgba(255,200,120,0.4); color: #ffcc88; }
+  .btn-ghost.primary:hover { background: rgba(255,200,120,0.08); }
+
+  .main-actions { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 60px; }
+
+  /* 导航条 */
+  .tabbar {
+    position: absolute; bottom: 14px; left: 20px; right: 20px;
+    display: flex; justify-content: space-around;
+    padding: 10px 0; background: rgba(255,255,255,0.04);
+    border-radius: 18px; border: 1px solid rgba(255,255,255,0.06);
+    backdrop-filter: blur(10px); z-index: 30;
+  }
+  .tab { flex: 1; text-align: center; font-size: 11px; color: #5a5a70; cursor: pointer; padding: 4px 0; font-family: inherit; font-weight: 300; letter-spacing: 2px; }
+  .tab.active { color: #e8e8f0; }
+  .tab.active::after { content: ''; display: block; width: 4px; height: 4px; border-radius: 50%; background: #e8e8f0; margin: 4px auto 0; }
+
+  /* 过往页：光的河流 */
+  .river {
+    width: 100%; flex: 1; overflow-y: auto; padding: 10px 0 80px;
+  }
+  .river::-webkit-scrollbar { width: 0; }
+  .river-month { font-size: 11px; color: #5a5a70; letter-spacing: 3px; margin: 20px 0 12px; text-align: center; }
+  .river-item {
+    display: flex; align-items: flex-start; padding: 14px 16px;
+    background: rgba(255,255,255,0.02); border-radius: 14px; margin-bottom: 10px;
+    border: 1px solid rgba(255,255,255,0.04); cursor: pointer; transition: all 0.3s;
+    position: relative;
+  }
+  .river-item:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); }
+  .river-dot {
+    width: 12px; height: 12px; border-radius: 50%; margin-right: 14px; flex-shrink: 0;
+    margin-top: 4px; filter: blur(0.5px);
+  }
+  .dot-blue { background: radial-gradient(circle, rgba(120,160,255,1), rgba(80,100,200,0.3)); }
+  .dot-yellow { background: radial-gradient(circle, rgba(255,220,150,1), rgba(200,150,80,0.3)); }
+  .dot-purple { background: radial-gradient(circle, rgba(200,160,255,1), rgba(120,80,200,0.3)); }
+  .dot-green { background: radial-gradient(circle, rgba(160,230,200,1), rgba(80,180,140,0.3)); }
+  .dot-pink { background: radial-gradient(circle, rgba(255,180,220,1), rgba(200,120,160,0.3)); }
+  .river-meta { flex: 1; }
+  .river-date { font-size: 11px; color: #5a5a70; margin-bottom: 4px; letter-spacing: 1px; }
+  .river-text { font-size: 13px; color: #c8c8d8; line-height: 1.6; }
+  .river-linked { position: absolute; right: 12px; top: 12px; font-size: 10px; color: #cca880; }
+
+  /* 星图 */
+  .starmap {
+    width: 100%; flex: 1; position: relative;
+    background:
+      radial-gradient(ellipse at 30% 40%, rgba(40,40,80,0.4) 0%, transparent 50%),
+      radial-gradient(ellipse at 70% 65%, rgba(30,25,60,0.35) 0%, transparent 45%),
+      radial-gradient(ellipse at 50% 50%, rgba(20,20,45,0.3) 0%, transparent 70%);
+    border-radius: 18px; margin-bottom: 70px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.03);
+  }
+  .star {
+    position: absolute; width: 8px; height: 8px; border-radius: 50%;
+    cursor: pointer; transition: all 0.3s;
+    animation: starTwinkle 4s ease-in-out infinite;
+  }
+  .star::after {
+    content: ''; position: absolute; top: -5px; left: -5px; right: -5px; bottom: -5px;
+    border-radius: 50%; background: inherit; filter: blur(5px); opacity: 0.5;
+  }
+  .star:hover { transform: scale(2.2); }
+  .star:hover::after { opacity: 0.9; filter: blur(8px); }
+  .star:nth-child(odd) { animation-delay: -1.5s; }
+  .star:nth-child(3n) { animation-duration: 5s; width: 7px; height: 7px; }
+  .star:nth-child(4n+1) { animation-duration: 3.5s; animation-delay: -2s; }
+  @keyframes starTwinkle {
+    0%, 100% { opacity: 0.6; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.2); }
+  }
+  .star.blue { background: #8ab4ff; }
+  .star.yellow { background: #ffd98a; }
+  .star.purple { background: #c8a0ff; }
+  .star.green { background: #a0e6c8; }
+  .star.pink { background: #ffb4d8; }
+
+  .star.forming { width: 6px; height: 6px; animation: formingPulse 3s ease-in-out infinite; }
+  @keyframes formingPulse { 0%,100%{ opacity: 0.2; transform: scale(0.85); } 50%{ opacity: 0.55; transform: scale(1.1); } }
+
+  .forming-hint {
+    position: absolute; font-size: 9px; color: #5a5a70;
+    letter-spacing: 2.5px; font-style: italic;
+    animation: hintFade 6s ease-in-out infinite;
+  }
+  @keyframes hintFade { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.85; } }
+
+  .constellation-line {
+    position: absolute;
+    background: linear-gradient(90deg, transparent, rgba(255,220,150,0.35), transparent);
+    height: 1px; transform-origin: 0 0; pointer-events: none;
+    animation: lineBreath 6s ease-in-out infinite;
+  }
+  @keyframes lineBreath { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.75; } }
+
+  .constellation-label {
+    position: absolute; font-size: 10px; color: #d4b88a;
+    background: rgba(25,22,15,0.75); padding: 6px 14px; border-radius: 14px;
+    border: 1px solid rgba(255,220,150,0.12); cursor: pointer;
+    transition: all 0.3s;
+    backdrop-filter: blur(6px);
+    letter-spacing: 1px; font-weight: 400;
+    animation: labelGlow 5s ease-in-out infinite;
+  }
+  .constellation-label:hover {
+    background: rgba(50,40,25,0.9); color: #ffe4a8;
+    border-color: rgba(255,220,150,0.4);
+    box-shadow: 0 0 20px rgba(255,220,150,0.2);
+  }
+  @keyframes labelGlow { 0%, 100% { box-shadow: 0 0 0 rgba(255,220,150,0); } 50% { box-shadow: 0 0 14px rgba(255,220,150,0.12); } }
+
+  .starmap-tip {
+    position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+    font-size: 10px; color: #6a6a80; letter-spacing: 3px; font-weight: 200;
+    animation: hintFade 6s ease-in-out infinite;
+  }
+
+  /* 弹层 */
+  .overlay {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+    display: none; align-items: center; justify-content: center; z-index: 200;
+    padding: 0 24px;
+  }
+  .overlay.show { display: flex; }
+  .sheet { width: 100%; background: #1c1c2e; border-radius: 20px; padding: 26px 22px; border: 1px solid rgba(255,255,255,0.1); }
+  .sheet h3 { font-size: 15px; margin-bottom: 18px; color: #e8e8f0; text-align: center; font-weight: 500; }
+  .time-opt {
+    width: 100%; padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
+    color: #e8e8f0; font-size: 13px; cursor: pointer; transition: all 0.2s; text-align: left; padding-left: 16px;
+  }
+  .time-opt:hover { background: rgba(255,200,120,0.08); border-color: rgba(255,200,120,0.3); }
+  .time-opt .d { color: #7a7a90; font-size: 11px; margin-top: 3px; }
+
+  /* 星座详情 */
+  .constellation-detail {
+    background: linear-gradient(135deg, #1a1a2a 0%, #15151f 100%);
+    border: 1px solid rgba(255,220,150,0.2);
+    width: 100%; padding: 28px 22px; border-radius: 20px; max-height: 90%; overflow-y: auto;
+  }
+  /* 星座详情页（独立页） */
+  #page-constellation { padding: 8px 0 0 !important; }
+  .con-page-head {
+    width: 100%; padding: 8px 20px 16px;
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .con-page-back {
+    font-size: 22px; color: #cca880; cursor: pointer;
+    padding: 6px 10px; border-radius: 8px;
+    transition: all 0.3s; flex-shrink: 0;
+  }
+  .con-page-back:hover { background: rgba(255,220,150,0.08); color: #ffd98a; }
+  .con-page-titlebox { flex: 1; text-align: center; padding-right: 40px; }
+  .con-page-title { font-size: 16px; color: #ffd98a; font-weight: 500; margin-bottom: 3px; }
+  .con-page-sub { font-size: 11px; color: #7a7a90; letter-spacing: 1.5px; }
+  .con-page-body {
+    flex: 1; width: 100%; overflow-y: auto;
+    padding: 16px 24px 80px;
+  }
+  .con-page-body::-webkit-scrollbar { width: 0; }
+
+  .constellation-detail { padding-top: 0; }
+  .constellation-detail .sub { font-size: 11px; color: #7a7a90; text-align: center; margin-bottom: 20px; letter-spacing: 2px; }
+  .constellation-detail h2 { font-size: 17px; color: #ffd98a; margin-bottom: 6px; text-align: center; font-weight: 500; }
+  .con-item {
+    display: flex; padding: 12px 0; border-bottom: 1px dashed rgba(255,255,255,0.06);
+    align-items: flex-start;
+  }
+  .con-item:last-child { border-bottom: none; }
+  .con-dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 12px; margin-top: 6px; flex-shrink: 0; }
+  .con-date { font-size: 10px; color: #5a5a70; margin-bottom: 3px; letter-spacing: 1px; }
+  .con-text { font-size: 13px; color: #d0d0e0; line-height: 1.6; }
+  .con-insight {
+    margin-top: 0; margin-bottom: 20px; padding: 14px; background: rgba(255,220,150,0.06);
+    border-radius: 12px; border: 1px solid rgba(255,220,150,0.15);
+    font-size: 12px; color: #e8d8b8; line-height: 1.7;
+  }
+  .con-insight .label { color: #cca880; font-size: 10px; letter-spacing: 2px; margin-bottom: 6px; display: block; }
+
+  .insight-expand {
+    margin-top: 14px; padding-top: 10px; border-top: 1px dashed rgba(255,220,150,0.15);
+    font-size: 11px; color: #cca880; letter-spacing: 1px; cursor: pointer;
+    transition: color 0.3s;
+  }
+  .insight-expand:hover { color: #ffd98a; }
+
+  .con-past-words { max-height: 0; overflow: hidden; transition: max-height 0.5s ease; }
+  .con-past-words.show { max-height: 500px; margin-top: 10px; }
+
+  .con-more-selves {
+    margin-top: 10px; padding: 8px; text-align: center;
+    font-size: 11px; color: #b090d8; letter-spacing: 1.5px; cursor: pointer;
+    transition: color 0.3s;
+  }
+  .con-more-selves:hover { color: #d8c8ff; }
+
+  .con-stars-title { font-size: 10px; color: #7a7a90; letter-spacing: 2px; margin-bottom: 8px; text-align: center; }
+
+  .con-continue {
+    margin-top: 22px; padding-top: 20px; border-top: 1px dashed rgba(255,255,255,0.08);
+  }
+  .con-continue-title {
+    text-align: center; font-size: 10px; color: #7a7a90; letter-spacing: 3px; margin-bottom: 14px;
+  }
+  .con-textarea {
+    width: 100%; min-height: 80px; background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 14px;
+    padding: 12px; color: #e8e8f0; font-size: 13px; line-height: 1.7;
+    outline: none; resize: none; font-family: inherit; margin-bottom: 12px;
+  }
+  .con-textarea::placeholder { color: #4a4a60; }
+
+  .con-invite {
+    padding: 14px 16px; border-radius: 14px;
+    background: rgba(255,220,150,0.05);
+    border: 1px solid rgba(255,220,150,0.18);
+    margin-bottom: 10px; cursor: pointer; transition: all 0.3s;
+    position: relative;
+  }
+  .con-invite:hover { background: rgba(255,220,150,0.1); }
+  .con-invite.b { background: rgba(200,160,255,0.05); border-color: rgba(200,160,255,0.18); }
+  .con-invite.b:hover { background: rgba(200,160,255,0.1); }
+  .con-invite-label { font-size: 10px; color: #cca880; letter-spacing: 2px; margin-bottom: 6px; }
+  .con-invite.b .con-invite-label { color: #b090d8; }
+  .con-invite-text { font-size: 13px; color: #e8e0d0; line-height: 1.6; font-weight: 300; }
+  .con-invite.b .con-invite-text { color: #e0d8e8; }
+  .con-invite-hint { position: absolute; right: 14px; bottom: 12px; font-size: 10px; color: #8a7860; letter-spacing: 1px; }
+
+  /* 主题空间分段 */
+  .con-section { margin-top: 22px; padding-top: 18px; border-top: 1px dashed rgba(255,255,255,0.08); }
+  .con-section-head {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12px; color: #a8a8c0; letter-spacing: 1px; margin-bottom: 12px;
+    cursor: pointer; user-select: none;
+  }
+  .con-section-head.plain { cursor: default; }
+  .con-section-head .toggle { transition: transform 0.3s; display: inline-block; font-size: 14px; color: #7a7a90; }
+  .con-section-head.open .toggle { transform: rotate(90deg); }
+  .con-section-head .sub-label { font-size: 10px; color: #5a5a70; letter-spacing: 1.5px; font-weight: 300; }
+
+  /* 过去的自己 卡片 */
+  .con-past-selves { display: flex; flex-direction: column; gap: 8px; }
+  .past-self-card {
+    display: flex; align-items: center; padding: 12px 14px;
+    background: rgba(200,160,255,0.04); border: 1px solid rgba(200,160,255,0.15);
+    border-radius: 12px; cursor: pointer; transition: all 0.3s;
+  }
+  .past-self-card:hover { background: rgba(200,160,255,0.1); border-color: rgba(200,160,255,0.3); }
+  .past-self-dot {
+    width: 10px; height: 10px; border-radius: 50%; margin-right: 12px; flex-shrink: 0;
+    background: radial-gradient(circle, rgba(200,160,255,1), rgba(120,80,200,0.3));
+    filter: blur(0.5px);
+  }
+  .past-self-info { flex: 1; }
+  .past-self-date { font-size: 11px; color: #b090d8; letter-spacing: 1.5px; margin-bottom: 3px; }
+  .past-self-preview { font-size: 12px; color: #b8b0c8; line-height: 1.5; font-weight: 300; }
+
+  /* 几种想的方向 卡片 */
+  .con-angles { display: flex; flex-direction: column; gap: 8px; }
+  .angle-card {
+    padding: 12px 14px; background: rgba(255,220,150,0.05);
+    border: 1px solid rgba(255,220,150,0.15); border-radius: 12px;
+    cursor: pointer; transition: all 0.3s;
+  }
+  .angle-card:hover { background: rgba(255,220,150,0.1); border-color: rgba(255,220,150,0.3); }
+  .angle-label { font-size: 10px; color: #cca880; letter-spacing: 1.5px; margin-bottom: 4px; }
+  .angle-text { font-size: 13px; color: #e8dcc0; line-height: 1.6; font-weight: 300; }
+
+  /* 和过去自己的对话弹层 */
+  .past-dialog-panel {
+    width: 100%; max-height: 90%; background: linear-gradient(180deg, #171528 0%, #0f0d1a 100%);
+    border-radius: 20px; border: 1px solid rgba(200,160,255,0.2);
+    display: flex; flex-direction: column; overflow: hidden;
+    box-shadow: 0 0 60px rgba(200,160,255,0.15);
+  }
+  .past-dialog-head {
+    padding: 18px 20px 12px; border-bottom: 1px solid rgba(255,255,255,0.06);
+    position: relative; text-align: center;
+  }
+  .past-dialog-title { font-size: 14px; color: #d8c8ff; letter-spacing: 2px; }
+  .past-dialog-sub { font-size: 10px; color: #7a7090; margin-top: 5px; letter-spacing: 1px; }
+  .past-dialog-close { position: absolute; top: 16px; right: 18px; color: #7a7090; cursor: pointer; font-size: 14px; }
+
+  .past-dialog-body {
+    flex: 1; overflow-y: auto; padding: 20px 18px; min-height: 220px; max-height: 380px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .past-dialog-body::-webkit-scrollbar { width: 0; }
+
+  .bubble {
+    max-width: 78%; padding: 11px 14px; border-radius: 14px;
+    font-size: 13px; line-height: 1.7; font-weight: 300;
+    animation: bubbleIn 0.4s ease;
+  }
+  @keyframes bubbleIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .bubble.me {
+    align-self: flex-end; background: rgba(120,160,255,0.12);
+    color: #d8e0f0; border: 1px solid rgba(120,160,255,0.2);
+    border-bottom-right-radius: 4px;
+  }
+  .bubble.past {
+    align-self: flex-start; background: rgba(200,160,255,0.08);
+    color: #e0d8f0; border: 1px solid rgba(200,160,255,0.2);
+    border-bottom-left-radius: 4px; position: relative;
+  }
+  .bubble.past .origin {
+    display: block; font-size: 10px; color: #9080a8; margin-top: 6px; padding-top: 6px;
+    border-top: 1px dashed rgba(200,160,255,0.15); letter-spacing: 1px;
+  }
+  .bubble.past .quoted { color: #e8dcff; font-style: italic; }
+
+  .past-dialog-input-wrap {
+    padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.06);
+    display: flex; gap: 10px; align-items: center;
+  }
+  .past-dialog-input {
+    flex: 1; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px; padding: 10px 16px; color: #e8e8f0; font-size: 13px;
+    outline: none; font-family: inherit;
+  }
+  .past-dialog-input::placeholder { color: #5a5a70; }
+  .past-dialog-send {
+    background: rgba(200,160,255,0.15); border: 1px solid rgba(200,160,255,0.3);
+    color: #d8c8ff; padding: 9px 18px; border-radius: 20px; font-size: 13px;
+    cursor: pointer; transition: all 0.3s;
+  }
+  .past-dialog-send:hover { background: rgba(200,160,255,0.25); }
+  .past-dialog-tip {
+    text-align: center; font-size: 10px; color: #5a5a70;
+    padding: 6px 16px 12px; letter-spacing: 1px;
+  }
+
+  /* 来信弹层 */
+  .letter {
+    width: 100%; background: linear-gradient(135deg, #2a2515 0%, #1f1c12 100%);
+    border-radius: 20px; padding: 32px 24px;
+    border: 1px solid rgba(255,200,120,0.25);
+    position: relative;
+    box-shadow: 0 0 80px rgba(255,200,120,0.15);
+  }
+  .letter-glow {
+    position: absolute; top: -28px; left: 50%; transform: translateX(-50%);
+    width: 56px; height: 56px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,220,120,0.9) 0%, rgba(255,180,80,0.3) 50%, transparent 100%);
+    filter: blur(3px); animation: glow 2s ease-in-out infinite;
+  }
+  @keyframes glow { 0%, 100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.15); } }
+  .letter-from { font-size: 11px; color: #8a7860; margin-top: 10px; letter-spacing: 2px; text-align: center; margin-bottom: 20px; }
+  .letter-text { font-size: 16px; color: #f5e8cc; line-height: 1.8; font-weight: 300; }
+  .letter-close { margin-top: 22px; text-align: center; color: #8a7860; font-size: 13px; cursor: pointer; }
+
+  .toast {
+    position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.85); color: #fff; padding: 10px 20px; border-radius: 20px;
+    font-size: 12px; z-index: 300; opacity: 0; transition: opacity 0.3s; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+
+  .demo-hint {
+    position: absolute; top: 30px; left: 50%; transform: translateX(-50%);
+    background: rgba(255,255,255,0.04); padding: 8px 16px; border-radius: 20px;
+    font-size: 11px; color: #7a7a90; white-space: nowrap;
+    border: 1px solid rgba(255,255,255,0.06);
+    font-family: inherit; letter-spacing: 1px;
+  }
+
+  /* Onboarding */
+  .onboard-stage { width: 100%; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px 24px; }
+  .onboard-step { width: 100%; display: flex; flex-direction: column; align-items: center; animation: fadeUp 0.6s ease; }
+  .onboard-step.hidden { display: none; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+  .ob-light-mini { width: 70px; height: 70px; border-radius: 46% 54% 52% 48% / 50% 47% 53% 50%; background: radial-gradient(circle at 48% 46%, rgba(255,255,255,1) 0%, rgba(160,205,255,0.6) 30%, transparent 80%); filter: blur(3px); animation: egoBreath 5s ease-in-out infinite; margin-bottom: 24px; }
+
+  .ob-intro-title { font-size: 22px; color: #e8e8f0; letter-spacing: 6px; font-weight: 200; margin-bottom: 20px; }
+  .ob-intro-desc { font-size: 13px; color: #a8a8c0; line-height: 2; text-align: center; font-weight: 300; margin-bottom: 24px; }
+  .ob-intro-note { font-size: 11px; color: #6a6a80; line-height: 1.8; text-align: center; font-weight: 200; letter-spacing: 0.5px; margin-bottom: 30px; }
+
+  .ob-prompt { font-size: 14px; color: #c8c8d8; text-align: center; margin-bottom: 24px; letter-spacing: 1px; font-weight: 300; }
+
+  .ob-options { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+  .ob-option {
+    padding: 14px 16px; background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 14px;
+    font-size: 13px; color: #b8b8c8; line-height: 1.5;
+    cursor: pointer; transition: all 0.3s; font-weight: 300;
+    font-family: inherit;
+  }
+  .ob-option:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.15); color: #e8e8f0; }
+  .ob-option:active { background: rgba(255,220,150,0.08); border-color: rgba(255,220,150,0.25); }
+
+  .ob-diary-card {
+    width: 100%; padding: 24px 20px; background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06); border-radius: 16px;
+    text-align: center; margin-bottom: 20px;
+  }
+  .ob-diary-card.small { padding: 18px 16px; margin-top: 14px; margin-bottom: 0; }
+  .ob-diary-date { font-size: 10px; color: #6a6a80; letter-spacing: 2px; margin-bottom: 12px; font-weight: 200; }
+  .ob-diary-text { font-size: 14px; color: #d8d8e8; line-height: 1.8; font-weight: 300; font-style: italic; }
+
+  .ob-like-prompt { font-size: 12px; color: #7a7a90; margin-bottom: 14px; letter-spacing: 2px; }
+  .ob-like-actions { display: flex; gap: 10px; width: 100%; }
+
+  .ob-insight-card {
+    width: 100%; padding: 22px 18px; text-align: center;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(255,220,150,0.06) 0%, rgba(200,180,255,0.04) 100%);
+    border: 1px solid rgba(255,220,150,0.2);
+    margin-bottom: 12px;
+  }
+  .ob-insight-card.glow { box-shadow: 0 0 30px rgba(255,220,150,0.1); }
+  .ob-insight-tag { font-size: 10px; color: #cca880; letter-spacing: 2.5px; margin-bottom: 12px; }
+  .ob-insight-text { font-size: 13px; color: #f0e6d2; line-height: 1.8; font-weight: 300; }
+
+  .ob-respond { width: 100%; margin-top: 16px; }
+  .ob-textarea {
+    width: 100%; min-height: 80px; background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 14px;
+    padding: 14px; color: #e8e8f0; font-size: 13px; line-height: 1.7;
+    outline: none; resize: none; font-family: inherit; font-weight: 300;
+  }
+  .ob-textarea::placeholder { color: #4a4a60; }
+  .ob-respond-actions { display: flex; gap: 10px; margin-top: 10px; }
+
+  .ob-preview { width: 100%; text-align: center; }
+  .ob-preview-line {
+    font-size: 13px; color: #a8a8c0; line-height: 2.2; font-weight: 300;
+    opacity: 0; animation: lineAppear 0.8s ease forwards;
+  }
+  .ob-preview-btn {
+    margin-top: 20px; opacity: 0; animation: lineAppear 0.8s ease forwards;
+  }
+  @keyframes lineAppear { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .demo-step {
+    position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; color: #5a5a70; letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+
+<div class="demo-hint">首次体验流程 · 选一种感觉开始</div>
+
+<div class="phone">
+  <div class="notch"></div>
+  <div class="statusbar">
+    <span>22:48</span>
+    <span>●●●●●  ⌁  ▮▮</span>
+  </div>
+
+  <!-- Onboarding 页 -->
+  <div class="page active" id="page-onboard">
+    <div class="onboard-stage" id="onboardStage">
+
+      <!-- Step Intro: 产品引入 -->
+      <div class="onboard-step" id="obStepIntro">
+        <div class="ob-light-mini"></div>
+        <div class="ob-intro-title">ego</div>
+        <div class="ob-intro-desc">
+          一个记得你说过什么的地方。<br>
+          你写下此刻的想法，它会在你过去的话里，<br>
+          找到一些你自己都忘了的东西还给你。
+        </div>
+        <div class="ob-intro-note">接下来是一段简短的模拟体验。<br>你会感受到 ego 在做什么——只需要 1 分钟。</div>
+        <button class="btn-primary" onclick="obGoToSelect()">开始体验</button>
+      </div>
+
+      <!-- Step 0: 选择感觉 -->
+      <div class="onboard-step hidden" id="obStep0">
+        <div class="ob-prompt">选一个最接近你最近状态的</div>
+        <div class="ob-options">
+          <div class="ob-option" onclick="obSelect(0)">"最近还不错，但总有点隐隐的不踏实"</div>
+          <div class="ob-option" onclick="obSelect(1)">"有点累，一种说不太清楚的累"</div>
+          <div class="ob-option" onclick="obSelect(2)">"正在经历一些选择，还没想明白"</div>
+          <div class="ob-option" onclick="obSelect(3)">"想记住最近某个好的瞬间"</div>
+        </div>
+      </div>
+
+      <!-- Step 1: 展示日记 -->
+      <div class="onboard-step hidden" id="obStep1">
+        <div class="ob-diary-card">
+          <div class="ob-diary-date" id="obDiaryDate">62 天前</div>
+          <div class="ob-diary-text" id="obDiaryText"></div>
+        </div>
+        <div class="ob-like-prompt">这段话让你有感觉吗？</div>
+        <div class="ob-like-actions">
+          <button class="btn-ghost" onclick="obAnother()">换一条看看</button>
+          <button class="btn-ghost primary" onclick="obLike()">有点像我</button>
+        </div>
+      </div>
+
+      <!-- Step 2: 原话 + ego-insight + 输入框（合并在一个页面） -->
+      <div class="onboard-step hidden" id="obStep2">
+        <div class="ob-diary-card small">
+          <div class="ob-diary-date" id="obDiary2Date">31 天前</div>
+          <div class="ob-diary-text" id="obDiary2Text"></div>
+        </div>
+        <div class="ob-insight-card glow">
+          <div class="ob-insight-tag">✦ 我发现</div>
+          <div class="ob-insight-text" id="obInsightFull"></div>
+        </div>
+        <div class="ob-respond">
+          <textarea class="ob-textarea" id="obTextarea" placeholder="想接着说点什么吗？也可以不说。"></textarea>
+          <button class="btn-ghost primary" style="width:100%; margin-top:10px;" onclick="obToPreview()">继续</button>
+        </div>
+      </div>
+
+      <!-- Step 3: 价值预告 -->
+      <div class="onboard-step hidden" id="obStep4">
+        <div class="ob-preview" id="obPreview">
+          <div class="ob-preview-line" style="animation-delay: 0s;">刚才和你说话的，是一个还不完全是你的 ego。</div>
+          <div class="ob-preview-line" style="animation-delay: 1.8s;">如果你从今天开始把想法留在这里——</div>
+          <div class="ob-preview-line" style="animation-delay: 3.6s;">几天后，你会开始看见自己反复出现的某些念头。</div>
+          <div class="ob-preview-line" style="animation-delay: 5.4s;">再过一阵，你可以和过去不同时刻的自己对话——</div>
+          <div class="ob-preview-line" style="animation-delay: 7.2s;">那些散落的话会彼此连接，让你看见自己正在经历的变化。</div>
+          <div class="ob-preview-line" style="animation-delay: 9s;">某一天你回头看，会发现——</div>
+          <div class="ob-preview-line" style="animation-delay: 10.8s;">你比自己以为的，更了解自己。</div>
+          <div class="ob-preview-btn" style="animation-delay: 13.5s;">
+            <button class="btn-primary" onclick="obFinish()">开始我的第一条</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 主屏（包含写字/回声/回响，全部inline展开） -->
+  <div class="page" id="page-home">
+    <div class="page-title" style="visibility: hidden;">·</div>
+
+    <div class="main-stage" id="stage">
+      <div class="satellites" id="sats">
+        <div class="satellite"></div>
+        <div class="satellite s2"></div>
+        <div class="satellite s3 ready" onclick="openLetter()"></div>
+      </div>
+
+      <!-- 记忆光点（盲盒） -->
+      <div class="memory-orb orb-warm" style="top: 15%; right: 18%;" onclick="openMemoryLetter(0)"></div>
+      <div class="memory-orb orb-cool" style="bottom: 22%; left: 12%;" onclick="openMemoryLetter(1)"></div>
+      <div class="memory-orb orb-soft" style="bottom: 18%; right: 15%;" onclick="openMemoryLetter(2)"></div>
+
+      <!-- 信封弹层 -->
+      <div class="memory-letter-overlay" id="memoryLetterOverlay">
+        <div class="memory-envelope">
+          <div class="envelope-flap"></div>
+          <div class="envelope-body">
+            <div class="envelope-date" id="memoryLetterDate">3月22日 的你</div>
+            <div class="envelope-text" id="memoryLetterText">"跟朋友走了很久，路上好像想明白了什么。"</div>
+            <div class="envelope-close" onclick="closeMemoryLetter()">轻轻合上</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="light-main" id="mainLight">
+        <div class="light-contour"></div>
+        <div class="light-contour c2"></div>
+      </div>
+      <div class="light-label" id="lightLabel"></div>
+      <div class="light-sub" id="lightSub">有什么想说的吗</div>
+
+      <!-- 写字区（inline滑出） -->
+      <div class="whisper-slot" id="whisperSlot">
+        <textarea class="whisper-input" id="whisper" placeholder="随便说点什么，这里听着……"></textarea>
+        <div class="whisper-tip" id="whisperTip">想说多久说多久，什么时候停都行</div>
+        <div class="actions" style="margin-top: 14px;">
+          <button class="btn-ghost" onclick="cancelWhisper()">算了</button>
+          <button class="btn-ghost primary" onclick="showEcho()">先到这</button>
+        </div>
+      </div>
+
+      <!-- 回声 + 照见（inline展开） -->
+      <div class="echo-slot" id="echoSlot">
+        <div class="echo-box" id="echoBox">
+          <div class="echo-from" id="echoFrom">2月11日 · 82 天前</div>
+          <div class="echo-text" id="echoText">"其实我没有真的生气，<br>我只是想让他先开口。"</div>
+          <div class="echo-section-label">你之前也说过类似的</div>
+          <div class="echo-more" onclick="toggleMoreEchoes()" id="echoMoreBtn">之前的你还说过 ›</div>
+        </div>
+
+        <div class="more-echoes" id="moreEchoes">
+          <div class="echo-alt" onclick="pickEcho(0)">
+            <div class="echo-alt-date">3月5日</div>
+            <div class="echo-alt-text">"又开始内耗了，明明什么都没发生。"</div>
+          </div>
+          <div class="echo-alt" onclick="pickEcho(1)">
+            <div class="echo-alt-date">1月24日</div>
+            <div class="echo-alt-text">"其实想说的话都堵在嗓子里。"</div>
+          </div>
+          <div class="echo-alt" onclick="pickEcho(2)">
+            <div class="echo-alt-date">12月18日</div>
+            <div class="echo-alt-text">"我是不是把对方的沉默想得太严重了。"</div>
+          </div>
+        </div>
+
+        <div class="connector" id="connector"></div>
+
+        <!-- 照见 -->
+        <div class="resonance-box" id="resonance">
+          <div class="resonance-tag">✦ 我发现</div>
+          <div class="resonance-text">两次里，你用的词不一样——<br>一次是"等"，一次是"别扭"。<br>同一件事，好像有了新的名字。</div>
+        </div>
+
+        <div class="echo-main-action">
+          <button class="btn-primary echo-continue" onclick="reopenWhisper()">顺着再想想</button>
+        </div>
+
+        <div class="echo-save" onclick="saveToStar()">
+          <span class="save-icon">✦</span>
+          <span>收进星图</span>
+        </div>
+
+        <div class="echo-exit" onclick="closeEcho()">嗯，先这样</div>
+      </div>
+    </div>
+
+    <div class="main-actions" id="mainActions">
+      <button class="btn-primary" onclick="startWhisper()">写下此刻</button>
+    </div>
+
+    <div class="tabbar">
+      <div class="tab active" onclick="showTab('home')">此刻</div>
+      <div class="tab" onclick="showTab('past')">过往</div>
+      <div class="tab" onclick="showTab('star')">星图</div>
+    </div>
+  </div>
+
+  <!-- 过往页 -->
+  <div class="page" id="page-past">
+    <div class="page-title">过往</div>
+    <div class="page-subtitle">每一次说出口的，都留在这里</div>
+    <div class="river">
+      <div class="river-month">· 4 月 ·</div>
+      <div class="river-item" onclick="toast('点开看详情+当时光的颜色')">
+        <div class="river-dot dot-blue"></div>
+        <div class="river-meta">
+          <div class="river-date">4月29日 · 今天 · 沉蓝</div>
+          <div class="river-text">"今天又别扭了，他还是不说话。"</div>
+        </div>
+        <div class="river-linked">✦ 已联结</div>
+      </div>
+      <div class="river-item" onclick="toast('点开看详情')">
+        <div class="river-dot dot-yellow"></div>
+        <div class="river-meta">
+          <div class="river-date">4月18日 · 暖黄</div>
+          <div class="river-text">"中午吃到男朋友做的饭，很好吃很开心。"</div>
+        </div>
+      </div>
+      <div class="river-item" onclick="toast('点开看详情')">
+        <div class="river-dot dot-purple"></div>
+        <div class="river-meta">
+          <div class="river-date">4月12日 · 紫灰</div>
+          <div class="river-text">"我发现自己最怕的不是选错，是选了之后还要为选的负责。"</div>
+        </div>
+      </div>
+
+      <div class="river-month">· 3 月 ·</div>
+      <div class="river-item" onclick="toast('点开看详情')">
+        <div class="river-dot dot-green"></div>
+        <div class="river-meta">
+          <div class="river-date">3月22日 · 松绿</div>
+          <div class="river-text">"今天跟朋友走了很久，路上好像想明白了什么。"</div>
+        </div>
+      </div>
+      <div class="river-item" onclick="toast('点开看详情')">
+        <div class="river-dot dot-purple"></div>
+        <div class="river-meta">
+          <div class="river-date">3月5日 · 紫灰</div>
+          <div class="river-text">"又开始内耗了，明明什么都没发生。"</div>
+        </div>
+      </div>
+
+      <div class="river-month">· 2 月 ·</div>
+      <div class="river-item" onclick="toast('这条和4月29日被联结了')">
+        <div class="river-dot dot-blue"></div>
+        <div class="river-meta">
+          <div class="river-date">2月11日 · 沉蓝</div>
+          <div class="river-text">"其实我没生气，我只是想让他先开口。"</div>
+        </div>
+        <div class="river-linked">✦ 已联结</div>
+      </div>
+      <div class="river-item" onclick="toast('点开看详情')">
+        <div class="river-dot dot-pink"></div>
+        <div class="river-meta">
+          <div class="river-date">2月3日 · 柔粉</div>
+          <div class="river-text">"今天见了老朋友，好像谁都没变，又好像都变了。"</div>
+        </div>
+      </div>
+    </div>
+    <div class="tabbar">
+      <div class="tab" onclick="showTab('home')">此刻</div>
+      <div class="tab active" onclick="showTab('past')">过往</div>
+      <div class="tab" onclick="showTab('star')">星图</div>
+    </div>
+  </div>
+
+  <!-- 星图页 -->
+  <div class="page" id="page-star">
+    <div class="page-title">星图</div>
+    <div class="page-subtitle">散落的自己，慢慢连成星座</div>
+    <div class="starmap" id="starmap">
+      <div class="starmap-tip"></div>
+      <!-- 星座1：不敢开口（左上区域，偏紧凑） -->
+      <div class="star blue" style="top: 18%; left: 15%;"></div>
+      <div class="star blue" style="top: 28%; left: 28%;"></div>
+      <div class="star blue" style="top: 24%; left: 10%;"></div>
+      <div class="constellation-line" style="top: 20%; left: 16%; width: 90px; transform: rotate(25deg);"></div>
+      <div class="constellation-line" style="top: 26%; left: 11%; width: 120px; transform: rotate(10deg);"></div>
+      <div class="constellation-label" style="top: 34%; left: 8%;" onclick="showConstellation('silence')">关于不敢开口的三次</div>
+
+      <!-- 星座2：选择与负责（右侧中部，更疏朗） -->
+      <div class="star purple" style="top: 22%; right: 12%;"></div>
+      <div class="star purple" style="top: 38%; right: 22%;"></div>
+      <div class="star purple" style="top: 30%; right: 8%;"></div>
+      <div class="constellation-line" style="top: 24%; right: 13%; width: 100px; transform: rotate(55deg); transform-origin: right;"></div>
+      <div class="constellation-line" style="top: 32%; right: 9%; width: 95px; transform: rotate(130deg); transform-origin: right;"></div>
+      <div class="constellation-label" style="top: 44%; right: 8%;" onclick="showConstellation('choice')">选择与负责</div>
+
+      <!-- 星座3：温暖的瞬间（底部偏左，三角形排列） -->
+      <div class="star green" style="top: 62%; left: 20%;"></div>
+      <div class="star yellow" style="top: 70%; left: 42%;"></div>
+      <div class="star pink" style="top: 78%; left: 25%;"></div>
+      <div class="constellation-line" style="top: 64%; left: 21%; width: 115px; transform: rotate(18deg);"></div>
+      <div class="constellation-line" style="top: 72%; left: 42%; width: 105px; transform: rotate(140deg);"></div>
+      <div class="constellation-label" style="top: 84%; left: 14%;" onclick="showConstellation('warm')">那些温暖的瞬间</div>
+
+      <!-- 正在成型（右下方，微弱） -->
+      <div class="star forming green" style="top: 58%; right: 25%;" onclick="toast('还在聚合中，再说几次 ·')"></div>
+      <div class="star forming green" style="top: 66%; right: 18%;" onclick="toast('还在聚合中，再说几次 ·')"></div>
+      <div class="forming-hint" style="top: 71%; right: 12%;">隐约有什么…</div>
+
+      <!-- 孤星（散布在空隙） -->
+      <div class="star forming pink" style="top: 48%; left: 52%;" onclick="toast('这颗还在等 ·')"></div>
+      <div class="star forming yellow" style="top: 88%; right: 40%;" onclick="toast('这颗还在等 ·')"></div>
+      <div class="star forming blue" style="top: 50%; right: 40%;" onclick="toast('这颗还在等 ·')"></div>
+    </div>
+    <div class="tabbar">
+      <div class="tab" onclick="showTab('home')">此刻</div>
+      <div class="tab" onclick="showTab('past')">过往</div>
+      <div class="tab active" onclick="showTab('star')">星图</div>
+    </div>
+  </div>
+</div>
+
+<!-- 来信 -->
+<div class="overlay" id="letter">
+  <div class="letter">
+    <div class="letter-glow"></div>
+    <div class="letter-from">287 天前的我 · 寄给今天</div>
+    <div class="letter-text">"如果未来的我又在纠结要不要换工作，<br>请替我去楼下买一杯热美式，<br>然后看着窗外想一想——<br>这次跟上次是不是一样的理由。"</div>
+    <div class="letter-close" onclick="closeLetter()">收下这封信</div>
+  </div>
+</div>
+
+<!-- 寄存 -->
+<div class="overlay" id="deposit-sheet">
+  <div class="sheet">
+    <h3>寄给多久以后的自己</h3>
+    <button class="time-opt" onclick="doDeposit('30天')">30 天后<div class="d">下个月的我会收到</div></button>
+    <button class="time-opt" onclick="doDeposit('100天')">100 天后<div class="d">秋天的我会收到</div></button>
+    <button class="time-opt" onclick="doDeposit('1年')">1 年后<div class="d">明年的今天收到</div></button>
+    <button class="btn-ghost" style="margin-top:10px" onclick="closeDeposit()">先不了</button>
+  </div>
+</div>
+
+<!-- 星座主题详情页（独立页面） -->
+<div class="page" id="page-constellation">
+  <div class="con-page-head">
+    <div class="con-page-back" onclick="backFromConstellation()">‹</div>
+    <div class="con-page-titlebox">
+      <div class="con-page-title" id="con-title">关于不敢开口的三次</div>
+      <div class="con-page-sub" id="con-sub">3 颗星 · 跨越 78 天</div>
+    </div>
+  </div>
+
+  <div class="con-page-body">
+    <!-- 光看见的（含"主题里说过的话"折叠） -->
+    <div class="con-insight">
+      <span class="label">✦ 我发现</span>
+      <div id="con-insight-text"></div>
+      <div class="insight-expand" onclick="togglePastWords(event)">
+        <span id="insightExpandLabel">主题里说过的话 ›</span>
+      </div>
+      <div class="con-past-words" id="conPastWords"></div>
+    </div>
+
+    <!-- 和那时的自己说说话 -->
+    <div class="con-section">
+      <div class="con-section-head plain">
+        <span>和那时的自己说说话</span>
+      </div>
+      <div class="con-past-selves" id="conPastSelves"></div>
+      <div class="con-more-selves" id="conMoreSelves" onclick="toggleMoreSelves()" style="display:none;">
+        <span id="moreSelvesLabel">还有几个你 · 展开 ›</span>
+      </div>
+    </div>
+
+    <!-- 光想递你几把钥匙 -->
+    <div class="con-section">
+      <div class="con-section-head plain">
+        <span>✦ 我想和你聊聊</span>
+        <span class="sub-label">挑一个，继续说</span>
+      </div>
+      <div class="con-angles" id="conAngles"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 和过去的自己对话弹层 -->
+<div class="overlay" id="past-dialog" style="z-index: 250;">
+  <div class="past-dialog-panel">
+      <div class="past-dialog-head">
+      <div class="past-dialog-title" id="pastDialogTitle">和 2月11日 的你</div>
+      <div class="past-dialog-sub">那段时间的 ta 说过的话，就是 ta 现在能说的</div>
+      <div class="past-dialog-close" onclick="closePastDialog()">✕</div>
+    </div>
+    <div class="past-dialog-body" id="pastDialogBody"></div>
+    <div class="past-dialog-input-wrap">
+      <input class="past-dialog-input" id="pastDialogInput" placeholder="对 ta 说点什么……">
+      <button class="past-dialog-send" onclick="sendToPast()">送</button>
+    </div>
+    <div class="past-dialog-tip">⚠ ta 只能说 ta 那时候想过的事</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ===== Onboarding 数据和逻辑 =====
+  const obData = [
+    { // 0: 平静·不安
+      diary: [
+        { date: '43 天前', text: '"最近好像什么都顺。工作没出错，周末也有安排。但心里有一小块地方不太踏实，像在等另一只鞋掉下来。"' },
+        { date: '55 天前', text: '"今天在沙发上躺着，阳光正好，突然想：这种平静是真的吗？还是我只是暂时不去想那些事了？"' },
+        { date: '38 天前', text: '"好几天没emo了。但我发现自己在\'观察\'自己是不是真的好了。这本身就有点奇怪吧。"' }
+      ],
+      diary2: { date: '22 天前', text: '"朋友说我最近状态不错。我说是啊。但我没说的是——我有点怕它走。"' },
+      insightFull: '你选了"还不错但不踏实"——22天前你也写过类似的话："我有点怕它走。"\n\n你好像对"好"这件事不太信任。也许让你不安的不是"会不会变坏"，是你还不习惯就这样好着……'
+    },
+    { // 1: 疲惫·模糊
+      diary: [
+        { date: '62 天前', text: '"又躺了一下午。不是身体累，是脑子不想动了。好像所有事情都跟我没关系，但我又不能真的什么都不做。"' },
+        { date: '45 天前', text: '"今天闹钟响了三次才起来。不是困，是不想面对今天。也没什么特别的事，就是不想开始。"' },
+        { date: '71 天前', text: '"别人问我最近怎么样，我说\'还行\'。其实不还行。但我也不知道哪里不行。"' }
+      ],
+      diary2: { date: '31 天前', text: '"每天都在忙，但回头看什么都没留下。好像我只是在维持什么，不是在走向什么。"' },
+      insightFull: '你选了"一种说不太清楚的累"——31天前你也写过："只是在维持，不是在走向什么。"\n\n你的累好像不是身体的、也不是某件事造成的。它更像一种"我在这里但我不知道为什么在这里"的感觉……'
+    },
+    { // 2: 决定·悬置
+      diary: [
+        { date: '50 天前', text: '"跟他说了。说完之后好像松了，又好像更紧了。话已经出去了，收不回来了。但我不后悔说。"' },
+        { date: '36 天前', text: '"投了那个岗位。不是怕被拒，是怕被接受——万一真的要去了，我准备好了吗？"' },
+        { date: '62 天前', text: '"终于把那个计划列出来了。但写完有一种\'再也找不到借口拖着了\'的感觉。有点怕。"' }
+      ],
+      diary2: { date: '28 天前', text: '"做决定之前想了很久。做完之后发现——原来让我纠结的不是\'选哪个\'，是\'要不要选\'本身。"' },
+      insightFull: '你选了"正在经历选择"——28天前你也写过："让我纠结的不是选哪个，是要不要选本身。"\n\n你好像做完决定之后，不是在等结果，是在等自己的感觉告诉你"对了"。也许你已经知道答案了，只是还不敢信……'
+    },
+    { // 3: 温暖·珍惜
+      diary: [
+        { date: '47 天前', text: '"中午吃到了很好吃的面。坐在窗边，外面在下雨。那一刻觉得什么都刚刚好。"' },
+        { date: '33 天前', text: '"跟朋友笑了一整个下午。回来路上一个人走，居然没有那种\'开心完就空\'的感觉。今天是被填满了的。"' },
+        { date: '58 天前', text: '"忽然发现我好久没哭了。不是忍着，是真的好久没有那么难受了。我想把这个记下来。"' }
+      ],
+      diary2: { date: '20 天前', text: '"今天没什么事发生。但就是想来写一句。以前，我总是难受才会写东西。"' },
+      insightFull: '你选了"想记住某个好的瞬间"——20天前你也写过："以前总是难受才写东西。"\n\n你正在学一件新的事：不只在痛苦的时候才看见自己，也在好的时候。这本身就是一种你可能还没注意到的变化……'
+    }
+  ];
+
+  let obGroupIdx = 0;
+  let obDiaryIdx = 0;
+
+  function obGoToSelect() {
+    document.getElementById('obStepIntro').classList.add('hidden');
+    document.getElementById('obStep0').classList.remove('hidden');
+  }
+
+  function obSelect(idx) {
+    obGroupIdx = idx;
+    obDiaryIdx = 0;
+    document.getElementById('obStep0').classList.add('hidden');
+    document.getElementById('obStep1').classList.remove('hidden');
+    showDiary();
+  }
+
+  function showDiary() {
+    const d = obData[obGroupIdx].diary[obDiaryIdx];
+    document.getElementById('obDiaryDate').textContent = d.date;
+    document.getElementById('obDiaryText').textContent = d.text;
+  }
+
+  function obAnother() {
+    obDiaryIdx = (obDiaryIdx + 1) % obData[obGroupIdx].diary.length;
+    showDiary();
+  }
+
+  function obLike() {
+    document.getElementById('obStep1').classList.add('hidden');
+    document.getElementById('obStep2').classList.remove('hidden');
+    // 填充副日记 + insight
+    const g = obData[obGroupIdx];
+    document.getElementById('obDiary2Date').textContent = g.diary2.date;
+    document.getElementById('obDiary2Text').textContent = g.diary2.text;
+    document.getElementById('obInsightFull').textContent = g.insightFull;
+  }
+
+  function obToPreview() {
+    document.getElementById('obStep2').classList.add('hidden');
+    document.getElementById('obStep4').classList.remove('hidden');
+  }
+
+  function obFinish() {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    setTimeout(() => {
+      document.getElementById('page-home').classList.add('active');
+      document.querySelector('.demo-hint').textContent = '已进入主产品 · 试试"写下此刻"';
+    }, 100);
+  }
+
+  // 生成星空背景
+  (function createStarfield() {
+    const phone = document.querySelector('.phone');
+    const count = 80;
+    const twinkles = ['twinkle1', 'twinkle2', 'twinkle3'];
+    for (let i = 0; i < count; i++) {
+      const s = document.createElement('div');
+      s.className = 'bg-star';
+      // 10%的星星更大更亮
+      const isBright = Math.random() < 0.1;
+      const size = isBright ? (2 + Math.random()) : (Math.random() < 0.6 ? 1 : 1.5);
+      s.style.width = size + 'px';
+      s.style.height = size + 'px';
+      s.style.left = Math.random() * 100 + '%';
+      s.style.top = (44 + Math.random() * 700) + 'px';
+      s.style.opacity = isBright ? (0.4 + Math.random() * 0.3) : (0.12 + Math.random() * 0.25);
+      if (isBright) s.style.background = 'rgba(200,220,255,1)';
+      const anim = twinkles[Math.floor(Math.random() * twinkles.length)];
+      const dur = 2.5 + Math.random() * 5;
+      const delay = Math.random() * -8;
+      s.style.animation = anim + ' ' + dur + 's ease-in-out ' + delay + 's infinite';
+      phone.appendChild(s);
+    }
+  })();
+
+  // 展开写字
+  let idleTimer = null;
+  function startWhisper() {
+    document.getElementById('mainLight').classList.add('small');
+    document.getElementById('lightLabel').classList.add('hide');
+    document.getElementById('lightSub').classList.add('hide');
+    document.getElementById('whisperSlot').classList.add('open');
+    document.getElementById('mainActions').style.display = 'none';
+    document.getElementById('sats').style.opacity = '0.3';
+    setTimeout(() => document.getElementById('whisper').focus(), 300);
+
+    // 3分钟无操作兜底提交（演示简化为15秒，方便你体验）
+    const w = document.getElementById('whisper');
+    const IDLE_MS = 15 * 1000; // 生产环境改成 3 * 60 * 1000
+    const resetIdle = () => {
+      clearTimeout(idleTimer);
+      if (w.value.length > 3) {
+        idleTimer = setTimeout(() => {
+          if (document.getElementById('whisperSlot').classList.contains('open')) {
+            toast('15秒没动，光温柔地接住你 ·');
+            setTimeout(showEcho, 800);
+          }
+        }, IDLE_MS);
+      }
+    };
+    w.oninput = resetIdle;
+  }
+
+  function cancelWhisper() {
+    clearTimeout(idleTimer);
+    document.getElementById('whisperSlot').classList.remove('open');
+    document.getElementById('mainLight').classList.remove('small');
+    document.getElementById('lightLabel').classList.remove('hide');
+    document.getElementById('lightSub').classList.remove('hide');
+    document.getElementById('mainActions').style.display = 'flex';
+    document.getElementById('sats').style.opacity = '1';
+    document.getElementById('whisper').value = '';
+  }
+
+  function showEcho() {
+    clearTimeout(idleTimer);
+    document.getElementById('whisperSlot').classList.remove('open');
+    setTimeout(() => {
+      document.getElementById('echoSlot').classList.add('open');
+      setTimeout(() => {
+        document.getElementById('connector').classList.add('show');
+      }, 900);
+      setTimeout(() => {
+        document.getElementById('resonance').classList.add('show');
+      }, 1600);
+    }, 300);
+  }
+
+  // 多条回声切换
+  function toggleMoreEchoes() {
+    const box = document.getElementById('moreEchoes');
+    const btn = document.getElementById('echoMoreBtn');
+    if (box.classList.contains('show')) {
+      box.classList.remove('show');
+      btn.innerHTML = '之前的你还说过 ›';
+    } else {
+      box.classList.add('show');
+      btn.innerHTML = '收起 ‹';
+    }
+  }
+
+  const altEchoes = [
+    { from: '3月5日 · 紫灰', text: '"又开始内耗了，<br>明明什么都没发生。"' },
+    { from: '1月24日 · 清蓝', text: '"其实想说的话都堵在嗓子里。"' },
+    { from: '12月18日 · 沉蓝', text: '"我是不是把对方的<br>沉默想得太严重了。"' }
+  ];
+  const originalEcho = { from: '2月11日 · 82 天前', text: '"其实我没有真的生气，<br>我只是想让他先开口。"' };
+  let currentEchoIndex = -1;
+
+  function pickEcho(i) {
+    const alts = document.querySelectorAll('.echo-alt');
+    const prevFrom = document.getElementById('echoFrom').innerText;
+    const prevText = document.getElementById('echoText').innerHTML;
+
+    document.getElementById('echoFrom').textContent = altEchoes[i].from;
+    document.getElementById('echoText').innerHTML = altEchoes[i].text;
+
+    alts[i].querySelector('.echo-alt-date').textContent = prevFrom;
+    alts[i].querySelector('.echo-alt-text').innerHTML = prevText;
+    altEchoes[i] = { from: prevFrom, text: prevText };
+
+    toast('嗯，这个你更贴 ·');
+    setTimeout(() => {
+      toggleMoreEchoes();
+    }, 800);
+  }
+
+  function closeEcho() {
+    document.getElementById('echoSlot').classList.remove('open');
+    document.getElementById('connector').classList.remove('show');
+    document.getElementById('resonance').classList.remove('show');
+    document.getElementById('mainLight').classList.remove('small');
+    document.getElementById('lightLabel').classList.remove('hide');
+    document.getElementById('lightSub').classList.remove('hide');
+    document.getElementById('mainActions').style.display = 'flex';
+    document.getElementById('sats').style.opacity = '1';
+    document.getElementById('whisper').value = '';
+    toast('明天见 ·');
+  }
+
+  function reopenWhisper() {
+    document.getElementById('echoSlot').classList.remove('open');
+    document.getElementById('connector').classList.remove('show');
+    document.getElementById('resonance').classList.remove('show');
+    document.getElementById('whisperSlot').classList.add('open');
+    document.getElementById('whisper').value = '';
+    document.getElementById('whisper').placeholder = '顺着刚才的，再说一句……';
+    document.getElementById('whisperTip').textContent = '光继续听着';
+    document.getElementById('whisper').focus();
+    // 写完了仍然可以触发新的回声，允许无限延续
+  }
+
+  function saveToStar() {
+    const card = document.getElementById('resonance');
+    const starTab = document.querySelectorAll('.tab')[2];
+    if (!card || !starTab) return;
+
+    const cardRect = card.getBoundingClientRect();
+    const tabRect = starTab.getBoundingClientRect();
+
+    const startX = cardRect.left + cardRect.width / 2;
+    const startY = cardRect.top + cardRect.height / 2;
+    const endX = tabRect.left + tabRect.width / 2;
+    const endY = tabRect.top + tabRect.height / 2;
+
+    // 1. 卡片发光
+    card.classList.add('card-glow');
+
+    // 2. 起飞涟漪（三圈）
+    [0, 250, 500].forEach((delay) => {
+      setTimeout(() => {
+        const ripple = document.createElement('div');
+        ripple.className = 'liftoff-ripple';
+        ripple.style.left = startX + 'px';
+        ripple.style.top = startY + 'px';
+        ripple.style.width = '80px';
+        ripple.style.height = '80px';
+        ripple.style.animation = 'ripple 1.2s ease-out forwards';
+        document.body.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 1300);
+      }, delay);
+    });
+
+    // 3. 创建主光点（在卡片中心出现）
+    setTimeout(() => {
+      const star = document.createElement('div');
+      star.className = 'flying-star';
+      star.style.left = (startX - 12) + 'px';
+      star.style.top = (startY - 12) + 'px';
+      star.style.transform = 'scale(0.2)';
+      star.style.opacity = '0';
+      star.style.transition = 'all 0.5s cubic-bezier(0.2, 0.6, 0.4, 1)';
+      document.body.appendChild(star);
+
+      // 3a. 光点升起并蓄力（悬停呼吸）
+      requestAnimationFrame(() => {
+        star.style.opacity = '1';
+        star.style.transform = 'scale(1.4)';
+        star.style.top = (startY - 40) + 'px';
+      });
+
+      // 3b. 悬停呼吸半秒后开始飞行
+      setTimeout(() => {
+        // 计算贝塞尔控制点（弧线）
+        // 控制点在起点和终点之间上方，形成优美弧线
+        const midX = (startX + endX) / 2;
+        const midY = Math.min(startY, endY) - 120; // 向上拱
+
+        // 手动动画：沿贝塞尔曲线飞行
+        const duration = 1600;
+        const startTime = performance.now();
+
+        // 同时启动尾迹生成
+        let trailInterval = setInterval(() => {
+          const now = performance.now();
+          const t = Math.min((now - startTime) / duration, 1);
+          if (t >= 1) { clearInterval(trailInterval); return; }
+
+          // 当前光点位置
+          const currentX = bezierPoint(t, startX, midX, endX);
+          const currentY = bezierPoint(t, startY - 40, midY, endY);
+
+          // 创建一个尾迹点
+          const trail = document.createElement('div');
+          trail.className = 'star-trail';
+          trail.style.left = (currentX - 5) + 'px';
+          trail.style.top = (currentY - 5) + 'px';
+          trail.style.transform = 'scale(' + (1 - t * 0.5) + ')';
+          trail.style.opacity = '0.8';
+          trail.style.transition = 'opacity 0.8s ease, transform 0.8s ease';
+          document.body.appendChild(trail);
+          requestAnimationFrame(() => {
+            trail.style.opacity = '0';
+            trail.style.transform = 'scale(0.2)';
+          });
+          setTimeout(() => trail.remove(), 900);
+        }, 50);
+
+        // 光点动画：用 Web Animation API 做贝塞尔路径
+        const keyframes = [];
+        const steps = 40;
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps;
+          const x = bezierPoint(t, startX, midX, endX) - 12;
+          const y = bezierPoint(t, startY - 40, midY, endY) - 12;
+          const scale = 1.4 - t * 0.9; // 飞行过程中缩小
+          keyframes.push({
+            left: x + 'px',
+            top: y + 'px',
+            transform: `scale(${scale})`,
+            offset: t
+          });
+        }
+
+        star.style.transition = 'none';
+        star.animate(keyframes, { duration: duration, easing: 'cubic-bezier(0.4, 0, 0.6, 1)', fill: 'forwards' });
+
+        // 3c. 到达后：星屑炸开 + tab脉冲
+        setTimeout(() => {
+          star.style.opacity = '0';
+          starTab.classList.add('tab-pulse');
+          starburst(endX, endY);
+
+          setTimeout(() => {
+            star.remove();
+            card.classList.remove('card-glow');
+            starTab.classList.remove('tab-pulse');
+            closeEcho();
+            toast('这颗留在星图里了 ·');
+          }, 1400);
+        }, duration);
+      }, 500);
+    }, 200);
+  }
+
+  // 二次贝塞尔曲线取点
+  function bezierPoint(t, p0, p1, p2) {
+    const mt = 1 - t;
+    return mt * mt * p0 + 2 * mt * t * p1 + t * t * p2;
+  }
+
+  // 星屑炸开
+  function starburst(cx, cy) {
+    const count = 16;
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement('div');
+      p.className = 'starburst-particle';
+      p.style.left = (cx - 2) + 'px';
+      p.style.top = (cy - 2) + 'px';
+      document.body.appendChild(p);
+
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.3;
+      const distance = 40 + Math.random() * 30;
+      const tx = Math.cos(angle) * distance;
+      const ty = Math.sin(angle) * distance;
+
+      p.animate([
+        { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+        { transform: `translate(${tx * 0.6}px, ${ty * 0.6}px) scale(1.4)`, opacity: 0.9, offset: 0.4 },
+        { transform: `translate(${tx}px, ${ty}px) scale(0.2)`, opacity: 0 }
+      ], { duration: 900, easing: 'cubic-bezier(0.2, 0.6, 0.3, 1)', fill: 'forwards' });
+
+      setTimeout(() => p.remove(), 1000);
+    }
+  }
+
+  // 寄存
+  function showDeposit() { document.getElementById('deposit-sheet').classList.add('show'); }
+  function closeDeposit() { document.getElementById('deposit-sheet').classList.remove('show'); closeEcho(); }
+  function doDeposit(t) {
+    closeDeposit();
+    toast('已寄给 ' + t + ' 后的我 ✦');
+    setTimeout(closeEcho, 1000);
+  }
+
+  // 来信
+  function openLetter() { document.getElementById('letter').classList.add('show'); }
+
+  // 记忆光点盲盒
+  const memoryLetters = [
+    { date: '3月22日', text: '跟朋友走了很久，<br>路上好像想明白了什么。' },
+    { date: '2月3日', text: '见了老朋友，<br>好像谁都没变，又好像都变了。' },
+    { date: '4月18日', text: '中午吃到男朋友做的饭，<br>很好吃，很开心。' },
+    { date: '1月8日', text: '我讨厌被推着做决定。' },
+    { date: '3月5日', text: '又开始内耗了，<br>明明什么都没发生。' },
+    { date: '2月23日', text: '其实我是想等一个人<br>告诉我这样就对了。' }
+  ];
+
+  // 每次打开随机抽3条不同的
+  let shuffled = [...memoryLetters].sort(() => Math.random() - 0.5);
+  let orbAssignments = [shuffled[0], shuffled[1], shuffled[2]];
+
+  function openMemoryLetter(idx) {
+    const letter = orbAssignments[idx];
+    document.getElementById('memoryLetterDate').textContent = letter.date + ' 的你';
+    document.getElementById('memoryLetterText').innerHTML = '"' + letter.text + '"';
+    document.getElementById('memoryLetterOverlay').classList.add('show');
+  }
+
+  function closeMemoryLetter() {
+    document.getElementById('memoryLetterOverlay').classList.remove('show');
+  }
+  function closeLetter() {
+    document.getElementById('letter').classList.remove('show');
+    document.querySelector('.satellite.s3').style.display = 'none';
+    toast('信收下了，光点融回主光里');
+  }
+
+  // 切换tab
+  function showTab(which) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    if (which === 'home') document.getElementById('page-home').classList.add('active');
+    if (which === 'past') document.getElementById('page-past').classList.add('active');
+    if (which === 'star') document.getElementById('page-star').classList.add('active');
+  }
+
+  // 星座详情
+  const constellations = {
+    silence: {
+      title: '关于不敢开口的三次',
+      sub: '3 颗星 · 跨越 78 天',
+      items: [
+        { color: 'blue', date: '2月11日', text: '其实我没生气，我只是想让他先开口。' },
+        { color: 'blue', date: '3月5日', text: '又开始内耗了，明明什么都没发生。' },
+        { color: 'blue', date: '4月29日', text: '今天又别扭了，他还是不说话。' }
+      ],
+      insight: '三次都是"他不说话，我也不说"。<br>第一次你用的是"等"，第二次是"内耗"，第三次是"别扭"——同一件事，你叫它的名字在变。',
+      angles: [
+        { label: '顺着 2月11日', text: '你说"我只是想让他先开口"——那"先开口"对你到底意味着什么？' },
+        { label: '顺着 3月5日', text: '"又开始内耗了"——如果那不是内耗，是你在保护什么？' },
+        { label: '顺着 4月29日', text: '"他还是不说话"——那你呢，你想说却没说的那句话是什么？' },
+        { label: '把三次放在一起', text: '如果这三次里你开了口，会不会就没有后面那两次了？' }
+      ],
+      selves: [
+        { date: '2月11日', preview: '"我只是想让他先开口"', corpus: [
+          '其实我没生气，我只是想让他先开口。',
+          '我在等他先承认那天的话说重了。',
+          '如果他永远不承认呢？我不知道，但我好像只能等。',
+          '等是一种控制感，也是一种束手无策。',
+          '我那时候觉得，先开口的人是输的那个。'
+        ]},
+        { date: '3月5日', preview: '"又开始内耗了"', corpus: [
+          '又开始内耗了，明明什么都没发生。',
+          '不是事情让我难过，是我想事情的方式让我难过。',
+          '可是又停不下来想。',
+          '是不是只要我不说话，事情就可以不用发生？',
+          '不说话不等于没关系，但我好像只会这一招。'
+        ]},
+        { date: '4月29日', preview: '"他还是不说话"', corpus: [
+          '今天又别扭了，他还是不说话。',
+          '明明只要有一个人开口就好了。',
+          '我好累，但我还是不想是我先。',
+          '这次我意识到了——我在重复一件事。',
+          '看见了但还是做不到。'
+        ]},
+        { date: '1月24日', preview: '"话都堵在嗓子里"', corpus: [
+          '其实想说的话都堵在嗓子里。',
+          '开口好像要用尽全身力气。',
+          '我不知道为什么总是这样。',
+          '有时候觉得，说了也没人懂。',
+          '也许我害怕的是——被回应不被期待的那种。'
+        ]},
+        { date: '12月18日', preview: '"我是不是把沉默想得太严重"', corpus: [
+          '我是不是把对方的沉默想得太严重了。',
+          '也许他只是累了，没别的。',
+          '但我总忍不住往坏里想。',
+          '为什么沉默会让我这么慌。',
+          '大概因为我小时候就怕被忽略吧。'
+        ]}
+      ]
+    },
+    choice: {
+      title: '选择与负责',
+      sub: '3 颗星 · 你最近在想这件事',
+      items: [
+        { color: 'purple', date: '1月8日', text: '我讨厌被推着做决定。' },
+        { color: 'purple', date: '2月23日', text: '其实我是想等一个人告诉我这样就对了。' },
+        { color: 'purple', date: '4月12日', text: '我最怕的不是选错，是选了之后还要负责。' }
+      ],
+      insight: '你其实不怕选择本身——你怕的是"选了之后再也没人替你分担"。<br>这三次话里都有一个影子：你一直在找一个"替你签名的人"。',
+      angles: [
+        { label: '顺着 1月8日', text: '"讨厌被推着做决定"——那被推的感觉，具体是什么让你不舒服？' },
+        { label: '顺着 2月23日', text: '"想等一个人告诉我这样就对了"——如果这个人真的出现了，你会信吗？' },
+        { label: '顺着 4月12日', text: '"怕选了之后要负责"——你怕的是"承担结果"还是"不能反悔"？' },
+        { label: '把三次放在一起', text: '这三次的共同点是"想有人替你签名"——那你愿意替哪一次的自己签一下？' }
+      ],
+      selves: [
+        { date: '1月8日', preview: '"我讨厌被推着做决定"', corpus: [
+          '我讨厌被推着做决定。',
+          '可又常常等着别人推我一把。',
+          '这个矛盾一直在。',
+          '推我的人其实不是坏人，是我一直没决定。',
+          '我是不是在用"讨厌被推"掩盖"没想好"？'
+        ]},
+        { date: '2月23日', preview: '"想等一个人告诉我这样就对了"', corpus: [
+          '其实我是想等一个人告诉我这样就对了。',
+          '但这种"对了"其实没人能给我。',
+          '我知道，但我还是在等。',
+          '这种等，本质上是不想长大。',
+          '承认"没人能告诉你对了"这件事，太难了。'
+        ]},
+        { date: '4月12日', preview: '"怕选了之后还要负责"', corpus: [
+          '我最怕的不是选错，是选了之后还要负责。',
+          '选错还有机会改，但"要自己负责"没法改。',
+          '我其实想要一个"替我签名的人"。',
+          '这个发现让我有点难过。',
+          '也许学会替自己签名，就是长大吧。'
+        ]}
+      ]
+    },
+    warm: {
+      title: '那些温暖的瞬间',
+      sub: '3 颗星 · 你记得这些小事',
+      items: [
+        { color: 'green', date: '3月22日', text: '今天跟朋友走了很久，路上好像想明白了什么。' },
+        { color: 'yellow', date: '4月18日', text: '中午吃到男朋友做的饭，很好吃很开心。' },
+        { color: 'pink', date: '2月3日', text: '今天见了老朋友，好像谁都没变，又好像都变了。' }
+      ],
+      insight: '你记住的温暖，都是"在一起但不用说话"的时刻。<br>走路、吃饭、重逢——都是沉默的亲密。',
+      angles: [
+        { label: '顺着 3月22日', text: '"走了很久，想明白了什么"——那时候想明白的那件事，现在还在心里吗？' },
+        { label: '顺着 4月18日', text: '"吃到他做的饭，很开心"——那种开心，和别的开心有什么不一样？' },
+        { label: '顺着 2月3日', text: '"谁都没变又好像都变了"——变了的那部分，你们聊了吗，还是默契地没提？' },
+        { label: '把三次放在一起', text: '这三次温暖都是"一起但不说话"——对你来说，话多的亲近会不会反而是负担？' }
+      ],
+      selves: [
+        { date: '3月22日', preview: '"路上好像想明白了什么"', corpus: [
+          '今天跟朋友走了很久，路上好像想明白了什么。',
+          '她没说什么特别的话，但就是让我松了。',
+          '走路比坐着说话更容易想清楚。',
+          '身体在动，话才敢出来。',
+          '这种朋友不多，但一个就够了。'
+        ]},
+        { date: '4月18日', preview: '"他做的饭很好吃"', corpus: [
+          '中午吃到男朋友做的饭，很好吃很开心。',
+          '他没说多少话，只是一直往我碗里夹菜。',
+          '我从来不是嘴甜的人，但那一刻我笑得很傻。',
+          '爱原来可以是这么简单一件事。',
+          '我希望他知道我有多珍惜这个中午。'
+        ]},
+        { date: '2月3日', preview: '"好像都变了又都没变"', corpus: [
+          '今天见了老朋友，好像谁都没变，又好像都变了。',
+          '大家说的话都是客套，但眼神是熟的。',
+          '我们都在长大，但又在装作没事。',
+          '这种见面让我又感动又有点累。',
+          '大概"没变"是假装，"变了"才是真的。'
+        ]}
+      ]
+    }
+  };
+
+  let currentConstellation = null;
+  let currentPastSelf = null;
+  const MAX_SELVES_VISIBLE = 3;
+
+  function showConstellation(key) {
+    const c = constellations[key];
+    currentConstellation = c;
+    document.getElementById('con-title').textContent = c.title;
+    document.getElementById('con-sub').textContent = c.sub;
+    document.getElementById('con-insight-text').innerHTML = c.insight;
+
+    const list = c.items.map(i => `
+      <div class="con-item">
+        <div class="con-dot dot-${i.color}" style="background: radial-gradient(circle, ${colorMap[i.color]});"></div>
+        <div>
+          <div class="con-date">${i.date}</div>
+          <div class="con-text">"${i.text}"</div>
+        </div>
+      </div>`).join('');
+    document.getElementById('conPastWords').innerHTML = list;
+    document.getElementById('conPastWords').classList.remove('show');
+    document.getElementById('insightExpandLabel').textContent = '主题里说过的话 ›';
+
+    renderPastSelves(false);
+
+    // 钥匙：只展示前 3 把
+    const anglesHtml = c.angles.slice(0, 3).map((a, idx) => `
+      <div class="angle-card" onclick="useAngle(${idx})">
+        <div class="angle-label">${a.label}</div>
+        <div class="angle-text">${a.text}</div>
+      </div>`).join('');
+    document.getElementById('conAngles').innerHTML = anglesHtml;
+
+    // 切换到独立详情页
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    setTimeout(() => {
+      document.getElementById('page-constellation').classList.add('active');
+      document.querySelector('#page-constellation .con-page-body').scrollTop = 0;
+    }, 50);
+  }
+
+  function backFromConstellation() {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    setTimeout(() => {
+      document.getElementById('page-star').classList.add('active');
+    }, 50);
+  }
+
+  // 兼容遗留调用（对话弹层关闭等处用到的 closeConstellation）
+  function closeConstellation() { backFromConstellation(); }
+
+  let selvesExpanded = false;
+  function renderPastSelves(expanded) {
+    selvesExpanded = expanded;
+    const selves = currentConstellation.selves;
+    const toShow = expanded ? selves : selves.slice(0, MAX_SELVES_VISIBLE);
+    const html = toShow.map((s, idx) => `
+      <div class="past-self-card" onclick="openPastDialog(${idx})">
+        <div class="past-self-dot"></div>
+        <div class="past-self-info">
+          <div class="past-self-date">${s.date} 的你</div>
+          <div class="past-self-preview">${s.preview}</div>
+        </div>
+      </div>`).join('');
+    document.getElementById('conPastSelves').innerHTML = html;
+
+    const moreBtn = document.getElementById('conMoreSelves');
+    const moreLabel = document.getElementById('moreSelvesLabel');
+    if (selves.length > MAX_SELVES_VISIBLE) {
+      moreBtn.style.display = 'block';
+      if (expanded) {
+        moreLabel.textContent = '收起 ‹';
+      } else {
+        moreLabel.textContent = `还有 ${selves.length - MAX_SELVES_VISIBLE} 个你 · 展开 ›`;
+      }
+    } else {
+      moreBtn.style.display = 'none';
+    }
+  }
+
+  function toggleMoreSelves() {
+    renderPastSelves(!selvesExpanded);
+  }
+
+  function togglePastWords(e) {
+    if (e) e.stopPropagation();
+    const words = document.getElementById('conPastWords');
+    const label = document.getElementById('insightExpandLabel');
+    if (words.classList.contains('show')) {
+      words.classList.remove('show');
+      label.textContent = '主题里说过的话 ›';
+    } else {
+      words.classList.add('show');
+      label.textContent = '收起 ‹';
+    }
+  }
+
+  function useAngle(idx) {
+    const a = currentConstellation.angles[idx];
+    toast('回到此刻，接着聊 ·');
+    setTimeout(() => {
+      backFromConstellation();
+      setTimeout(() => {
+        showTab('home');
+        setTimeout(() => {
+          startWhisper();
+          setTimeout(() => {
+            document.getElementById('whisper').value = a.text + '\n\n';
+            document.getElementById('whisper').focus();
+          }, 400);
+        }, 300);
+      }, 200);
+    }, 800);
+  }
+
+  // ===== 和过去的自己对话 =====
+  function openPastDialog(idx) {
+    currentPastSelf = currentConstellation.selves[idx];
+    document.getElementById('pastDialogTitle').textContent = '和 ' + currentPastSelf.date + ' 的你';
+    document.getElementById('pastDialogBody').innerHTML = `
+      <div class="bubble past">
+        我那时候写过这样一句——
+        <span class="quoted">"${currentPastSelf.corpus[0]}"</span><br><br>
+        你想跟那时的我聊什么？
+        <span class="origin">参考了 ${currentPastSelf.date}</span>
+      </div>
+    `;
+    document.getElementById('past-dialog').classList.add('show');
+    setTimeout(() => document.getElementById('pastDialogInput').focus(), 300);
+  }
+
+  function closePastDialog() {
+    document.getElementById('past-dialog').classList.remove('show');
+  }
+
+  function sendToPast() {
+    const input = document.getElementById('pastDialogInput');
+    const txt = input.value.trim();
+    if (!txt) return;
+    const body = document.getElementById('pastDialogBody');
+    body.innerHTML += `<div class="bubble me">${txt}</div>`;
+    input.value = '';
+    body.scrollTop = body.scrollHeight;
+
+    // 过去的自己 · 灵动扮演
+    setTimeout(() => {
+      const corpus = currentPastSelf.corpus;
+      const myTurn = body.querySelectorAll('.bubble.me').length;
+      const replyOriginal = corpus[myTurn % corpus.length];
+
+      // 灵动扮演：基于原话生成自然的对话
+      // 模拟逻辑：取原话作为思想内核，加上反问/延伸让它像真对话
+      const styles = [
+        { prefix: '', suffix: '你现在回头看，是不是也这样想？' },
+        { prefix: '我记得那时候一直觉得，', suffix: '' },
+        { prefix: '', suffix: '这个事你后来想明白了吗？' },
+        { prefix: '其实我那时候还没说出口的是——', suffix: '' },
+        { prefix: '', suffix: '我现在还是这么觉得吗？你说呢。' }
+      ];
+      const style = styles[(myTurn - 1) % styles.length];
+      const replyHtml = style.prefix +
+        `<span class="quoted">"${replyOriginal}"</span>` +
+        (style.suffix ? '<br><br>' + style.suffix : '');
+
+      body.innerHTML += `
+        <div class="bubble past">
+          ${replyHtml}
+          <span class="origin">参考了 ${currentPastSelf.date} 前后</span>
+        </div>`;
+      body.scrollTop = body.scrollHeight;
+    }, 800);
+  }
+  const colorMap = {
+    blue: 'rgba(120,160,255,1), rgba(80,100,200,0.3)',
+    purple: 'rgba(200,160,255,1), rgba(120,80,200,0.3)',
+    green: 'rgba(160,230,200,1), rgba(80,180,140,0.3)',
+    yellow: 'rgba(255,220,150,1), rgba(200,150,80,0.3)',
+    pink: 'rgba(255,180,220,1), rgba(200,120,160,0.3)'
+  };
+  function closeConstellation() { document.getElementById('constellation').classList.remove('show'); }
+
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+  }
+</script>
+</body>
+</html>
