@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/providers/onboarding_provider.dart';
 import '../../features/login/login_page.dart';
+import '../../features/onboarding/onboarding_page.dart';
 import '../../features/now/now_page.dart';
 import '../../features/past/past_page.dart';
 import '../../features/starmap/starmap_page.dart';
@@ -9,21 +11,31 @@ import '../../shared/widgets/app_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
+  final onboardingDone = ref.watch(onboardingCompleteProvider);
 
   return GoRouter(
     initialLocation: '/now',
     redirect: (context, state) {
       final loggedIn = authState.isLoggedIn;
-      final isLoginPage = state.matchedLocation == '/login';
+      final isLoginRoute = state.matchedLocation == '/login';
+      final isOnboardingRoute = state.matchedLocation == '/onboard';
 
-      if (!loggedIn && !isLoginPage) return '/login';
-      if (loggedIn && isLoginPage) return '/now';
+      if (!loggedIn && !isLoginRoute) return '/login';
+      if (loggedIn && isLoginRoute) {
+        return onboardingDone ? '/now' : '/onboard';
+      }
+      if (loggedIn && !onboardingDone && !isOnboardingRoute) return '/onboard';
+      if (loggedIn && onboardingDone && isOnboardingRoute) return '/now';
       return null;
     },
     routes: [
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginPage(),
+      ),
+      GoRoute(
+        path: '/onboard',
+        builder: (context, state) => const OnboardingPage(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
