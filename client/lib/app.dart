@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/router.dart';
 import 'core/theme/theme.dart';
+import 'shared/widgets/toast_overlay.dart';
 
 class App extends ConsumerWidget {
   const App({super.key});
@@ -15,6 +16,7 @@ class App extends ConsumerWidget {
       theme: darkTheme(),
       routerConfig: router,
       debugShowCheckedModeBanner: false,
+      builder: (context, child) => ToastOverlay(child: child!),
     );
   }
 }
