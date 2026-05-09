@@ -2,11 +2,13 @@ package bootstrap
 
 import (
 	"fmt"
+	"log/slog"
 	"strconv"
 	"time"
 
 	"ego-server/internal/config"
 	"ego-server/internal/platform/auth"
+	"ego-server/internal/platform/logging"
 	"ego-server/internal/platform/postgres"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -18,9 +20,19 @@ type Platform struct {
 	JWTExp time.Duration
 	Hasher auth.BcryptHasher
 	Tokens auth.JWTIssuer
+	Logger *slog.Logger
 }
 
 func InitPlatform(cfg *config.Config) (*Platform, error) {
+	logger, err := logging.New(logging.Config{
+		Level:      cfg.LogLevel,
+		Format:     cfg.LogFormat,
+		OutputPath: cfg.LogOutput,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("init logger: %w", err)
+	}
+
 	pool, err := postgres.Connect(cfg.DatabaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("db connect: %w", err)
@@ -40,6 +52,7 @@ func InitPlatform(cfg *config.Config) (*Platform, error) {
 		JWTExp: jwtExp,
 		Hasher: auth.BcryptHasher{},
 		Tokens: auth.JWTIssuer{Secret: jwtKey, Exp: jwtExp},
+		Logger: logger,
 	}, nil
 }
 

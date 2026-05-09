@@ -4,9 +4,14 @@ Platform exposes infrastructure capabilities to application wiring.
 
 Current concrete capabilities:
 
+- `logging.New(cfg Config) (*slog.Logger, error)` — creates a structured logger backed by zap
+- `logging.NewDefault() *slog.Logger` — dev-friendly defaults (text, debug level, caller info)
+- `logging.NewNop() *slog.Logger` — no-op logger for tests
+- `logging.WithLogger(ctx, logger)` — inject logger into context
+- `logging.FromContext(ctx) *slog.Logger` — extract logger from context, falls back to slog.Default()
+- `auth.UnaryServerInterceptor(jwtSecret, baseLogger)` — gRPC interceptor with auth + request-scoped logger injection (request_id, user_id, method)
 - `auth.GenerateJWT`
 - `auth.ParseJWT`
-- `auth.UnaryServerInterceptor`
 - `postgres.Connect`
 - `postgres/sqlc` generated queries
 

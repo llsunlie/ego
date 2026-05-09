@@ -2,23 +2,28 @@ package auth
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 
+	"ego-server/internal/platform/logging"
+
+	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
-func UnaryServerInterceptor(jwtSecret []byte) grpc.UnaryServerInterceptor {
+func UnaryServerInterceptor(jwtSecret []byte, baseLogger *slog.Logger) grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
 		req interface{},
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (interface{}, error) {
-		// Login RPC whitelist, skip auth
 		if strings.Contains(info.FullMethod, "Login") {
+			logger := baseLogger.With("request_id", uuid.NewString(), "method", info.FullMethod)
+			ctx = logging.WithLogger(ctx, logger)
 			return handler(ctx, req)
 		}
 
@@ -43,6 +48,14 @@ func UnaryServerInterceptor(jwtSecret []byte) grpc.UnaryServerInterceptor {
 		}
 
 		ctx = context.WithValue(ctx, "user_id", userID)
+
+		logger := baseLogger.With(
+			"request_id", uuid.NewString(),
+			"user_id", userID,
+			"method", info.FullMethod,
+		)
+		ctx = logging.WithLogger(ctx, logger)
+
 		return handler(ctx, req)
 	}
 }

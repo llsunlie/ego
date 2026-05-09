@@ -25,6 +25,7 @@ Platform 不负责实现任何前后端业务 RPC。
 | --- | --- |
 | `postgres` | PostgreSQL 连接池、迁移、sqlc 生成查询、事务基础设施 |
 | `auth` | JWT 生成/解析、gRPC 鉴权拦截器、密码基础能力 |
+| `logging` | slog+zap 结构化日志基础设施 |
 | `grpc` | gRPC server plumbing、错误映射、transport 辅助能力 |
 | `ai` | AI SDK adapter、prompt 模板、输出校验 |
 | `eventbus` | 进程内事件总线、未来 outbox 基础设施 |

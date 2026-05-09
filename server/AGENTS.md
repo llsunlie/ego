@@ -5,6 +5,7 @@
 ## 后端核心模式与硬约束 (Key Patterns & Hard Constraints)
 - **开发流程必须符合项目 Harness 规范**
 - **代码实现中保持必要的注释以及日志追踪**
+- **日志使用规范**：基于 slog + zap 的结构化日志，通过 context propagation 自动携带 request trace 信息。logger 不作为 struct 成员，统一通过 `logging.FromContext(ctx)` 获取，详细设计见 `platform/logging/ARCHITECTURE.md`。
 - **后端 DDD 隔离与跨模块协作**：各业务模块拥有独立的表写入权，严禁越权修改其他模块的内部实现。模块间协作必须遵循以下路径：
   - **同步调用**：仅限参考并调用目标模块 `CONTRACT.md` 中描述的接口和公开接口定义。
   - **异步解耦**：对于非强一致性需求，优先通过 `internal/platform/eventbus` 发布领域事件（Domain Event）进行通信。

@@ -2,19 +2,22 @@ package main
 
 import (
 	"context"
-	"log"
 	"os"
 	"path/filepath"
 
 	"ego-server/internal/config"
+	"ego-server/internal/platform/logging"
 	"ego-server/internal/platform/postgres"
 )
 
 func main() {
+	logger := logging.NewDefault()
+
 	cfg := config.Load()
 	pool, err := postgres.Connect(cfg.DatabaseURL)
 	if err != nil {
-		log.Fatalf("connect: %v", err)
+		logger.Error("db connect failed", "error", err)
+		os.Exit(1)
 	}
 	defer pool.Close()
 
@@ -22,11 +25,13 @@ func main() {
 
 	sql, err := os.ReadFile(filepath.Join("internal", "platform", "postgres", "migrations", "001_users.sql"))
 	if err != nil {
-		log.Fatalf("read migration: %v", err)
+		logger.Error("read migration failed", "error", err)
+		os.Exit(1)
 	}
 
 	if _, err := pool.Exec(ctx, string(sql)); err != nil {
-		log.Fatalf("migrate: %v", err)
+		logger.Error("migrate failed", "error", err)
+		os.Exit(1)
 	}
-	log.Println("migration 001_users applied")
+	logger.Info("migration applied", "file", "001_users.sql")
 }
