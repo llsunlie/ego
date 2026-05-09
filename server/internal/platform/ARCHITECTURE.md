@@ -8,6 +8,7 @@ It contains concrete technology adapters used by DDD modules through interfaces.
 
 - `auth`: JWT and password-related primitives.
 - `postgres`: pgx pool, migrations, sqlc queries.
+- `logging`: slog+zap structured logging with context propagation. See `logging/ARCHITECTURE.md`.
 - `grpc`: server plumbing and gRPC-specific helpers.
 - `ai`: AI SDK clients, prompt templates, output validation.
 - `eventbus`: in-process event bus and future outbox support.
@@ -15,4 +16,3 @@ It contains concrete technology adapters used by DDD modules through interfaces.
 ## Dependency Rule
 
 Business modules may depend on interfaces. `platform` may implement those interfaces. Domain packages must not import concrete platform adapters.
-

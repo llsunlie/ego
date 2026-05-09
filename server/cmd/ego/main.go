@@ -1,8 +1,6 @@
 package main
 
 import (
-	"log"
-
 	"ego-server/internal/bootstrap"
 	"ego-server/internal/config"
 )
@@ -12,9 +10,16 @@ func main() {
 
 	p, err := bootstrap.InitPlatform(cfg)
 	if err != nil {
-		log.Fatalf("init platform: %v", err)
+		panic("init platform: " + err.Error())
 	}
 	defer p.Close()
+
+	p.Logger.Info("ego server starting",
+		"port", cfg.Port,
+		"web_port", cfg.WebPort,
+		"log_level", cfg.LogLevel,
+		"log_format", cfg.LogFormat,
+	)
 
 	identityHandler := bootstrap.NewIdentityHandler(p)
 	writingHandler := bootstrap.NewWritingHandler(p)
@@ -25,6 +30,7 @@ func main() {
 	server := bootstrap.NewServer(cfg, p, handler)
 
 	if err := server.Serve(); err != nil {
-		log.Fatalf("serve: %v", err)
+		p.Logger.Error("serve failed", "error", err)
+		panic("serve: " + err.Error())
 	}
 }

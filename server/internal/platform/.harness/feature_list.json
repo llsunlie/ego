@@ -1,6 +1,17 @@
 {
   "features": [
     {
+      "id": "platform.logging",
+      "title": "slog+zap structured logging with context propagation",
+      "status": "passing",
+      "evidence": [
+        "server/internal/platform/logging/logging.go",
+        "server/internal/platform/logging/context.go",
+        "server/internal/platform/logging/logging_test.go",
+        "server/internal/platform/logging/context_test.go"
+      ]
+    },
+    {
       "id": "platform.auth",
       "title": "JWT auth primitives and interceptor",
       "status": "passing",

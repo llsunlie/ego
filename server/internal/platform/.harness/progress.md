@@ -3,7 +3,8 @@
 ## Current State
 
 - Auth: JWT primitives and gRPC interceptor implemented, tests passing.
-- Postgres: Docker Compose configured (pgvector/pgvector:pg16), volume fixed to managed Docker volume. Connection pool (`Connect()`) tested. Migrations (`001_users.sql`, `002_moments.sql`, `003_traces.sql`) applied. sqlc queries tested — 21 tests passing (3 users + 7 moments + 5 traces + 2 connection).
+- Postgres: Docker Compose configured (pgvector/pgvector:pg16), volume fixed to managed Docker volume. Connection pool (`Connect()`) tested. Migrations applied. sqlc queries tested — 21 tests passing.
+- Logging: slog+zap structured logging with context propagation. `logging.New()` creates `*slog.Logger` backed by zap via `zapslog.NewHandler()`. `WithLogger`/`FromContext` propagate request-scoped logger through context. gRPC interceptor injects request_id/user_id/method into every request logger. Config-driven via `LOG_LEVEL`/`LOG_FORMAT` env vars. Integrated into `bootstrap.Platform` and all cmd entry points. 19 tests passing (12 logging + 7 auth).
 - grpc: placeholder (README only, no code).
 - ai: placeholder (README only, no code).
 - eventbus: placeholder (README only, no code).

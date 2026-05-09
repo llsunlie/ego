@@ -1,7 +1,7 @@
 package bootstrap
 
 import (
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 
@@ -19,11 +19,12 @@ type Server struct {
 	cfg        *config.Config
 	grpcServer *grpc.Server
 	httpServer *http.Server
+	logger     *slog.Logger
 }
 
 func NewServer(cfg *config.Config, p *Platform, handler pb.EgoServer) *Server {
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(auth.UnaryServerInterceptor(p.JWTKey)),
+		grpc.UnaryInterceptor(auth.UnaryServerInterceptor(p.JWTKey, p.Logger)),
 	)
 	pb.RegisterEgoServer(grpcServer, handler)
 	reflection.Register(grpcServer)
@@ -49,22 +50,24 @@ func NewServer(cfg *config.Config, p *Platform, handler pb.EgoServer) *Server {
 		cfg:        cfg,
 		grpcServer: grpcServer,
 		httpServer: httpServer,
+		logger:     p.Logger,
 	}
 }
 
 func (s *Server) Serve() error {
-	// gRPC for native clients
 	go func() {
 		lis, err := net.Listen("tcp", ":"+s.cfg.Port)
 		if err != nil {
-			log.Fatalf("gRPC listen: %v", err)
+			s.logger.Error("gRPC listen failed", "error", err)
+			panic(err)
 		}
-		log.Printf("gRPC server listening on :%s", s.cfg.Port)
+		s.logger.Info("gRPC server listening", "port", s.cfg.Port)
 		if err := s.grpcServer.Serve(lis); err != nil {
-			log.Fatalf("gRPC serve: %v", err)
+			s.logger.Error("gRPC serve failed", "error", err)
+			panic(err)
 		}
 	}()
 
-	log.Printf("gRPC-web server listening on :%s", s.cfg.WebPort)
+	s.logger.Info("gRPC-web server listening", "port", s.cfg.WebPort)
 	return s.httpServer.ListenAndServe()
 }
