@@ -2,13 +2,19 @@
 
 Timeline exposes read models for frontend browsing.
 
-Owned writes:
+## Owned writes
 
 - None
 
-Reads:
+## Read-only RPCs
 
-- `moments` through a read model.
+- `ListTraces` — cursor-paginated Trace list
+- `GetTraceDetail` — Trace with aggregated Moment + Echo + Insight items
+- `GetRandomMoments` — random N historical Moments
 
-Timeline must not update `connected` or mutate Moments.
+## Reads from other modules
 
+- `writing/domain` types: Trace, Moment, Echo, Insight, TraceItem
+- `writing/adapter/postgres`: Reader, EchoRepository, InsightRepository
+
+Timeline must not update `stashed` or mutate Moments.
