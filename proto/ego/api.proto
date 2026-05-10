@@ -175,6 +175,7 @@ message Trace {
   string motivation = 2;  // 'direct' | 'trace:<id>' | 'constellation:<id>'
   bool   stashed    = 3;  // 是否已收进星图
   int64  created_at = 4;
+  string first_moment_content = 5;  // 第一条 Moment 的内容预览
 }
 
 message TraceItem {

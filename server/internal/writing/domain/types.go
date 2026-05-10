@@ -6,11 +6,12 @@ import "time"
 // A Trace is auto-created when the user writes their first Moment,
 // and subsequent Moments can be added to the same Trace ("顺着再想想").
 type Trace struct {
-	ID         string
-	UserID     string
-	Motivation string // 'direct' | 'trace:<id>' | 'constellation:<id>'
-	Stashed    bool
-	CreatedAt  time.Time
+	ID                  string
+	UserID              string
+	Motivation          string // 'direct' | 'trace:<id>' | 'constellation:<id>'
+	Stashed             bool
+	CreatedAt           time.Time
+	FirstMomentContent  string
 }
 
 // Moment is an entity representing a single piece of writing by the user.

@@ -10,6 +10,8 @@ class EgoClient {
 
   EgoClient(this._stub);
 
+  grpc.EgoClient get stub => _stub;
+
   static final provider = Provider<EgoClient>((ref) {
     final channel = GrpcOrGrpcWebClientChannel.toSeparatePorts(
       host: AppConstants.serverHost,

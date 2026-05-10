@@ -6,6 +6,7 @@ import '../../features/login/login_page.dart';
 import '../../features/onboarding/onboarding_page.dart';
 import '../../features/now/now_page.dart';
 import '../../features/past/past_page.dart';
+import '../../features/past/trace_detail_page.dart';
 import '../../features/starmap/starmap_page.dart';
 import '../../shared/widgets/app_shell.dart';
 
@@ -14,7 +15,8 @@ final routerProvider = Provider<GoRouter>((ref) {
   final onboardingDone = ref.watch(onboardingCompleteProvider);
 
   return GoRouter(
-    initialLocation: '/now',
+    initialLocation:
+        Uri.base.fragment.isNotEmpty ? Uri.base.fragment : '/now',
     redirect: (context, state) {
       final loggedIn = authState.isLoggedIn;
       final isLoginRoute = state.matchedLocation == '/login';
@@ -54,6 +56,14 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/past',
                 builder: (context, state) => const PastPage(),
+                routes: [
+                  GoRoute(
+                    path: 'detail/:traceId',
+                    builder: (context, state) => TraceDetailPage(
+                      traceId: state.pathParameters['traceId']!,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

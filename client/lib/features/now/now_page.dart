@@ -8,6 +8,7 @@ import 'widgets/memory_dot.dart';
 import 'widgets/guide_section.dart';
 import 'widgets/writing_input.dart';
 import 'widgets/echo_card.dart';
+import 'widgets/orbiting_satellites.dart';
 import 'widgets/stash_animation.dart';
 
 class NowPage extends ConsumerStatefulWidget {
@@ -72,6 +73,10 @@ class _NowPageState extends ConsumerState<NowPage>
                   // Breathing light
                   Center(
                     child: BreathingLight(status: state.status),
+                  ),
+                  // Orbiting light balls around the main light
+                  Center(
+                    child: OrbitingSatellites(dimmed: !isIdle),
                   ),
                   // Memory dots floating around the light
                   MemoryDotGroup(dimmed: !isIdle),
