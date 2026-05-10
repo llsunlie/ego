@@ -312,3 +312,58 @@ func TestReader_ListTracesByUserID(t *testing.T) {
 		t.Fatal("expected hasMore=false on page 2")
 	}
 }
+
+func TestReader_ListTracesByUserID_FirstMomentContent(t *testing.T) {
+	q := testQueries(t)
+	traceRepo := NewTraceRepository(q)
+	momentRepo := NewMomentRepository(q)
+	reader := NewReader(q)
+
+	userID := uuid.NewString()
+	traceID := uuid.NewString()
+
+	tr := domain.Trace{
+		ID:         traceID,
+		UserID:     userID,
+		Motivation: "direct",
+		Stashed:    false,
+	}
+	if err := traceRepo.Create(context.Background(), &tr); err != nil {
+		t.Fatalf("Create trace: %v", err)
+	}
+
+	firstContent := "第一句话"
+	m1 := domain.Moment{
+		ID:         uuid.NewString(),
+		TraceID:    traceID,
+		UserID:     userID,
+		Content:    firstContent,
+		Embeddings: testEmbeddingEntries(),
+	}
+	if err := momentRepo.Create(context.Background(), &m1); err != nil {
+		t.Fatalf("Create moment 1: %v", err)
+	}
+	time.Sleep(time.Millisecond * 2)
+
+	m2 := domain.Moment{
+		ID:         uuid.NewString(),
+		TraceID:    traceID,
+		UserID:     userID,
+		Content:    "第二句话",
+		Embeddings: testEmbeddingEntries(),
+	}
+	if err := momentRepo.Create(context.Background(), &m2); err != nil {
+		t.Fatalf("Create moment 2: %v", err)
+	}
+
+	traces, _, _, err := reader.ListTracesByUserID(context.Background(), userID, "", 10)
+	if err != nil {
+		t.Fatalf("ListTracesByUserID: %v", err)
+	}
+	if len(traces) != 1 {
+		t.Fatalf("expected 1 trace, got %d", len(traces))
+	}
+	if traces[0].FirstMomentContent != firstContent {
+		t.Fatalf("expected FirstMomentContent %q, got %q", firstContent, traces[0].FirstMomentContent)
+	}
+}

@@ -10,7 +10,6 @@
 // ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
 // ignore_for_file: non_constant_identifier_names
 
-import 'dart:async' as $async;
 import 'dart:core' as $core;
 
 import 'package:fixnum/fixnum.dart' as $fixnum;
@@ -1146,12 +1145,15 @@ class Trace extends $pb.GeneratedMessage {
     $core.String? motivation,
     $core.bool? stashed,
     $fixnum.Int64? createdAt,
+    $core.String? firstMomentContent,
   }) {
     final result = create();
     if (id != null) result.id = id;
     if (motivation != null) result.motivation = motivation;
     if (stashed != null) result.stashed = stashed;
     if (createdAt != null) result.createdAt = createdAt;
+    if (firstMomentContent != null)
+      result.firstMomentContent = firstMomentContent;
     return result;
   }
 
@@ -1172,6 +1174,7 @@ class Trace extends $pb.GeneratedMessage {
     ..aOS(2, _omitFieldNames ? '' : 'motivation')
     ..aOB(3, _omitFieldNames ? '' : 'stashed')
     ..aInt64(4, _omitFieldNames ? '' : 'createdAt')
+    ..aOS(5, _omitFieldNames ? '' : 'firstMomentContent')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1227,6 +1230,15 @@ class Trace extends $pb.GeneratedMessage {
   $core.bool hasCreatedAt() => $_has(3);
   @$pb.TagNumber(4)
   void clearCreatedAt() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get firstMomentContent => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set firstMomentContent($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasFirstMomentContent() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearFirstMomentContent() => $_clearField(5);
 }
 
 class TraceItem extends $pb.GeneratedMessage {
@@ -2271,88 +2283,6 @@ class SendMessageRes extends $pb.GeneratedMessage {
   void clearReply() => $_clearField(1);
   @$pb.TagNumber(1)
   ChatMessage ensureReply() => $_ensure(0);
-}
-
-class EgoApi {
-  final $pb.RpcClient _client;
-
-  EgoApi(this._client);
-
-  /// ─── Auth（认证）─────────────────────────────────────
-  $async.Future<LoginRes> login($pb.ClientContext? ctx, LoginReq request) =>
-      _client.invoke<LoginRes>(ctx, 'Ego', 'Login', request, LoginRes());
-
-  /// ─── Moment（话语）─────────────────────────────────────
-  /// 写下一句话，保存 Moment + Echo，返回回声
-  $async.Future<CreateMomentRes> createMoment(
-          $pb.ClientContext? ctx, CreateMomentReq request) =>
-      _client.invoke<CreateMomentRes>(
-          ctx, 'Ego', 'CreateMoment', request, CreateMomentRes());
-
-  /// 根据 ID 列表批量获取 Moment 内容
-  $async.Future<GetMomentsRes> getMoments(
-          $pb.ClientContext? ctx, GetMomentsReq request) =>
-      _client.invoke<GetMomentsRes>(
-          ctx, 'Ego', 'GetMoments', request, GetMomentsRes());
-
-  /// 获取 AI 观察（per-Moment，结合 Echo）
-  $async.Future<GenerateInsightRes> generateInsight(
-          $pb.ClientContext? ctx, GenerateInsightReq request) =>
-      _client.invoke<GenerateInsightRes>(
-          ctx, 'Ego', 'GenerateInsight', request, GenerateInsightRes());
-
-  /// ─── Trace（写作会话）─────────────────────────────────
-  /// 获取过往 Trace 列表（游标分页，按月分组）
-  $async.Future<ListTracesRes> listTraces(
-          $pb.ClientContext? ctx, ListTracesReq request) =>
-      _client.invoke<ListTracesRes>(
-          ctx, 'Ego', 'ListTraces', request, ListTracesRes());
-
-  /// 获取 Trace 详情（Item[] = <Moment, Echo[], Insight>）
-  $async.Future<GetTraceDetailRes> getTraceDetail(
-          $pb.ClientContext? ctx, GetTraceDetailReq request) =>
-      _client.invoke<GetTraceDetailRes>(
-          ctx, 'Ego', 'GetTraceDetail', request, GetTraceDetailRes());
-
-  /// ─── Memory Dot（记忆光点盲盒）────────────────────────
-  /// 随机获取 N 条历史话语
-  $async.Future<GetRandomMomentsRes> getRandomMoments(
-          $pb.ClientContext? ctx, GetRandomMomentsReq request) =>
-      _client.invoke<GetRandomMomentsRes>(
-          ctx, 'Ego', 'GetRandomMoments', request, GetRandomMomentsRes());
-
-  /// ─── Stash（收进星图）─────────────────────────────────
-  /// 将 Trace 寄存为 Star，触发异步聚类
-  $async.Future<StashTraceRes> stashTrace(
-          $pb.ClientContext? ctx, StashTraceReq request) =>
-      _client.invoke<StashTraceRes>(
-          ctx, 'Ego', 'StashTrace', request, StashTraceRes());
-
-  /// ─── Constellation（星座）──────────────────────────────
-  /// 获取所有星座列表（星图页渲染用）
-  $async.Future<ListConstellationsRes> listConstellations(
-          $pb.ClientContext? ctx, ListConstellationsReq request) =>
-      _client.invoke<ListConstellationsRes>(
-          ctx, 'Ego', 'ListConstellations', request, ListConstellationsRes());
-
-  /// 获取星座详情（含 insight、Stars、topic_prompts）
-  $async.Future<GetConstellationRes> getConstellation(
-          $pb.ClientContext? ctx, GetConstellationReq request) =>
-      _client.invoke<GetConstellationRes>(
-          ctx, 'Ego', 'GetConstellation', request, GetConstellationRes());
-
-  /// ─── Chat（和那时的自己说说话）──────────────────────────
-  /// 开始一次对话（后端构建 past-self 上下文）
-  $async.Future<StartChatRes> startChat(
-          $pb.ClientContext? ctx, StartChatReq request) =>
-      _client.invoke<StartChatRes>(
-          ctx, 'Ego', 'StartChat', request, StartChatRes());
-
-  /// 发送消息并获取回复
-  $async.Future<SendMessageRes> sendMessage(
-          $pb.ClientContext? ctx, SendMessageReq request) =>
-      _client.invoke<SendMessageRes>(
-          ctx, 'Ego', 'SendMessage', request, SendMessageRes());
 }
 
 const $core.bool _omitFieldNames =

@@ -46,10 +46,11 @@ func insightToProto(i *writingdomain.Insight) *pb.Insight {
 
 func traceToProto(t writingdomain.Trace) *pb.Trace {
 	return &pb.Trace{
-		Id:         t.ID,
-		Motivation: t.Motivation,
-		Stashed:    t.Stashed,
-		CreatedAt:  t.CreatedAt.UnixMilli(),
+		Id:                  t.ID,
+		Motivation:          t.Motivation,
+		Stashed:             t.Stashed,
+		CreatedAt:           t.CreatedAt.UnixMilli(),
+		FirstMomentContent:  t.FirstMomentContent,
 	}
 }
 

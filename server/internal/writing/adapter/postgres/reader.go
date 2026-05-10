@@ -207,8 +207,26 @@ func (r *Reader) ListTracesByUserID(ctx context.Context, userID string, cursor s
 	}
 
 	traces := make([]domain.Trace, len(rows))
+	traceIDs := make([]pgtype.UUID, len(rows))
 	for i, row := range rows {
 		traces[i] = *toDomainTrace(row)
+		traceIDs[i] = row.ID
+	}
+
+	// Batch-fetch first moment content per trace.
+	if len(traceIDs) > 0 {
+		firstMoments, err := r.queries.FirstMomentsByTraceIDs(ctx, traceIDs)
+		if err != nil {
+			return nil, "", false, err
+		}
+		contentByTrace := make(map[string]string, len(firstMoments))
+		for _, m := range firstMoments {
+			tid, _ := uuid.FromBytes(m.TraceID.Bytes[:])
+			contentByTrace[tid.String()] = m.Content
+		}
+		for i := range traces {
+			traces[i].FirstMomentContent = contentByTrace[traces[i].ID]
+		}
 	}
 
 	hasMore := int32(len(traces)) == pageSize+1

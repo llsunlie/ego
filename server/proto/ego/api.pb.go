@@ -963,13 +963,14 @@ func (x *GenerateInsightRes) GetInsight() *Insight {
 }
 
 type Trace struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Motivation    string                 `protobuf:"bytes,2,opt,name=motivation,proto3" json:"motivation,omitempty"` // 'direct' | 'trace:<id>' | 'constellation:<id>'
-	Stashed       bool                   `protobuf:"varint,3,opt,name=stashed,proto3" json:"stashed,omitempty"`      // 是否已收进星图
-	CreatedAt     int64                  `protobuf:"varint,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Id                 string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Motivation         string                 `protobuf:"bytes,2,opt,name=motivation,proto3" json:"motivation,omitempty"` // 'direct' | 'trace:<id>' | 'constellation:<id>'
+	Stashed            bool                   `protobuf:"varint,3,opt,name=stashed,proto3" json:"stashed,omitempty"`      // 是否已收进星图
+	CreatedAt          int64                  `protobuf:"varint,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	FirstMomentContent string                 `protobuf:"bytes,5,opt,name=first_moment_content,json=firstMomentContent,proto3" json:"first_moment_content,omitempty"` // 第一条 Moment 的内容预览
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *Trace) Reset() {
@@ -1028,6 +1029,13 @@ func (x *Trace) GetCreatedAt() int64 {
 		return x.CreatedAt
 	}
 	return 0
+}
+
+func (x *Trace) GetFirstMomentContent() string {
+	if x != nil {
+		return x.FirstMomentContent
+	}
+	return ""
 }
 
 type TraceItem struct {
@@ -1954,7 +1962,7 @@ const file_ego_api_proto_rawDesc = "" +
 	"\tmoment_id\x18\x01 \x01(\tR\bmomentId\x12\x17\n" +
 	"\aecho_id\x18\x02 \x01(\tR\x06echoId\"<\n" +
 	"\x12GenerateInsightRes\x12&\n" +
-	"\ainsight\x18\x01 \x01(\v2\f.ego.InsightR\ainsight\"p\n" +
+	"\ainsight\x18\x01 \x01(\v2\f.ego.InsightR\ainsight\"\xa2\x01\n" +
 	"\x05Trace\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1e\n" +
 	"\n" +
@@ -1962,7 +1970,8 @@ const file_ego_api_proto_rawDesc = "" +
 	"motivation\x12\x18\n" +
 	"\astashed\x18\x03 \x01(\bR\astashed\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\x04 \x01(\x03R\tcreatedAt\"y\n" +
+	"created_at\x18\x04 \x01(\x03R\tcreatedAt\x120\n" +
+	"\x14first_moment_content\x18\x05 \x01(\tR\x12firstMomentContent\"y\n" +
 	"\tTraceItem\x12#\n" +
 	"\x06moment\x18\x01 \x01(\v2\v.ego.MomentR\x06moment\x12\x1f\n" +
 	"\x05echos\x18\x02 \x03(\v2\t.ego.EchoR\x05echos\x12&\n" +

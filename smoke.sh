@@ -263,7 +263,12 @@ HAS_MORE=$(echo "$RES_LT" | python3 -c "import sys,json; print(json.load(sys.std
 
 [ "$TRACE_COUNT" -gt 0 ] || fail "expected at least 1 trace, got $TRACE_COUNT"
 [ "$HAS_MORE" = "False" ] || fail "expected hasMore=false for single trace user"
-pass "ListTraces: $TRACE_COUNT trace(s), hasMore=$HAS_MORE"
+
+# Verify first_moment_content field
+FIRST_CONTENT=$(echo "$RES_LT" | python3 -c "import sys,json; traces=json.load(sys.stdin)['traces']; print(traces[0].get('firstMomentContent','') if traces else '')")
+FMC_EXPECTED="今天和同事在会议上发生了争执，我觉得自己被孤立了"
+[ "$FIRST_CONTENT" = "$FMC_EXPECTED" ] || fail "first_moment_content mismatch: expected '$FMC_EXPECTED', got '$FIRST_CONTENT'"
+pass "ListTraces: $TRACE_COUNT trace(s), hasMore=$HAS_MORE, firstMomentContent OK"
 
 info "=== Smoke: GetTraceDetail ==="
 
