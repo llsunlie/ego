@@ -38,6 +38,10 @@ func (h *EgoHandler) CreateMoment(ctx context.Context, req *pb.CreateMomentReq) 
 	return h.writing.CreateMoment(ctx, req)
 }
 
+func (h *EgoHandler) GetMoments(ctx context.Context, req *pb.GetMomentsReq) (*pb.GetMomentsRes, error) {
+	return h.writing.GetMoments(ctx, req)
+}
+
 // Insight — delegated to writing.
 func (h *EgoHandler) GenerateInsight(ctx context.Context, req *pb.GenerateInsightReq) (*pb.GenerateInsightRes, error) {
 	return h.writing.GenerateInsight(ctx, req)

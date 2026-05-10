@@ -44,6 +44,14 @@ class EgoClient {
     return _stub.createMoment(req, options: _withAuth(ref));
   }
 
+  Future<grpc.GetMomentsRes> getMoments(
+    Ref ref, {
+    required List<String> ids,
+  }) async {
+    final req = grpc.GetMomentsReq(ids: ids);
+    return _stub.getMoments(req, options: _withAuth(ref));
+  }
+
   Future<grpc.GenerateInsightRes> generateInsight(
     Ref ref, {
     required String momentId,

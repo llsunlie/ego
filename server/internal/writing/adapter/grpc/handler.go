@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"ego-server/internal/writing/app"
+	"ego-server/internal/writing/domain"
 
 	pb "ego-server/proto/ego"
 )
@@ -12,15 +13,18 @@ type Handler struct {
 	pb.UnimplementedEgoServer
 	createMoment    *app.CreateMomentUseCase
 	generateInsight *app.GenerateInsightUseCase
+	moments         domain.MomentReader
 }
 
 func NewHandler(
 	createMoment *app.CreateMomentUseCase,
 	generateInsight *app.GenerateInsightUseCase,
+	moments domain.MomentReader,
 ) *Handler {
 	return &Handler{
 		createMoment:    createMoment,
 		generateInsight: generateInsight,
+		moments:         moments,
 	}
 }
 
@@ -36,6 +40,22 @@ func (h *Handler) CreateMoment(ctx context.Context, req *pb.CreateMomentReq) (*p
 	return &pb.CreateMomentRes{
 		Moment: momentToProto(output.Moment),
 		Echo:   echoToProto(output.Echo),
+	}, nil
+}
+
+func (h *Handler) GetMoments(ctx context.Context, req *pb.GetMomentsReq) (*pb.GetMomentsRes, error) {
+	moments, err := h.moments.GetByIDs(ctx, req.Ids)
+	if err != nil {
+		return nil, err
+	}
+
+	pbMoments := make([]*pb.Moment, len(moments))
+	for i, m := range moments {
+		pbMoments[i] = momentToProto(m)
+	}
+
+	return &pb.GetMomentsRes{
+		Moments: pbMoments,
 	}, nil
 }
 

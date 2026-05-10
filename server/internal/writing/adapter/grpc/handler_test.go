@@ -30,7 +30,7 @@ func newSmokeHandler(
 	createMoment := app.NewCreateMomentUseCase(traces, moments, echos, embedding, echoMatcher, uuidgen{})
 	generateInsight := app.NewGenerateInsightUseCase(insights, insightGen, uuidgen{})
 
-	return NewHandler(createMoment, generateInsight)
+	return NewHandler(createMoment, generateInsight, nil)
 }
 
 type uuidgen struct{}
@@ -259,7 +259,7 @@ func TestSmoke_F9_ColdStart(t *testing.T) {
 // ============================================================================
 
 func TestHandler_CreateMoment_Delegation(t *testing.T) {
-	h := NewHandler(nil, nil)
+	h := NewHandler(nil, nil, nil)
 	if h == nil {
 		t.Fatal("expected non-nil handler")
 	}
@@ -270,7 +270,7 @@ func TestHandler_CreateMoment_Delegation(t *testing.T) {
 
 func TestHandler_CreateMoment_ErrorPropagation(t *testing.T) {
 	uc := app.NewCreateMomentUseCase(nil, nil, nil, nil, nil, &stubIDGen{})
-	h := NewHandler(uc, nil)
+	h := NewHandler(uc, nil, nil)
 
 	ctx := context.WithValue(context.Background(), "user_id", "user-1")
 	_, err := h.CreateMoment(ctx, &pb.CreateMomentReq{Content: ""})
@@ -281,7 +281,7 @@ func TestHandler_CreateMoment_ErrorPropagation(t *testing.T) {
 
 func TestHandler_GenerateInsight_ErrorPropagation(t *testing.T) {
 	uc := app.NewGenerateInsightUseCase(nil, nil, &stubIDGen{})
-	h := NewHandler(nil, uc)
+	h := NewHandler(nil, uc, nil)
 
 	_, err := h.GenerateInsight(context.Background(), &pb.GenerateInsightReq{MomentId: ""})
 	if err == nil {
@@ -295,7 +295,7 @@ func TestHandler_GenerateInsight_Success(t *testing.T) {
 		&stubHandlerInsightGenerator{},
 		&stubIDGen{},
 	)
-	h := NewHandler(nil, uc)
+	h := NewHandler(nil, uc, nil)
 
 	res, err := h.GenerateInsight(context.Background(), &pb.GenerateInsightReq{
 		MomentId: "mom-1",
@@ -309,6 +309,59 @@ func TestHandler_GenerateInsight_Success(t *testing.T) {
 	}
 	if res.Insight.Text != "You are making progress." {
 		t.Fatalf("unexpected text: %q", res.Insight.Text)
+	}
+}
+
+func TestHandler_GetMoments_Success(t *testing.T) {
+	reader := &stubMomentReader{moments: map[string]domain.Moment{
+		"mom-1": {ID: "mom-1", Content: "hello", TraceID: "tr-1", UserID: "u-1"},
+		"mom-2": {ID: "mom-2", Content: "world", TraceID: "tr-1", UserID: "u-1"},
+	}}
+	h := NewHandler(nil, nil, reader)
+
+	res, err := h.GetMoments(context.Background(), &pb.GetMomentsReq{Ids: []string{"mom-1", "mom-2"}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(res.Moments) != 2 {
+		t.Fatalf("expected 2 moments, got %d", len(res.Moments))
+	}
+	if res.Moments[0].Content != "hello" {
+		t.Fatalf("expected 'hello', got %q", res.Moments[0].Content)
+	}
+	if res.Moments[1].Content != "world" {
+		t.Fatalf("expected 'world', got %q", res.Moments[1].Content)
+	}
+}
+
+func TestHandler_GetMoments_Empty(t *testing.T) {
+	reader := &stubMomentReader{moments: map[string]domain.Moment{}}
+	h := NewHandler(nil, nil, reader)
+
+	res, err := h.GetMoments(context.Background(), &pb.GetMomentsReq{Ids: []string{}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(res.Moments) != 0 {
+		t.Fatalf("expected 0 moments, got %d", len(res.Moments))
+	}
+}
+
+func TestHandler_GetMoments_PartialMatch(t *testing.T) {
+	reader := &stubMomentReader{moments: map[string]domain.Moment{
+		"mom-1": {ID: "mom-1", Content: "exists", TraceID: "tr-1", UserID: "u-1"},
+	}}
+	h := NewHandler(nil, nil, reader)
+
+	res, err := h.GetMoments(context.Background(), &pb.GetMomentsReq{Ids: []string{"mom-1", "nonexistent"}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(res.Moments) != 1 {
+		t.Fatalf("expected 1 moment, got %d", len(res.Moments))
+	}
+	if res.Moments[0].Content != "exists" {
+		t.Fatalf("expected 'exists', got %q", res.Moments[0].Content)
 	}
 }
 
@@ -342,6 +395,38 @@ func (s *stubHandlerInsightGenerator) Generate(ctx context.Context, momentID str
 		Text:             "You are making progress.",
 		RelatedMomentIDs: []string{"echo-1"},
 	}, nil
+}
+
+// --- MomentReader stub for handler tests ---
+
+type stubMomentReader struct {
+	moments map[string]domain.Moment
+}
+
+func (r *stubMomentReader) GetByID(ctx context.Context, id string) (*domain.Moment, error) {
+	m, ok := r.moments[id]
+	if !ok {
+		return nil, domain.ErrMomentNotFound
+	}
+	return &m, nil
+}
+
+func (r *stubMomentReader) GetByIDs(ctx context.Context, ids []string) ([]domain.Moment, error) {
+	var result []domain.Moment
+	for _, id := range ids {
+		if m, ok := r.moments[id]; ok {
+			result = append(result, m)
+		}
+	}
+	return result, nil
+}
+
+func (r *stubMomentReader) ListByUserID(ctx context.Context, userID string, cursor string, pageSize int32) ([]domain.Moment, string, bool, error) {
+	return nil, "", false, nil
+}
+
+func (r *stubMomentReader) RandomByUserID(ctx context.Context, userID string, count int32) ([]domain.Moment, error) {
+	return nil, nil
 }
 
 // --- Stateful repos for smoke tests ---

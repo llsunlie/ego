@@ -193,6 +193,18 @@ else
   fail "echo should match moment #1 ($MOMENT1_ID), got: $ECHO2_IDS"
 fi
 
+# GetMoments: verify matched moment content
+REQ_GM=$(printf '{"ids":["%s"]}' "$MOMENT1_ID")
+RES_GM=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ_GM" "$GRPC_ADDR" ego.Ego/GetMoments 2>&1)
+echo "  GetMoments: $RES_GM"
+
+GM_COUNT=$(echo "$RES_GM" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('moments',[])))")
+GM_CONTENT=$(echo "$RES_GM" | python3 -c "import sys,json; m=json.load(sys.stdin)['moments']; print(m[0]['content'] if m else 'NIL')")
+
+[ "$GM_COUNT" -eq 1 ] || fail "GetMoments: expected 1 moment, got $GM_COUNT"
+[ "$GM_CONTENT" = "今天和同事在会议上发生了争执，我觉得自己被孤立了" ] || fail "GetMoments: content mismatch, got: $GM_CONTENT"
+pass "GetMoments: returned matched moment with correct content"
+
 # Generate insight from moment #2 + echo
 ECHO2_ID=$(echo "$RES2" | python3 -c "import sys,json; print(json.load(sys.stdin)['echo']['id'])")
 REQ_INSIGHT="{\"momentId\":\"$MOMENT2_ID\",\"echoId\":\"$ECHO2_ID\"}"
@@ -473,6 +485,7 @@ echo -e "${GREEN}  All smoke tests passed!${RESET}"
 echo -e "${GREEN}========================================${RESET}"
 echo ""
 echo "  F1 Write+Observe     : PASS"
+echo "  GetMoments           : PASS"
 echo "  F2 ContinueTrace     : PASS"
 echo "  F3 StashTrace        : PASS"
 echo "  F7 Chat              : PASS"
