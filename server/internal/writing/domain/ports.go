@@ -22,6 +22,7 @@ type MomentRepository interface {
 // Used by Timeline, Starmap, and Conversation modules.
 type MomentReader interface {
 	GetByID(ctx context.Context, id string) (*Moment, error)
+	GetByIDs(ctx context.Context, ids []string) ([]Moment, error)
 	ListByUserID(ctx context.Context, userID string, cursor string, pageSize int32) (moments []Moment, nextCursor string, hasMore bool, err error)
 	RandomByUserID(ctx context.Context, userID string, count int32) ([]Moment, error)
 }

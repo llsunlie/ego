@@ -54,6 +54,32 @@ func (r *MomentRepository) Create(ctx context.Context, moment *domain.Moment) er
 	})
 }
 
+func (r *MomentRepository) GetByIDs(ctx context.Context, ids []string) ([]domain.Moment, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	pgIDs := make([]pgtype.UUID, len(ids))
+	for i, id := range ids {
+		uid, err := uuid.Parse(id)
+		if err != nil {
+			return nil, err
+		}
+		pgIDs[i] = pgtype.UUID{Bytes: [16]byte(uid), Valid: true}
+	}
+
+	rows, err := r.queries.ListMomentsByIDs(ctx, pgIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	moments := make([]domain.Moment, len(rows))
+	for i, row := range rows {
+		moments[i] = *toDomainMoment(row)
+	}
+	return moments, nil
+}
+
 func (r *MomentRepository) GetByID(ctx context.Context, id string) (*domain.Moment, error) {
 	uid, err := uuid.Parse(id)
 	if err != nil {
