@@ -24,8 +24,9 @@ Writing 是"此刻写作上下文"，回答：
 | --- | --- |
 | `CreateMoment` | 创建或延续 Trace，保存 Moment，匹配回声并持久化 Echo |
 | `GenerateInsight` | 基于 Moment + Echo 生成并持久化当前体验的"我发现" |
-| `ListTraces` | 游标分页查询用户的 Trace 列表 |
-| `GetTraceDetail` | 返回 Trace 详情，聚合 Moment + Echo[] + Insight |
+| `GetMoments` | 按 ID 批量读取 Moment，供其他模块聚合只读信息 |
+
+`ListTraces`、`GetTraceDetail`、`GetRandomMoments` 已迁移到 Timeline 模块，Writing 仅提供必要的只读契约和底层 reader。
 
 ## 3. 模块边界
 
@@ -74,4 +75,5 @@ smoke.sh 会启动 Docker PostgreSQL、执行迁移、编译服务、用 grpcurl
 - **embedding 存为 JSONB**：`[]EmbeddingEntry` 序列化为 JSONB，支持多模型向量组。初期在应用层做余弦相似度匹配，后续可切换 pgvector。
 - **Echo 持久化**：Echo 从临时值对象变为持久化实体，支持 GetTraceDetail 回查。
 - **Insight 持久化**：Writing 生成的会话级 Insight 持久化到 insights 表，与 Starmap 的星座级 Insight 区分。
-- **AI stub 默认可用**：bootstrap/writing.go 中 stub 返回固定向量和全量匹配，确保无 AI 服务时逻辑仍可走通。
+- **两级装配**：`writing/module.go` 负责组装 Writing 自己的 adapter、app use case、handler 和模块内部业务策略；`bootstrap/writing.go` 只注入 DB、EmbeddingGenerator 等进程级资源或外部基础能力。
+- **AI / 业务策略归属**：EmbeddingGenerator 是基础 AI 向量化能力，由 bootstrap 注入，后续真实实现应来自 platform/ai；Echo 匹配和 Insight 默认生成策略属于 Writing app 业务逻辑，位于 app 层。

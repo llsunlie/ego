@@ -13,9 +13,12 @@
   - **端口与适配器 (Ports & Adapters)**：业务领域层（`domain`）仅定义需求接口（Port）。
     - **业务专属适配实现**：如涉及到业务实体转换的仓储实现（Repository Impl），必须放在各模块自身的 `adapter/` 目录下。
     - **纯技术底座实现**：`platform` 仅负责提供无业务语境的技术适配（如 `PasswordHasher`）或技术原子（如 `sqlc.Queries`）。业务层（`domain` / `app`）严禁直接引入外部技术 SDK。
-  - **依赖装配与注入**：`internal/bootstrap/` 是全后端唯一允许进行依赖组装（Wiring）的地方。
-    - 只有在这里，才能将 `platform` 的技术实例注入到各业务模块的 `adapter` 中。
-    - 只有在这里，才能将装配好的 `adapter` 注入给具体的业务用例（UseCase）。
+  - **两级依赖装配与注入**：
+    - **进程级装配（Process Composition Root）**：`internal/bootstrap/` 负责读取 `config` 后创建进程级资源与基础设施实例，如 DB pool、logger、JWT、AI client、eventbus、gRPC server lifecycle，并把这些资源或符合业务 port 的实现注入到模块级装配入口。
+    - **模块级装配（Module Composition Function）**：各业务模块允许提供 `internal/{module}/module.go` 等模块级装配函数，用于组装本模块自己的 `adapter`、`app` use case、gRPC handler 与模块内部默认业务策略。
+    - **业务模块禁止自行初始化进程级资源**：模块级装配函数不得读取环境配置、创建 DB pool、初始化外部 SDK、创建 logger 或启动 server；这些仍只属于 `bootstrap` / `platform`。
+    - **业务模块不直接依赖 platform 具体实现**：模块应依赖自身 `domain` / `app` 声明的 port/interface。`platform` 提供无业务语境的技术实现，`bootstrap` 负责把实现注入给模块。
+    - **业务策略归属业务模块**：如 Echo 匹配、Insight 生成提示词/输出约束等业务策略应放在所属模块 `app/`，不放在 `bootstrap`，也不放在 `platform`。
 
 - **禁止在此目录下直接开发。必须根据业务归属，进入相应的限界上下文沙盒进行具体业务的开发任务**。
 
