@@ -9,6 +9,8 @@ import (
 	"ego-server/internal/identity/domain"
 	"ego-server/internal/platform/auth"
 
+	"github.com/google/uuid"
+
 	pb "ego-server/proto/ego"
 
 	"golang.org/x/crypto/bcrypt"
@@ -35,10 +37,14 @@ func (m *mockUserRepo) Create(_ context.Context, user *domain.User) error {
 	return nil
 }
 
+type mockIDGen struct{}
+
+func (mockIDGen) New() string { return uuid.New().String() }
+
 func newTestHandler(repo *mockUserRepo) *Handler {
 	hasher := auth.BcryptHasher{}
 	tokens := auth.JWTIssuer{Secret: []byte("secret"), Exp: 24 * time.Hour}
-	login := app.NewLoginUseCase(repo, hasher, tokens)
+	login := app.NewLoginUseCase(repo, hasher, tokens, mockIDGen{})
 	return NewHandler(login)
 }
 

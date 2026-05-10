@@ -8,3 +8,7 @@ type PasswordHasher interface {
 type TokenIssuer interface {
 	Issue(userID string) (string, error)
 }
+
+type IDGenerator interface {
+	New() string
+}
