@@ -1,6 +1,6 @@
 // This is a generated file - do not edit.
 //
-// Generated from api.proto.
+// Generated from ego/api.proto.
 
 // @dart = 3.3
 
@@ -8,8 +8,9 @@
 // ignore_for_file: constant_identifier_names
 // ignore_for_file: curly_braces_in_flow_control_structures
 // ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
-// ignore_for_file: non_constant_identifier_names, prefer_relative_imports
+// ignore_for_file: non_constant_identifier_names
 
+import 'dart:async' as $async;
 import 'dart:core' as $core;
 
 import 'package:fixnum/fixnum.dart' as $fixnum;
@@ -917,6 +918,103 @@ class CreateMomentRes extends $pb.GeneratedMessage {
   void clearEcho() => $_clearField(2);
   @$pb.TagNumber(2)
   Echo ensureEcho() => $_ensure(1);
+}
+
+class GetMomentsReq extends $pb.GeneratedMessage {
+  factory GetMomentsReq({
+    $core.Iterable<$core.String>? ids,
+  }) {
+    final result = create();
+    if (ids != null) result.ids.addAll(ids);
+    return result;
+  }
+
+  GetMomentsReq._();
+
+  factory GetMomentsReq.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory GetMomentsReq.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'GetMomentsReq',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'ego'),
+      createEmptyInstance: create)
+    ..pPS(1, _omitFieldNames ? '' : 'ids')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetMomentsReq clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetMomentsReq copyWith(void Function(GetMomentsReq) updates) =>
+      super.copyWith((message) => updates(message as GetMomentsReq))
+          as GetMomentsReq;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetMomentsReq create() => GetMomentsReq._();
+  @$core.override
+  GetMomentsReq createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static GetMomentsReq getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetMomentsReq>(create);
+  static GetMomentsReq? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<$core.String> get ids => $_getList(0);
+}
+
+class GetMomentsRes extends $pb.GeneratedMessage {
+  factory GetMomentsRes({
+    $core.Iterable<Moment>? moments,
+  }) {
+    final result = create();
+    if (moments != null) result.moments.addAll(moments);
+    return result;
+  }
+
+  GetMomentsRes._();
+
+  factory GetMomentsRes.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory GetMomentsRes.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'GetMomentsRes',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'ego'),
+      createEmptyInstance: create)
+    ..pPM<Moment>(1, _omitFieldNames ? '' : 'moments',
+        subBuilder: Moment.create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetMomentsRes clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetMomentsRes copyWith(void Function(GetMomentsRes) updates) =>
+      super.copyWith((message) => updates(message as GetMomentsRes))
+          as GetMomentsRes;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetMomentsRes create() => GetMomentsRes._();
+  @$core.override
+  GetMomentsRes createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static GetMomentsRes getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetMomentsRes>(create);
+  static GetMomentsRes? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<Moment> get moments => $_getList(0);
 }
 
 class GenerateInsightReq extends $pb.GeneratedMessage {
@@ -2173,6 +2271,88 @@ class SendMessageRes extends $pb.GeneratedMessage {
   void clearReply() => $_clearField(1);
   @$pb.TagNumber(1)
   ChatMessage ensureReply() => $_ensure(0);
+}
+
+class EgoApi {
+  final $pb.RpcClient _client;
+
+  EgoApi(this._client);
+
+  /// ─── Auth（认证）─────────────────────────────────────
+  $async.Future<LoginRes> login($pb.ClientContext? ctx, LoginReq request) =>
+      _client.invoke<LoginRes>(ctx, 'Ego', 'Login', request, LoginRes());
+
+  /// ─── Moment（话语）─────────────────────────────────────
+  /// 写下一句话，保存 Moment + Echo，返回回声
+  $async.Future<CreateMomentRes> createMoment(
+          $pb.ClientContext? ctx, CreateMomentReq request) =>
+      _client.invoke<CreateMomentRes>(
+          ctx, 'Ego', 'CreateMoment', request, CreateMomentRes());
+
+  /// 根据 ID 列表批量获取 Moment 内容
+  $async.Future<GetMomentsRes> getMoments(
+          $pb.ClientContext? ctx, GetMomentsReq request) =>
+      _client.invoke<GetMomentsRes>(
+          ctx, 'Ego', 'GetMoments', request, GetMomentsRes());
+
+  /// 获取 AI 观察（per-Moment，结合 Echo）
+  $async.Future<GenerateInsightRes> generateInsight(
+          $pb.ClientContext? ctx, GenerateInsightReq request) =>
+      _client.invoke<GenerateInsightRes>(
+          ctx, 'Ego', 'GenerateInsight', request, GenerateInsightRes());
+
+  /// ─── Trace（写作会话）─────────────────────────────────
+  /// 获取过往 Trace 列表（游标分页，按月分组）
+  $async.Future<ListTracesRes> listTraces(
+          $pb.ClientContext? ctx, ListTracesReq request) =>
+      _client.invoke<ListTracesRes>(
+          ctx, 'Ego', 'ListTraces', request, ListTracesRes());
+
+  /// 获取 Trace 详情（Item[] = <Moment, Echo[], Insight>）
+  $async.Future<GetTraceDetailRes> getTraceDetail(
+          $pb.ClientContext? ctx, GetTraceDetailReq request) =>
+      _client.invoke<GetTraceDetailRes>(
+          ctx, 'Ego', 'GetTraceDetail', request, GetTraceDetailRes());
+
+  /// ─── Memory Dot（记忆光点盲盒）────────────────────────
+  /// 随机获取 N 条历史话语
+  $async.Future<GetRandomMomentsRes> getRandomMoments(
+          $pb.ClientContext? ctx, GetRandomMomentsReq request) =>
+      _client.invoke<GetRandomMomentsRes>(
+          ctx, 'Ego', 'GetRandomMoments', request, GetRandomMomentsRes());
+
+  /// ─── Stash（收进星图）─────────────────────────────────
+  /// 将 Trace 寄存为 Star，触发异步聚类
+  $async.Future<StashTraceRes> stashTrace(
+          $pb.ClientContext? ctx, StashTraceReq request) =>
+      _client.invoke<StashTraceRes>(
+          ctx, 'Ego', 'StashTrace', request, StashTraceRes());
+
+  /// ─── Constellation（星座）──────────────────────────────
+  /// 获取所有星座列表（星图页渲染用）
+  $async.Future<ListConstellationsRes> listConstellations(
+          $pb.ClientContext? ctx, ListConstellationsReq request) =>
+      _client.invoke<ListConstellationsRes>(
+          ctx, 'Ego', 'ListConstellations', request, ListConstellationsRes());
+
+  /// 获取星座详情（含 insight、Stars、topic_prompts）
+  $async.Future<GetConstellationRes> getConstellation(
+          $pb.ClientContext? ctx, GetConstellationReq request) =>
+      _client.invoke<GetConstellationRes>(
+          ctx, 'Ego', 'GetConstellation', request, GetConstellationRes());
+
+  /// ─── Chat（和那时的自己说说话）──────────────────────────
+  /// 开始一次对话（后端构建 past-self 上下文）
+  $async.Future<StartChatRes> startChat(
+          $pb.ClientContext? ctx, StartChatReq request) =>
+      _client.invoke<StartChatRes>(
+          ctx, 'Ego', 'StartChat', request, StartChatRes());
+
+  /// 发送消息并获取回复
+  $async.Future<SendMessageRes> sendMessage(
+          $pb.ClientContext? ctx, SendMessageReq request) =>
+      _client.invoke<SendMessageRes>(
+          ctx, 'Ego', 'SendMessage', request, SendMessageRes());
 }
 
 const $core.bool _omitFieldNames =

@@ -38,6 +38,73 @@ func TestReader_GetByID_MomentReader(t *testing.T) {
 	}
 }
 
+func TestReader_GetByIDs(t *testing.T) {
+	q := testQueries(t)
+	repo := NewMomentRepository(q)
+	reader := NewReader(q)
+
+	userID := uuid.NewString()
+	traceID := uuid.NewString()
+
+	ids := make([]string, 3)
+	for i := range 3 {
+		m := domain.Moment{
+			ID:         uuid.NewString(),
+			TraceID:    traceID,
+			UserID:     userID,
+			Content:    "moment " + string(rune('0'+i)),
+			Embeddings: testEmbeddingEntries(),
+		}
+		ids[i] = m.ID
+		if err := repo.Create(context.Background(), &m); err != nil {
+			t.Fatalf("Create: %v", err)
+		}
+	}
+
+	got, err := reader.GetByIDs(context.Background(), ids)
+	if err != nil {
+		t.Fatalf("GetByIDs: %v", err)
+	}
+	if len(got) != 3 {
+		t.Fatalf("expected 3 moments, got %d", len(got))
+	}
+}
+
+func TestReader_GetByIDs_EmptyIDs(t *testing.T) {
+	q := testQueries(t)
+	reader := NewReader(q)
+
+	got, err := reader.GetByIDs(context.Background(), []string{})
+	if err != nil {
+		t.Fatalf("GetByIDs: %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("expected 0 moments for empty ids, got %d", len(got))
+	}
+}
+
+func TestReader_GetByIDs_PartialMatch(t *testing.T) {
+	q := testQueries(t)
+	repo := NewMomentRepository(q)
+	reader := NewReader(q)
+
+	m := newTestMoment()
+	if err := repo.Create(context.Background(), &m); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := reader.GetByIDs(context.Background(), []string{m.ID, uuid.NewString()})
+	if err != nil {
+		t.Fatalf("GetByIDs: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected 1 moment (partial match), got %d", len(got))
+	}
+	if got[0].ID != m.ID {
+		t.Fatalf("expected ID %s, got %s", m.ID, got[0].ID)
+	}
+}
+
 func TestReader_GetByID_NotFound(t *testing.T) {
 	q := testQueries(t)
 	reader := NewReader(q)

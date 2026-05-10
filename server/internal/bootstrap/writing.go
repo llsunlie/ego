@@ -61,6 +61,7 @@ func NewWritingHandler(p *Platform) pb.EgoServer {
 	momentRepo := writingpostgres.NewMomentRepository(queries)
 	echoRepo := writingpostgres.NewEchoRepository(queries)
 	insightRepo := writingpostgres.NewInsightRepository(queries)
+	reader := writingpostgres.NewReader(queries)
 
 	createMoment := writingapp.NewCreateMomentUseCase(
 		traceRepo, momentRepo, echoRepo,
@@ -72,5 +73,5 @@ func NewWritingHandler(p *Platform) pb.EgoServer {
 		insightRepo, stubInsightGenerator{}, uuidGenerator{},
 	)
 
-	return writinggrpc.NewHandler(createMoment, generateInsight)
+	return writinggrpc.NewHandler(createMoment, generateInsight, reader)
 }

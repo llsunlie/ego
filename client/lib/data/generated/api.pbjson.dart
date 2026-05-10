@@ -1,6 +1,6 @@
 // This is a generated file - do not edit.
 //
-// Generated from api.proto.
+// Generated from ego/api.proto.
 
 // @dart = 3.3
 
@@ -8,8 +8,7 @@
 // ignore_for_file: constant_identifier_names
 // ignore_for_file: curly_braces_in_flow_control_structures
 // ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
-// ignore_for_file: non_constant_identifier_names, prefer_relative_imports
-// ignore_for_file: unused_import
+// ignore_for_file: non_constant_identifier_names, unused_import
 
 import 'dart:convert' as $convert;
 import 'dart:core' as $core;
@@ -239,6 +238,37 @@ const CreateMomentRes$json = {
 final $typed_data.Uint8List createMomentResDescriptor = $convert.base64Decode(
     'Cg9DcmVhdGVNb21lbnRSZXMSIwoGbW9tZW50GAEgASgLMgsuZWdvLk1vbWVudFIGbW9tZW50Eh'
     '0KBGVjaG8YAiABKAsyCS5lZ28uRWNob1IEZWNobw==');
+
+@$core.Deprecated('Use getMomentsReqDescriptor instead')
+const GetMomentsReq$json = {
+  '1': 'GetMomentsReq',
+  '2': [
+    {'1': 'ids', '3': 1, '4': 3, '5': 9, '10': 'ids'},
+  ],
+};
+
+/// Descriptor for `GetMomentsReq`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getMomentsReqDescriptor =
+    $convert.base64Decode('Cg1HZXRNb21lbnRzUmVxEhAKA2lkcxgBIAMoCVIDaWRz');
+
+@$core.Deprecated('Use getMomentsResDescriptor instead')
+const GetMomentsRes$json = {
+  '1': 'GetMomentsRes',
+  '2': [
+    {
+      '1': 'moments',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.ego.Moment',
+      '10': 'moments'
+    },
+  ],
+};
+
+/// Descriptor for `GetMomentsRes`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getMomentsResDescriptor = $convert.base64Decode(
+    'Cg1HZXRNb21lbnRzUmVzEiUKB21vbWVudHMYASADKAsyCy5lZ28uTW9tZW50Ugdtb21lbnRz');
 
 @$core.Deprecated('Use generateInsightReqDescriptor instead')
 const GenerateInsightReq$json = {
@@ -599,3 +629,104 @@ const SendMessageRes$json = {
 final $typed_data.Uint8List sendMessageResDescriptor = $convert.base64Decode(
     'Cg5TZW5kTWVzc2FnZVJlcxImCgVyZXBseRgBIAEoCzIQLmVnby5DaGF0TWVzc2FnZVIFcmVwbH'
     'k=');
+
+const $core.Map<$core.String, $core.dynamic> EgoServiceBase$json = {
+  '1': 'Ego',
+  '2': [
+    {'1': 'Login', '2': '.ego.LoginReq', '3': '.ego.LoginRes'},
+    {
+      '1': 'CreateMoment',
+      '2': '.ego.CreateMomentReq',
+      '3': '.ego.CreateMomentRes'
+    },
+    {'1': 'GetMoments', '2': '.ego.GetMomentsReq', '3': '.ego.GetMomentsRes'},
+    {
+      '1': 'GenerateInsight',
+      '2': '.ego.GenerateInsightReq',
+      '3': '.ego.GenerateInsightRes'
+    },
+    {'1': 'ListTraces', '2': '.ego.ListTracesReq', '3': '.ego.ListTracesRes'},
+    {
+      '1': 'GetTraceDetail',
+      '2': '.ego.GetTraceDetailReq',
+      '3': '.ego.GetTraceDetailRes'
+    },
+    {
+      '1': 'GetRandomMoments',
+      '2': '.ego.GetRandomMomentsReq',
+      '3': '.ego.GetRandomMomentsRes'
+    },
+    {'1': 'StashTrace', '2': '.ego.StashTraceReq', '3': '.ego.StashTraceRes'},
+    {
+      '1': 'ListConstellations',
+      '2': '.ego.ListConstellationsReq',
+      '3': '.ego.ListConstellationsRes'
+    },
+    {
+      '1': 'GetConstellation',
+      '2': '.ego.GetConstellationReq',
+      '3': '.ego.GetConstellationRes'
+    },
+    {'1': 'StartChat', '2': '.ego.StartChatReq', '3': '.ego.StartChatRes'},
+    {
+      '1': 'SendMessage',
+      '2': '.ego.SendMessageReq',
+      '3': '.ego.SendMessageRes'
+    },
+  ],
+};
+
+@$core.Deprecated('Use egoServiceDescriptor instead')
+const $core.Map<$core.String, $core.Map<$core.String, $core.dynamic>>
+    EgoServiceBase$messageJson = {
+  '.ego.LoginReq': LoginReq$json,
+  '.ego.LoginRes': LoginRes$json,
+  '.ego.CreateMomentReq': CreateMomentReq$json,
+  '.ego.CreateMomentRes': CreateMomentRes$json,
+  '.ego.Moment': Moment$json,
+  '.ego.Echo': Echo$json,
+  '.ego.GetMomentsReq': GetMomentsReq$json,
+  '.ego.GetMomentsRes': GetMomentsRes$json,
+  '.ego.GenerateInsightReq': GenerateInsightReq$json,
+  '.ego.GenerateInsightRes': GenerateInsightRes$json,
+  '.ego.Insight': Insight$json,
+  '.ego.ListTracesReq': ListTracesReq$json,
+  '.ego.ListTracesRes': ListTracesRes$json,
+  '.ego.Trace': Trace$json,
+  '.ego.GetTraceDetailReq': GetTraceDetailReq$json,
+  '.ego.GetTraceDetailRes': GetTraceDetailRes$json,
+  '.ego.TraceItem': TraceItem$json,
+  '.ego.GetRandomMomentsReq': GetRandomMomentsReq$json,
+  '.ego.GetRandomMomentsRes': GetRandomMomentsRes$json,
+  '.ego.StashTraceReq': StashTraceReq$json,
+  '.ego.StashTraceRes': StashTraceRes$json,
+  '.ego.Star': Star$json,
+  '.ego.ListConstellationsReq': ListConstellationsReq$json,
+  '.ego.ListConstellationsRes': ListConstellationsRes$json,
+  '.ego.Constellation': Constellation$json,
+  '.ego.GetConstellationReq': GetConstellationReq$json,
+  '.ego.GetConstellationRes': GetConstellationRes$json,
+  '.ego.StartChatReq': StartChatReq$json,
+  '.ego.StartChatRes': StartChatRes$json,
+  '.ego.ChatMessage': ChatMessage$json,
+  '.ego.MomentReference': MomentReference$json,
+  '.ego.SendMessageReq': SendMessageReq$json,
+  '.ego.SendMessageRes': SendMessageRes$json,
+};
+
+/// Descriptor for `Ego`. Decode as a `google.protobuf.ServiceDescriptorProto`.
+final $typed_data.Uint8List egoServiceDescriptor = $convert.base64Decode(
+    'CgNFZ28SJQoFTG9naW4SDS5lZ28uTG9naW5SZXEaDS5lZ28uTG9naW5SZXMSOgoMQ3JlYXRlTW'
+    '9tZW50EhQuZWdvLkNyZWF0ZU1vbWVudFJlcRoULmVnby5DcmVhdGVNb21lbnRSZXMSNAoKR2V0'
+    'TW9tZW50cxISLmVnby5HZXRNb21lbnRzUmVxGhIuZWdvLkdldE1vbWVudHNSZXMSQwoPR2VuZX'
+    'JhdGVJbnNpZ2h0EhcuZWdvLkdlbmVyYXRlSW5zaWdodFJlcRoXLmVnby5HZW5lcmF0ZUluc2ln'
+    'aHRSZXMSNAoKTGlzdFRyYWNlcxISLmVnby5MaXN0VHJhY2VzUmVxGhIuZWdvLkxpc3RUcmFjZX'
+    'NSZXMSQAoOR2V0VHJhY2VEZXRhaWwSFi5lZ28uR2V0VHJhY2VEZXRhaWxSZXEaFi5lZ28uR2V0'
+    'VHJhY2VEZXRhaWxSZXMSRgoQR2V0UmFuZG9tTW9tZW50cxIYLmVnby5HZXRSYW5kb21Nb21lbn'
+    'RzUmVxGhguZWdvLkdldFJhbmRvbU1vbWVudHNSZXMSNAoKU3Rhc2hUcmFjZRISLmVnby5TdGFz'
+    'aFRyYWNlUmVxGhIuZWdvLlN0YXNoVHJhY2VSZXMSTAoSTGlzdENvbnN0ZWxsYXRpb25zEhouZW'
+    'dvLkxpc3RDb25zdGVsbGF0aW9uc1JlcRoaLmVnby5MaXN0Q29uc3RlbGxhdGlvbnNSZXMSRgoQ'
+    'R2V0Q29uc3RlbGxhdGlvbhIYLmVnby5HZXRDb25zdGVsbGF0aW9uUmVxGhguZWdvLkdldENvbn'
+    'N0ZWxsYXRpb25SZXMSMQoJU3RhcnRDaGF0EhEuZWdvLlN0YXJ0Q2hhdFJlcRoRLmVnby5TdGFy'
+    'dENoYXRSZXMSNwoLU2VuZE1lc3NhZ2USEy5lZ28uU2VuZE1lc3NhZ2VSZXEaEy5lZ28uU2VuZE'
+    '1lc3NhZ2VSZXM=');

@@ -19,6 +19,9 @@ service Ego {
   // 写下一句话，保存 Moment + Echo，返回回声
   rpc CreateMoment(CreateMomentReq) returns (CreateMomentRes);
 
+  // 根据 ID 列表批量获取 Moment 内容
+  rpc GetMoments(GetMomentsReq) returns (GetMomentsRes);
+
   // 获取 AI 观察（per-Moment，结合 Echo）
   rpc GenerateInsight(GenerateInsightReq) returns (GenerateInsightRes);
 
@@ -140,6 +143,14 @@ message CreateMomentReq {
 message CreateMomentRes {
   Moment moment = 1;  // 已保存的 Moment
   Echo   echo   = 2;  // 匹配到的回声（含候选列表）
+}
+
+message GetMomentsReq {
+  repeated string ids = 1;
+}
+
+message GetMomentsRes {
+  repeated Moment moments = 1;
 }
 
 // =========================================================================

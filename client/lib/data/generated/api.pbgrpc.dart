@@ -49,6 +49,14 @@ class EgoClient extends $grpc.Client {
     return $createUnaryCall(_$createMoment, request, options: options);
   }
 
+  /// 根据 ID 列表批量获取 Moment 内容
+  $grpc.ResponseFuture<$0.GetMomentsRes> getMoments(
+    $0.GetMomentsReq request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$getMoments, request, options: options);
+  }
+
   /// 获取 AI 观察（per-Moment，结合 Echo）
   $grpc.ResponseFuture<$0.GenerateInsightRes> generateInsight(
     $0.GenerateInsightReq request, {
@@ -137,6 +145,11 @@ class EgoClient extends $grpc.Client {
           '/ego.Ego/CreateMoment',
           ($0.CreateMomentReq value) => value.writeToBuffer(),
           $0.CreateMomentRes.fromBuffer);
+  static final _$getMoments =
+      $grpc.ClientMethod<$0.GetMomentsReq, $0.GetMomentsRes>(
+          '/ego.Ego/GetMoments',
+          ($0.GetMomentsReq value) => value.writeToBuffer(),
+          $0.GetMomentsRes.fromBuffer);
   static final _$generateInsight =
       $grpc.ClientMethod<$0.GenerateInsightReq, $0.GenerateInsightRes>(
           '/ego.Ego/GenerateInsight',
@@ -203,6 +216,13 @@ abstract class EgoServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) => $0.CreateMomentReq.fromBuffer(value),
         ($0.CreateMomentRes value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GetMomentsReq, $0.GetMomentsRes>(
+        'GetMoments',
+        getMoments_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.GetMomentsReq.fromBuffer(value),
+        ($0.GetMomentsRes value) => value.writeToBuffer()));
     $addMethod(
         $grpc.ServiceMethod<$0.GenerateInsightReq, $0.GenerateInsightRes>(
             'GenerateInsight',
@@ -290,6 +310,14 @@ abstract class EgoServiceBase extends $grpc.Service {
 
   $async.Future<$0.CreateMomentRes> createMoment(
       $grpc.ServiceCall call, $0.CreateMomentReq request);
+
+  $async.Future<$0.GetMomentsRes> getMoments_Pre($grpc.ServiceCall $call,
+      $async.Future<$0.GetMomentsReq> $request) async {
+    return getMoments($call, await $request);
+  }
+
+  $async.Future<$0.GetMomentsRes> getMoments(
+      $grpc.ServiceCall call, $0.GetMomentsReq request);
 
   $async.Future<$0.GenerateInsightRes> generateInsight_Pre(
       $grpc.ServiceCall $call,
