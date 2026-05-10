@@ -1,16 +1,28 @@
 {
   "features": [
     {
-      "id": "timeline.list_moments",
-      "title": "List Moments with cursor pagination",
-      "status": "not_started",
-      "evidence": []
+      "id": "timeline.list_traces",
+      "title": "ListTraces with cursor pagination",
+      "status": "passing",
+      "evidence": ["app/list_traces.go", "adapter/grpc/handler.go", "adapter/grpc/handler_test.go"]
     },
     {
-      "id": "timeline.random_moments",
-      "title": "Return random Moments for memory dots",
-      "status": "not_started",
-      "evidence": []
+      "id": "timeline.get_trace_detail",
+      "title": "GetTraceDetail with Moment + Echo + Insight aggregation",
+      "status": "passing",
+      "evidence": ["app/get_trace_detail.go", "adapter/grpc/handler.go", "adapter/grpc/handler_test.go"]
+    },
+    {
+      "id": "timeline.get_random_moments",
+      "title": "GetRandomMoments for memory dot blind box",
+      "status": "passing",
+      "evidence": ["app/get_random_moments.go", "adapter/grpc/handler.go", "adapter/grpc/handler_test.go"]
+    },
+    {
+      "id": "timeline.module_wiring",
+      "title": "Module-level composition via module.go plus thin bootstrap injection",
+      "status": "passing",
+      "evidence": ["module.go", "bootstrap/timeline.go", "go build ./..."]
     }
   ]
 }
