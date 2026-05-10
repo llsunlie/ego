@@ -16,25 +16,68 @@ log()  { echo -e "${GREEN}[$(date +%H:%M:%S)]${NC} $1"; }
 warn() { echo -e "${YELLOW}[$(date +%H:%M:%S)]${NC} $1"; }
 err()  { echo -e "${RED}[$(date +%H:%M:%S)]${NC} $1"; }
 
-# ---------- cleanup ----------
+# ── platform detection ──────────────────────────────────────────────
+IS_WINDOWS=false
+case "$(uname -s 2>/dev/null || echo 'unknown')" in
+    MINGW*|MSYS*|CYGWIN*) IS_WINDOWS=true ;;
+esac
+
+# ── port helpers (cross-platform) ───────────────────────────────────
+port_pid() {
+    # prints PIDs listening on $1, one per line
+    if [ "$IS_WINDOWS" = true ]; then
+        netstat -ano 2>/dev/null | grep ":$1 " | grep LISTENING | awk '{print $NF}' || true
+    else
+        lsof -ti:"$1" 2>/dev/null || true
+    fi
+}
+
+kill_port() {
+    local pid
+    pid="$(port_pid "$1")"
+    if [ -n "$pid" ]; then
+        if [ "$IS_WINDOWS" = true ]; then
+            for p in $pid; do taskkill //F //PID "$p" 2>/dev/null || true; done
+        else
+            kill -9 $pid 2>/dev/null || true
+        fi
+    fi
+}
+
+port_listening() {
+    # returns 0 if something is listening on $1
+    [ -n "$(port_pid "$1")" ]
+}
+
+kill_process() {
+    local pid="$1"
+    if [ "$IS_WINDOWS" = true ]; then
+        taskkill //F //PID "$pid" 2>/dev/null || true
+    else
+        kill "$pid" 2>/dev/null || true
+    fi
+}
+
+# ── cleanup ─────────────────────────────────────────────────────────
 cleanup() {
     log "shutting down..."
-    kill $GO_PID 2>/dev/null || true
-    kill $FLUTTER_PID 2>/dev/null || true
+    [ -n "${GO_PID:-}" ] && kill_process "$GO_PID"
+    [ -n "${FLUTTER_PID:-}" ] && kill_process "$FLUTTER_PID"
     wait $GO_PID 2>/dev/null || true
     wait $FLUTTER_PID 2>/dev/null || true
     log "done"
 }
 trap cleanup EXIT INT TERM
 
-# ---------- kill stale ports ----------
+# ── kill stale ports ────────────────────────────────────────────────
 log "clearing ports ${GRPC_PORT} ${WEB_PORT} ${FLUTTER_PORT}..."
 for port in $GRPC_PORT $WEB_PORT $FLUTTER_PORT; do
-    lsof -ti:"$port" 2>/dev/null | xargs -r kill -9 || true
+    kill_port "$port"
 done
 sleep 0.5
 
-# ---------- postgres ----------
+# ── postgres ────────────────────────────────────────────────────────
+cd "$ROOT"
 if ! docker compose ps postgres 2>/dev/null | grep -q "Up"; then
     log "starting postgres..."
     docker compose up -d postgres
@@ -42,32 +85,32 @@ if ! docker compose ps postgres 2>/dev/null | grep -q "Up"; then
 fi
 log "postgres ready"
 
-# ---------- go backend ----------
-log "building & starting backend..."
+# ── go backend ──────────────────────────────────────────────────────
+log "building backend..."
 cd "$ROOT/server"
 go build -o /tmp/ego-server ./cmd/ego/
+
+log "starting backend..."
 /tmp/ego-server &
 GO_PID=$!
 
-# wait until gRPC port is listening
 for i in $(seq 1 20); do
-    if lsof -ti:"$GRPC_PORT" >/dev/null 2>&1; then break; fi
+    if port_listening "$GRPC_PORT"; then break; fi
     sleep 0.3
 done
 
-if ! lsof -ti:"$GRPC_PORT" >/dev/null 2>&1; then
+if ! port_listening "$GRPC_PORT"; then
     err "backend failed to start on :$GRPC_PORT"
     exit 1
 fi
 log "backend ready  gRPC :${GRPC_PORT}  gRPC-web :${WEB_PORT}"
 
-# ---------- flutter web ----------
+# ── flutter web ─────────────────────────────────────────────────────
 log "starting flutter web-server..."
 cd "$ROOT/client"
 flutter run -d web-server --web-port "$FLUTTER_PORT" --web-hostname 0.0.0.0 &
 FLUTTER_PID=$!
 
-# wait until flutter port responds
 for i in $(seq 1 30); do
     if curl -s -o /dev/null "http://localhost:${FLUTTER_PORT}" 2>/dev/null; then break; fi
     sleep 1
@@ -89,5 +132,5 @@ echo -e "   WebRPC: localhost:${WEB_PORT}"
 echo -e "  ${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
-# ---------- wait ----------
+# ── wait ────────────────────────────────────────────────────────────
 wait
