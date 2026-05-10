@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/colors.dart';
+import '../starmap/providers/starmap_provider.dart';
 import 'providers/now_page_provider.dart';
 import 'widgets/starry_background.dart';
 import 'widgets/breathing_light.dart';
@@ -54,6 +55,12 @@ class _NowPageState extends ConsumerState<NowPage>
         WidgetsBinding.instance.addPostFrameCallback(
           (_) => _showStashOverlay(),
         );
+      }
+    });
+
+    ref.listen(pendingTopicPromptProvider, (prev, next) {
+      if (next != null && prev != next) {
+        ref.read(nowPageProvider.notifier).startWriting();
       }
     });
 

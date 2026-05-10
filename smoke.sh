@@ -11,7 +11,12 @@ set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SERVER_DIR="$PROJECT_DIR/server"
-GRPCURL="${GRPCURL:-$HOME/go/bin/grpcurl}"
+GRPCURL="${GRPCURL:-$(command -v grpcurl || true)}"
+if [ -z "$GRPCURL" ]; then
+  for p in "$HOME/go/bin/grpcurl" "$HOME/project/gowork/bin/grpcurl" "$GOPATH/bin/grpcurl"; do
+    if [ -x "$p" ]; then GRPCURL="$p"; break; fi
+  done
+fi
 GRPC_ADDR="localhost:9443"
 DB_URL="postgres://ego:ego@localhost:5432/ego?sslmode=disable"
 
