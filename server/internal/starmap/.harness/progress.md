@@ -1,8 +1,8 @@
 # starmap Progress
 
-## Current State (2026-05-08)
+## Current State (2026-05-10)
 
-Starmap module implemented with full DDD architecture. StashTrace, ListConstellations, and GetConstellation RPCs routed through composite handler. All unit tests pass. Build: `go build ./...` succeeds.
+Starmap module refactored following the two-level assembly pattern. Business policies (TopicGenerator, ConstellationMatcher, ConstellationAssetGenerator) moved from bootstrap to app layer. module.go introduced. All 14 tests pass.
 
 ### Test summary
 
@@ -10,17 +10,18 @@ Starmap module implemented with full DDD architecture. StashTrace, ListConstella
 |---|---|---|
 | `app/` | 9 (4 StashTrace + 2 ListConstellations + 3 GetConstellation) | All pass |
 | `adapter/grpc/` | 5 (StashTrace, StashTrace_Error, ListConstellations, GetConstellation, GetConstellation_Error) | All pass |
-| `smoke.sh` | F3 StashTrace → Constellation | Pending smoke run |
 
 ### Completed layers
 
 | Layer | Files | Status |
 | --- | --- | --- |
 | `domain` | `types.go`, `ports.go`, `errors.go` | Complete |
-| `app` | `ports.go`, `stash_trace.go`, `list_constellations.go`, `get_constellation.go` | Complete |
-| `adapter/postgres` | `star_repo.go`, `constellation_repo.go`, `trace_stasher.go` | Complete |
+| `app` | `ports.go`, `stash_trace.go`, `list_constellations.go`, `get_constellation.go`, `topic_generator.go`, `constellation_matcher.go`, `constellation_asset_generator.go` | Complete |
+| `adapter/postgres` | `star_repo.go`, `constellation_repo.go`, `trace_stasher.go`, `star_reader.go` | Complete |
 | `adapter/grpc` | `handler.go`, `mapper.go` | Complete |
-| `bootstrap` | `starmap.go` | Complete |
+| `adapter/id` | `uuid.go` | Complete |
+| `module wiring` | `module.go` | Complete |
+| `bootstrap` | `bootstrap/starmap.go` | Complete |
 | `platform/migrations` | `006_starmap.sql` | Complete |
 | `platform/queries` | `stars.sql`, `constellations.sql` | Complete |
 
@@ -35,23 +36,20 @@ Starmap module implemented with full DDD architecture. StashTrace, ListConstella
 ### Key Design Decisions
 
 1. **Star per Trace**: Each stashed Trace becomes exactly one Star (`idx_stars_trace` unique index).
-2. **Constellation clustering**: `star_ids UUID[]` stored in constellation table (no join table).
-3. **Topic/prompts embedding**: `topic_prompts TEXT[]` embedded in constellations table.
-4. **Synchronous insourcing**: Constellation matching and asset generation happen synchronously during StashTrace (not async).
-5. **AI Stubs**: TopicGenerator (first 20 chars), ConstellationMatcher (always no match = lone-star), AssetGenerator (placeholder names/insights/prompts).
-6. **TraceStasher via sqlc**: Marks trace.stashed=true directly using sqlc.Queries (no dependency on writing adapter).
-7. **Handler use-case interfaces**: Handler accepts interfaces (`StashTraceUseCase`, etc.) rather than concrete use-case types, enabling clean mock testing.
-8. **Mapper duplication**: `momentToProto`, `starToProto`, `constellationToProto` in starmap adapter to avoid cross-module dependency.
+2. **Constellation clustering**: `star_ids UUID[]` stored in constellation table.
+3. **Synchronous insourcing**: Constellation matching and asset generation happen synchronously during StashTrace.
+4. **Business policies in app**: TopicGenerator, ConstellationMatcher, ConstellationAssetGenerator MVP defaults are Starmap business policies, located in `app/` per two-level assembly rules.
+5. **Two-level assembly**: `bootstrap/starmap.go` passes only DB pool; `starmap/module.go` assembles repos, business policies, app use cases, and gRPC handler.
+6. **Handler use-case interfaces**: Handler accepts interfaces rather than concrete use-case types, enabling clean mock testing.
+7. **Mapper in adapter/grpc**: Proto conversion kept in `mapper.go`.
 
 ### Reads from other modules
 
 - `writing/domain` types: Trace, Moment
-- `writing/adapter/postgres`: Reader (via `NewReader`) for TraceReader interface
-- `writing/adapter/postgres`: UpdateTrace query reused for TraceStasher
+- `writing/adapter/postgres`: Reader (via `NewReader`) for TraceReader implementation
 
 ## Next Steps
 
 1. Implement real AI services (TopicGenerator, ConstellationMatcher, AssetGenerator) via `platform/ai`
-2. Consider async constellation insourcing for large traces (callback pattern)
-3. Implement StartChat + SendMessage RPCs (Chat module)
-4. Add postgres adapter integration tests for star_repo and constellation_repo
+2. Consider async constellation insourcing for large traces
+3. Add postgres adapter integration tests for star_repo and constellation_repo
