@@ -6,18 +6,17 @@ import (
 	"fmt"
 
 	"ego-server/internal/identity/domain"
-
-	"github.com/google/uuid"
 )
 
 type LoginUseCase struct {
 	users  domain.UserRepository
 	hasher PasswordHasher
 	tokens TokenIssuer
+	ids    IDGenerator
 }
 
-func NewLoginUseCase(users domain.UserRepository, hasher PasswordHasher, tokens TokenIssuer) *LoginUseCase {
-	return &LoginUseCase{users: users, hasher: hasher, tokens: tokens}
+func NewLoginUseCase(users domain.UserRepository, hasher PasswordHasher, tokens TokenIssuer, ids IDGenerator) *LoginUseCase {
+	return &LoginUseCase{users: users, hasher: hasher, tokens: tokens, ids: ids}
 }
 
 type LoginResult struct {
@@ -53,10 +52,8 @@ func (uc *LoginUseCase) register(ctx context.Context, account, password string) 
 		return nil, fmt.Errorf("hash password: %w", err)
 	}
 
-	id := uuid.New().String()
-
 	user := &domain.User{
-		ID:           id,
+		ID:           uc.ids.New(),
 		Account:      account,
 		PasswordHash: hash,
 	}
@@ -65,7 +62,7 @@ func (uc *LoginUseCase) register(ctx context.Context, account, password string) 
 		return nil, fmt.Errorf("create user: %w", err)
 	}
 
-	token, err := uc.tokens.Issue(id)
+	token, err := uc.tokens.Issue(user.ID)
 	if err != nil {
 		return nil, fmt.Errorf("issue token: %w", err)
 	}

@@ -4,58 +4,49 @@
       "id": "identity.domain",
       "title": "Define User entity and UserRepository interface in domain/",
       "status": "passing",
-      "evidence": [
-        "server/internal/identity/domain/user.go",
-        "server/internal/identity/domain/errors.go",
-        "go test ./internal/identity/..."
-      ]
+      "evidence": ["domain/user.go", "domain/errors.go", "go test ./internal/identity/..."]
     },
     {
       "id": "identity.app",
-      "title": "Define LoginUseCase and port interfaces (PasswordHasher, TokenIssuer) in app/",
+      "title": "Define LoginUseCase and port interfaces (PasswordHasher, TokenIssuer, IDGenerator) in app/",
       "status": "passing",
-      "evidence": [
-        "server/internal/identity/app/ports.go",
-        "server/internal/identity/app/login.go",
-        "go test ./internal/identity/..."
-      ]
+      "evidence": ["app/ports.go", "app/login.go", "go test ./internal/identity/..."]
     },
     {
       "id": "identity.adapter.postgres",
       "title": "Implement UserRepository in adapter/postgres/ wrapping sqlc",
       "status": "passing",
-      "evidence": [
-        "server/internal/identity/adapter/postgres/user_repo.go",
-        "go build ./..."
-      ]
+      "evidence": ["adapter/postgres/user_repo.go", "go build ./..."]
+    },
+    {
+      "id": "identity.adapter.id",
+      "title": "UUID generator in adapter/id/ satisfying app.IDGenerator",
+      "status": "passing",
+      "evidence": ["adapter/id/uuid.go", "go build ./..."]
     },
     {
       "id": "identity.adapter.grpc",
-      "title": "Refactor gRPC handler to thin layer delegating to LoginUseCase",
+      "title": "Thin gRPC handler delegating to LoginUseCase",
       "status": "passing",
-      "evidence": [
-        "server/internal/identity/adapter/grpc/handler.go",
-        "go test ./internal/identity/..."
-      ]
+      "evidence": ["adapter/grpc/handler.go", "go test ./internal/identity/..."]
     },
     {
       "id": "identity.platform.adapters",
-      "title": "Create BcryptHasher and JWTIssuer in platform/auth satisfying app ports",
+      "title": "BcryptHasher and JWTIssuer in platform/auth satisfying app ports",
       "status": "passing",
-      "evidence": [
-        "server/internal/platform/auth/bcrypt.go",
-        "server/internal/platform/auth/jwt_issuer.go",
-        "go test ./internal/identity/..."
-      ]
+      "evidence": ["platform/auth/bcrypt.go", "platform/auth/jwt_issuer.go", "go test ./internal/identity/..."]
+    },
+    {
+      "id": "identity.module_wiring",
+      "title": "Module-level composition via module.go plus thin bootstrap injection (DB + Hasher + Tokens)",
+      "status": "passing",
+      "evidence": ["module.go", "adapter/id/uuid.go", "bootstrap/identity.go", "go build ./..."]
     },
     {
       "id": "identity.tests",
-      "title": "Update handler tests to work with DDD structure, keep all 5 scenarios",
+      "title": "4 integration + 5 unit tests — all pass",
       "status": "passing",
-      "evidence": [
-        "server/internal/identity/adapter/grpc/handler_test.go",
-        "5/5 test cases pass"
-      ]
+      "evidence": ["adapter/grpc/handler_test.go", "adapter/grpc/handler_integration_test.go", "9/9 test cases pass"]
     }
   ]
 }
