@@ -37,6 +37,12 @@
       "evidence": ["app/generate_insight.go", "app/generate_insight_test.go"]
     },
     {
+      "id": "writing.app.default_policies",
+      "title": "Keep MVP Echo matching and Insight generation policies inside app/",
+      "status": "passing",
+      "evidence": ["app/echo_matcher.go", "app/insight_generator.go", "go test ./internal/writing/app"]
+    },
+    {
       "id": "writing.adapter.postgres.migration",
       "title": "Create DB migration for moments and traces tables",
       "status": "passing",
@@ -68,9 +74,9 @@
     },
     {
       "id": "writing.bootstrap",
-      "title": "Wire Writing module in bootstrap (NewWritingHandler + composite registration)",
+      "title": "Wire Writing module through module-level composition plus thin bootstrap injection",
       "status": "passing",
-      "evidence": ["bootstrap/writing.go", "bootstrap/composite.go", "bootstrap/server.go", "cmd/ego/main.go"]
+      "evidence": ["module.go", "adapter/id/uuid.go", "bootstrap/writing.go", "bootstrap/composite.go", "bootstrap/server.go", "cmd/ego/main.go", "go build ./..."]
     }
   ]
 }
