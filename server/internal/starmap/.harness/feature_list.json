@@ -2,21 +2,33 @@
   "features": [
     {
       "id": "starmap.stash_trace",
-      "title": "Stash Trace as Star",
-      "status": "not_started",
-      "evidence": []
+      "title": "StashTrace — stash trace as Star, match/create Constellation",
+      "status": "passing",
+      "evidence": ["app/stash_trace.go", "app/stash_trace_test.go"]
     },
     {
       "id": "starmap.list_constellations",
-      "title": "List Constellations for Starmap",
-      "status": "not_started",
-      "evidence": []
+      "title": "ListConstellations — list all Constellations for current user",
+      "status": "passing",
+      "evidence": ["app/list_constellations.go", "app/list_constellations_test.go"]
     },
     {
       "id": "starmap.get_constellation",
-      "title": "Get Constellation detail",
-      "status": "not_started",
-      "evidence": []
+      "title": "GetConstellation — constellation detail with aggregated Moments + Stars",
+      "status": "passing",
+      "evidence": ["app/get_constellation.go", "app/get_constellation_test.go"]
+    },
+    {
+      "id": "starmap.app.default_policies",
+      "title": "Keep MVP business policies (TopicGenerator, ConstellationMatcher, ConstellationAssetGenerator) inside app/",
+      "status": "passing",
+      "evidence": ["app/topic_generator.go", "app/constellation_matcher.go", "app/constellation_asset_generator.go", "go test ./internal/starmap/app"]
+    },
+    {
+      "id": "starmap.module_wiring",
+      "title": "Module-level composition via module.go plus thin bootstrap injection",
+      "status": "passing",
+      "evidence": ["module.go", "adapter/id/uuid.go", "bootstrap/starmap.go", "go build ./..."]
     }
   ]
 }
