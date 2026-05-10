@@ -37,7 +37,7 @@ func newTestHandlerRealDB(t *testing.T) (*Handler, *pgxpool.Pool) {
 	userRepo := identitypostgres.NewUserRepository(queries)
 	hasher := auth.BcryptHasher{}
 	tokens := auth.JWTIssuer{Secret: []byte("secret"), Exp: 24 * time.Hour}
-	loginUseCase := identityapp.NewLoginUseCase(userRepo, hasher, tokens)
+	loginUseCase := identityapp.NewLoginUseCase(userRepo, hasher, tokens, mockIDGen{})
 	return NewHandler(loginUseCase), pool
 }
 
