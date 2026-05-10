@@ -232,11 +232,13 @@ class _CandidateToggleState extends State<_CandidateToggle> {
           alignment: Alignment.topCenter,
           child: _expanded
               ? Column(
-                  children: List.generate(ids.length, (i) {
-                    final sim = i < sims.length
-                        ? (sims[i] * 100).toStringAsFixed(0)
+                  children: List.generate(ids.length - 1, (i) {
+                    // Skip ids[0] — already shown as firstMatchedContent in echo box
+                    final idx = i + 1;
+                    final sim = idx < sims.length
+                        ? (sims[idx] * 100).toStringAsFixed(0)
                         : '--';
-                    final matchedMoment = momentsMap[ids[i]];
+                    final matchedMoment = momentsMap[ids[idx]];
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Container(
@@ -268,11 +270,8 @@ class _CandidateToggleState extends State<_CandidateToggle> {
                             ),
                             const SizedBox(width: 10),
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (matchedMoment != null)
-                                    Text(
+                              child: matchedMoment != null
+                                  ? Text(
                                       matchedMoment.content,
                                       style: const TextStyle(
                                         fontSize: 13,
@@ -281,17 +280,16 @@ class _CandidateToggleState extends State<_CandidateToggle> {
                                         fontWeight: FontWeight.w300,
                                         fontStyle: FontStyle.italic,
                                       ),
-                                    ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    '${sim}% 相似',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: Color(0xFF6A6A80),
-                                      fontWeight: FontWeight.w200,
-                                    ),
-                                  ),
-                                ],
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${sim}% 相似',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF6A6A80),
+                                fontWeight: FontWeight.w200,
                               ),
                             ),
                           ],

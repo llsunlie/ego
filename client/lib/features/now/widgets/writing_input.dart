@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/colors.dart';
 import '../providers/now_page_provider.dart';
+import '../../starmap/providers/starmap_provider.dart';
 
 class WritingInput extends ConsumerStatefulWidget {
   const WritingInput({super.key});
@@ -13,6 +14,7 @@ class WritingInput extends ConsumerStatefulWidget {
 class _WritingInputState extends ConsumerState<WritingInput> {
   final _controller = TextEditingController();
   bool _canSubmit = false;
+  bool _topicConsumed = false;
 
   @override
   void initState() {
@@ -30,10 +32,14 @@ class _WritingInputState extends ConsumerState<WritingInput> {
     if (text.isEmpty) return;
     ref.read(nowPageProvider.notifier).submitMoment(text);
     _controller.clear();
+    ref.read(pendingTopicPromptProvider.notifier).state = null;
+    _topicConsumed = false;
   }
 
   void _cancel() {
     _controller.clear();
+    ref.read(pendingTopicPromptProvider.notifier).state = null;
+    _topicConsumed = false;
     ref.read(nowPageProvider.notifier).dismissEcho();
   }
 
@@ -46,10 +52,22 @@ class _WritingInputState extends ConsumerState<WritingInput> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(nowPageProvider);
+    final pendingTopic = ref.watch(pendingTopicPromptProvider);
     final show = state.status == NowPageStatus.writing ||
         (state.status == NowPageStatus.echoing && state.isReopen);
 
-    final hint = state.isReopen ? '顺着刚才的，再说一句……' : '随便说点什么，这里听着……';
+    if (pendingTopic != null && !_topicConsumed && !state.isReopen) {
+      _topicConsumed = true;
+    }
+
+    String hint;
+    if (pendingTopic != null && (!state.isReopen || _topicConsumed)) {
+      hint = pendingTopic;
+    } else if (state.isReopen) {
+      hint = '顺着刚才的，再说一句……';
+    } else {
+      hint = '随便说点什么，这里听着……';
+    }
     final tip = state.isReopen ? '光继续听着' : '想说多久说多久，什么时候停都行';
 
     return AnimatedPositioned(

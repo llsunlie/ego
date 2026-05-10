@@ -8,6 +8,7 @@ import '../../features/now/now_page.dart';
 import '../../features/past/past_page.dart';
 import '../../features/past/trace_detail_page.dart';
 import '../../features/starmap/starmap_page.dart';
+import '../../features/starmap/constellation_detail_page.dart';
 import '../../shared/widgets/app_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -72,6 +73,14 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/starmap',
                 builder: (context, state) => const StarmapPage(),
+                routes: [
+                  GoRoute(
+                    path: 'detail/:constellationId',
+                    builder: (context, state) => ConstellationDetailPage(
+                      constellationId: state.pathParameters['constellationId']!,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

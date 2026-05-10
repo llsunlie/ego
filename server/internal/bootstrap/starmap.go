@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"context"
+	"math/rand/v2"
 
 	"ego-server/internal/platform/postgres/sqlc"
 	starmapapp "ego-server/internal/starmap/app"
@@ -31,10 +32,17 @@ func (stubTopicGenerator) Generate(_ context.Context, moments []writingdomain.Mo
 	return "未命名的星", nil
 }
 
-type stubConstellationMatcher struct{}
+type simConstellationMatcher struct{}
 
-func (stubConstellationMatcher) FindMatch(_ context.Context, _ string, _ []starmapdomain.Constellation) (string, error) {
-	return "", nil // always create lone-star constellation
+func (simConstellationMatcher) FindMatch(_ context.Context, _ string, existing []starmapdomain.Constellation) (string, error) {
+	if len(existing) == 0 {
+		return "", nil
+	}
+	// 65% chance to cluster with an existing constellation (simulates AI matching)
+	if rand.IntN(100) < 65 {
+		return existing[rand.IntN(len(existing))].ID, nil
+	}
+	return "", nil
 }
 
 type stubConstellationAssetGenerator struct{}
@@ -58,7 +66,7 @@ func NewStarmapHandler(p *Platform) pb.EgoServer {
 
 	stashTrace := starmapapp.NewStashTraceUseCase(
 		traceReader, traceStasher, starRepo, constellationRepo,
-		stubTopicGenerator{}, stubConstellationMatcher{}, stubConstellationAssetGenerator{},
+		stubTopicGenerator{}, simConstellationMatcher{}, stubConstellationAssetGenerator{},
 		uuidGenerator{},
 	)
 	listConstellations := starmapapp.NewListConstellationsUseCase(constellationRepo)

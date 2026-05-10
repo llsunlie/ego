@@ -128,7 +128,17 @@ class NowPageNotifier extends StateNotifier<NowPageState> {
   Future<void> _fetchMatchedMoments(List<String> ids) async {
     try {
       final res = await _client.getMoments(_ref, ids: ids);
-      state = state.copyWith(matchedMoments: res.moments.toList());
+      final moments = res.moments.toList();
+      // Reorder to match input IDs order (GetMoments may return arbitrary order)
+      final byId = <String, pb.Moment>{};
+      for (final m in moments) {
+        byId[m.id] = m;
+      }
+      final ordered = <pb.Moment>[];
+      for (final id in ids) {
+        if (byId.containsKey(id)) ordered.add(byId[id]!);
+      }
+      state = state.copyWith(matchedMoments: ordered);
     } catch (_) {
       // Matched moments fetch is optional — silent failure
     }
