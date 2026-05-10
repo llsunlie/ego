@@ -3,7 +3,7 @@ package grpc
 import (
 	"context"
 
-	"ego-server/internal/timeline/domain"
+	"ego-server/internal/timeline/app"
 	writingdomain "ego-server/internal/writing/domain"
 
 	pb "ego-server/proto/ego"
@@ -11,23 +11,20 @@ import (
 
 type Handler struct {
 	pb.UnimplementedEgoServer
-	moments  domain.MomentReader
-	traces   domain.TraceReader
-	echos    domain.EchoReader
-	insights domain.InsightReader
+	listTraces       *app.ListTracesUseCase
+	getTraceDetail   *app.GetTraceDetailUseCase
+	getRandomMoments *app.GetRandomMomentsUseCase
 }
 
 func NewHandler(
-	moments domain.MomentReader,
-	traces domain.TraceReader,
-	echos domain.EchoReader,
-	insights domain.InsightReader,
+	listTraces *app.ListTracesUseCase,
+	getTraceDetail *app.GetTraceDetailUseCase,
+	getRandomMoments *app.GetRandomMomentsUseCase,
 ) *Handler {
 	return &Handler{
-		moments:  moments,
-		traces:   traces,
-		echos:    echos,
-		insights: insights,
+		listTraces:       listTraces,
+		getTraceDetail:   getTraceDetail,
+		getRandomMoments: getRandomMoments,
 	}
 }
 
@@ -37,62 +34,42 @@ func (h *Handler) ListTraces(ctx context.Context, req *pb.ListTracesReq) (*pb.Li
 		return nil, writingdomain.ErrMomentNotFound
 	}
 
-	cursor := req.Cursor
-	pageSize := req.PageSize
-	if pageSize <= 0 {
-		pageSize = 20
-	}
-
-	traces, nextCursor, hasMore, err := h.traces.ListTracesByUserID(ctx, userID, cursor, pageSize)
+	output, err := h.listTraces.Execute(ctx, app.ListTracesInput{
+		UserID:   userID,
+		Cursor:   req.Cursor,
+		PageSize: req.PageSize,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	pbTraces := make([]*pb.Trace, len(traces))
-	for i, t := range traces {
+	pbTraces := make([]*pb.Trace, len(output.Traces))
+	for i, t := range output.Traces {
 		pbTraces[i] = traceToProto(t)
 	}
 
 	return &pb.ListTracesRes{
 		Traces:     pbTraces,
-		NextCursor: nextCursor,
-		HasMore:    hasMore,
+		NextCursor: output.NextCursor,
+		HasMore:    output.HasMore,
 	}, nil
 }
 
 func (h *Handler) GetTraceDetail(ctx context.Context, req *pb.GetTraceDetailReq) (*pb.GetTraceDetailRes, error) {
-	trace, err := h.traces.GetTraceByID(ctx, req.TraceId)
+	output, err := h.getTraceDetail.Execute(ctx, app.GetTraceDetailInput{
+		TraceID: req.TraceId,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	moments, err := h.traces.ListMomentsByTraceID(ctx, req.TraceId)
-	if err != nil {
-		return nil, err
-	}
-
-	items := make([]*pb.TraceItem, len(moments))
-	for i, m := range moments {
-		echo, _ := h.echos.FindByMomentID(ctx, m.ID)
-		var insight *writingdomain.Insight
-		if echo != nil {
-			insight, _ = h.insights.FindByMomentID(ctx, m.ID)
-		}
-
-		var echos []writingdomain.Echo
-		if echo != nil {
-			echos = []writingdomain.Echo{*echo}
-		}
-
-		items[i] = traceItemToProto(writingdomain.TraceItem{
-			Moment:  m,
-			Echos:   echos,
-			Insight: insight,
-		})
+	items := make([]*pb.TraceItem, len(output.Items))
+	for i, item := range output.Items {
+		items[i] = traceItemToProto(item)
 	}
 
 	return &pb.GetTraceDetailRes{
-		Trace: traceToProto(*trace),
+		Trace: traceToProto(output.Trace),
 		Items: items,
 	}, nil
 }
@@ -103,18 +80,16 @@ func (h *Handler) GetRandomMoments(ctx context.Context, req *pb.GetRandomMoments
 		return nil, writingdomain.ErrMomentNotFound
 	}
 
-	count := req.Count
-	if count <= 0 {
-		count = 3
-	}
-
-	moments, err := h.moments.RandomByUserID(ctx, userID, count)
+	output, err := h.getRandomMoments.Execute(ctx, app.GetRandomMomentsInput{
+		UserID: userID,
+		Count:  req.Count,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	pbMoments := make([]*pb.Moment, len(moments))
-	for i, m := range moments {
+	pbMoments := make([]*pb.Moment, len(output.Moments))
+	for i, m := range output.Moments {
 		pbMoments[i] = momentToProto(m)
 	}
 
