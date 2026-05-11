@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"ego-server/internal/platform/logging"
 	"ego-server/internal/writing/domain"
 )
 
@@ -49,6 +50,9 @@ type CreateMomentOutput struct {
 }
 
 func (uc *CreateMomentUseCase) Execute(ctx context.Context, input CreateMomentInput) (*CreateMomentOutput, error) {
+	logger := logging.FromContext(ctx)
+	logger.DebugContext(ctx, "CreateMoment: start", "content_len", len([]rune(input.Content)), "trace_id", input.TraceID, "motivation", input.Motivation)
+
 	if input.Content == "" {
 		return nil, domain.ErrEmptyContent
 	}
@@ -67,31 +71,45 @@ func (uc *CreateMomentUseCase) Execute(ctx context.Context, input CreateMomentIn
 		}
 		trace, err := uc.createTrace(ctx, userID, motivation)
 		if err != nil {
+			logger.ErrorContext(ctx, "CreateMoment: create trace failed", "error", err)
 			return nil, fmt.Errorf("create trace: %w", err)
 		}
 		traceID = trace.ID
 		newTrace = true
+		logger.DebugContext(ctx, "CreateMoment: new trace created", "trace_id", traceID, "motivation", motivation)
 	} else {
 		existing, err := uc.traces.GetByID(ctx, traceID)
 		if err != nil {
+			logger.ErrorContext(ctx, "CreateMoment: get trace failed", "trace_id", traceID, "error", err)
 			return nil, fmt.Errorf("get trace: %w", err)
 		}
 		if existing.UserID != userID {
+			logger.WarnContext(ctx, "CreateMoment: trace ownership mismatch", "trace_id", traceID, "trace_user", existing.UserID, "caller_user", userID)
 			return nil, fmt.Errorf("trace does not belong to user")
 		}
+		logger.DebugContext(ctx, "CreateMoment: appending to existing trace", "trace_id", traceID)
 	}
 
 	moment, err := uc.createMoment(ctx, userID, traceID, input.Content)
 	if err != nil {
 		if newTrace {
+			logger.WarnContext(ctx, "CreateMoment: rolling back new trace", "trace_id", traceID, "error", err)
 			_ = uc.traces.Delete(ctx, traceID)
 		}
 		return nil, fmt.Errorf("create moment: %w", err)
 	}
+	logger.DebugContext(ctx, "CreateMoment: moment created", "moment_id", moment.ID, "embedding_count", len(moment.Embeddings))
 
 	echo, err := uc.matchEcho(ctx, moment, userID)
 	if err != nil {
+		logger.ErrorContext(ctx, "CreateMoment: echo matching failed", "moment_id", moment.ID, "error", err)
 		return nil, fmt.Errorf("match echo: %w", err)
+	}
+
+	if echo != nil {
+		logger.InfoContext(ctx, "CreateMoment: echo found", "moment_id", moment.ID, "echo_id", echo.ID, "matched_count", len(echo.MatchedMomentIDs))
+	} else {
+		logger.DebugContext(ctx, "CreateMoment: no echo (no matching history or first moment)", "moment_id", moment.ID)
 	}
 
 	return &CreateMomentOutput{
@@ -115,8 +133,11 @@ func (uc *CreateMomentUseCase) createTrace(ctx context.Context, userID, motivati
 }
 
 func (uc *CreateMomentUseCase) createMoment(ctx context.Context, userID, traceID, content string) (*domain.Moment, error) {
+	logger := logging.FromContext(ctx)
+	logger.DebugContext(ctx, "CreateMoment: generating embedding", "content_len", len([]rune(content)))
 	embeddings, err := uc.embedding.Generate(ctx, content)
 	if err != nil {
+		logger.ErrorContext(ctx, "CreateMoment: embedding failed", "error", err)
 		return nil, fmt.Errorf("generate embedding: %w", err)
 	}
 
@@ -136,13 +157,17 @@ func (uc *CreateMomentUseCase) createMoment(ctx context.Context, userID, traceID
 }
 
 func (uc *CreateMomentUseCase) matchEcho(ctx context.Context, moment *domain.Moment, userID string) (*domain.Echo, error) {
+	logger := logging.FromContext(ctx)
 	allMoments, err := uc.moments.ListByUserID(ctx, userID)
 	if err != nil {
+		logger.ErrorContext(ctx, "CreateMoment: list history failed", "user_id", userID, "error", err)
 		return nil, fmt.Errorf("list history: %w", err)
 	}
+	logger.DebugContext(ctx, "CreateMoment: loaded history", "user_id", userID, "total_moments", len(allMoments))
 
 	history := excludeSelf(allMoments, moment.ID)
 	if len(history) == 0 {
+		logger.DebugContext(ctx, "CreateMoment: no history to match (first moment)")
 		return nil, nil
 	}
 
