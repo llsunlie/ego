@@ -6,7 +6,7 @@ type ChatSession struct {
 	ID               string
 	UserID           string
 	StarID           string
-	ContextMomentIDs []string
+
 	CreatedAt        time.Time
 }
 

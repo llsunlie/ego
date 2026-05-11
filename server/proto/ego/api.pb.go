@@ -1678,12 +1678,11 @@ func (x *GetConstellationRes) GetStars() []*Star {
 }
 
 type StartChatReq struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	StarId           string                 `protobuf:"bytes,1,opt,name=star_id,json=starId,proto3" json:"star_id,omitempty"`                                 // 对应一个 Star
-	ContextMomentIds []string               `protobuf:"bytes,2,rep,name=context_moment_ids,json=contextMomentIds,proto3" json:"context_moment_ids,omitempty"` // 上下文 Moment id 列表
-	ChatSessionId    string                 `protobuf:"bytes,3,opt,name=chat_session_id,json=chatSessionId,proto3" json:"chat_session_id,omitempty"`          // 可选，传入旧 session_id 恢复对话
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	StarId        string                 `protobuf:"bytes,1,opt,name=star_id,json=starId,proto3" json:"star_id,omitempty"`                        // 对应一个 Star
+	ChatSessionId string                 `protobuf:"bytes,2,opt,name=chat_session_id,json=chatSessionId,proto3" json:"chat_session_id,omitempty"` // 可选，传入旧 session_id 恢复对话
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StartChatReq) Reset() {
@@ -1721,13 +1720,6 @@ func (x *StartChatReq) GetStarId() string {
 		return x.StarId
 	}
 	return ""
-}
-
-func (x *StartChatReq) GetContextMomentIds() []string {
-	if x != nil {
-		return x.ContextMomentIds
-	}
-	return nil
 }
 
 func (x *StartChatReq) GetChatSessionId() string {
@@ -2008,11 +2000,10 @@ const file_ego_api_proto_rawDesc = "" +
 	"\x13GetConstellationRes\x128\n" +
 	"\rconstellation\x18\x01 \x01(\v2\x12.ego.ConstellationR\rconstellation\x12%\n" +
 	"\amoments\x18\x02 \x03(\v2\v.ego.MomentR\amoments\x12\x1f\n" +
-	"\x05stars\x18\x03 \x03(\v2\t.ego.StarR\x05stars\"}\n" +
+	"\x05stars\x18\x03 \x03(\v2\t.ego.StarR\x05stars\"O\n" +
 	"\fStartChatReq\x12\x17\n" +
-	"\astar_id\x18\x01 \x01(\tR\x06starId\x12,\n" +
-	"\x12context_moment_ids\x18\x02 \x03(\tR\x10contextMomentIds\x12&\n" +
-	"\x0fchat_session_id\x18\x03 \x01(\tR\rchatSessionId\"\x8e\x01\n" +
+	"\astar_id\x18\x01 \x01(\tR\x06starId\x12&\n" +
+	"\x0fchat_session_id\x18\x02 \x01(\tR\rchatSessionId\"\x8e\x01\n" +
 	"\fStartChatRes\x12&\n" +
 	"\x0fchat_session_id\x18\x01 \x01(\tR\rchatSessionId\x12*\n" +
 	"\aopening\x18\x02 \x01(\v2\x10.ego.ChatMessageR\aopening\x12*\n" +

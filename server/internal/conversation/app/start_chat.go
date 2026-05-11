@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"ego-server/internal/conversation/domain"
+	writingdomain "ego-server/internal/writing/domain"
 )
 
 type StartChatUseCase struct {
@@ -36,9 +37,8 @@ func NewStartChatUseCase(
 }
 
 type StartChatInput struct {
-	StarID           string
-	ContextMomentIDs []string
-	ChatSessionID    string // optional: resume existing session
+	StarID        string
+	ChatSessionID string // optional: resume existing session
 }
 
 type StartChatOutput struct {
@@ -57,7 +57,7 @@ func (uc *StartChatUseCase) Execute(ctx context.Context, input StartChatInput) (
 		return uc.resumeSession(ctx, userID, input.ChatSessionID)
 	}
 
-	return uc.newSession(ctx, userID, input.StarID, input.ContextMomentIDs)
+	return uc.newSession(ctx, userID, input.StarID)
 }
 
 func (uc *StartChatUseCase) resumeSession(ctx context.Context, userID, sessionID string) (*StartChatOutput, error) {
@@ -89,7 +89,7 @@ func (uc *StartChatUseCase) resumeSession(ctx context.Context, userID, sessionID
 	}, nil
 }
 
-func (uc *StartChatUseCase) newSession(ctx context.Context, userID, starID string, contextMomentIDs []string) (*StartChatOutput, error) {
+func (uc *StartChatUseCase) newSession(ctx context.Context, userID, starID string) (*StartChatOutput, error) {
 	star, err := uc.stars.FindByID(ctx, starID)
 	if err != nil {
 		return nil, fmt.Errorf("find star: %w", err)
@@ -98,18 +98,25 @@ func (uc *StartChatUseCase) newSession(ctx context.Context, userID, starID strin
 		return nil, domain.ErrStarNotFound
 	}
 
-	contextMoments, err := uc.moments.FindByIDs(ctx, contextMomentIDs)
-	if err != nil {
-		return nil, fmt.Errorf("find moments: %w", err)
+	var contextMoments []writingdomain.Moment
+	var contextMomentIDs []string
+	if star.TraceID != "" {
+		contextMoments, err = uc.moments.FindByTraceID(ctx, star.TraceID)
+		if err != nil {
+			return nil, fmt.Errorf("find moments by trace: %w", err)
+		}
+		contextMomentIDs = make([]string, len(contextMoments))
+		for i, m := range contextMoments {
+			contextMomentIDs[i] = m.ID
+		}
 	}
 
 	now := time.Now()
 	session := &domain.ChatSession{
-		ID:               uc.ids.New(),
-		UserID:           userID,
-		StarID:           starID,
-		ContextMomentIDs: contextMomentIDs,
-		CreatedAt:        now,
+		ID:        uc.ids.New(),
+		UserID:    userID,
+		StarID:    starID,
+		CreatedAt: now,
 	}
 
 	if err := uc.sessions.Create(ctx, session); err != nil {

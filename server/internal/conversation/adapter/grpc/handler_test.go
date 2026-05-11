@@ -44,7 +44,6 @@ func TestHandler_StartChat(t *testing.T) {
 		out: &app.StartChatOutput{
 			Session: &domain.ChatSession{
 				ID: "session-1", UserID: "user-1", StarID: "star-1",
-				ContextMomentIDs: []string{"mom-1"},
 			},
 			Opening: &domain.ChatMessage{
 				ID: "msg-1", UserID: "user-1", SessionID: "session-1",
@@ -62,7 +61,6 @@ func TestHandler_StartChat(t *testing.T) {
 
 	res, err := h.StartChat(userCtx("user-1"), &pb.StartChatReq{
 		StarId:           "star-1",
-		ContextMomentIds: []string{"mom-1"},
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

@@ -433,7 +433,7 @@ pass "GetConstellation: stashed star $STAR_ID present"
 info "=== Smoke F7: StartChat + SendMessage ==="
 
 # Start a new chat session with the stashed star
-REQ_SC=$(printf '{"starId":"%s","contextMomentIds":["%s","%s","%s"]}' "$STAR_ID" "$MOMENT1_ID" "$MOMENT2_ID" "$MOMENT3_ID")
+REQ_SC=$(printf '{"starId":"%s"}' "$STAR_ID")
 RES_SC=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ_SC" "$GRPC_ADDR" ego.Ego/StartChat 2>&1)
 echo "  StartChat: $RES_SC"
 

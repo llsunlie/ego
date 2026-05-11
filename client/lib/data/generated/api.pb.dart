@@ -8,7 +8,7 @@
 // ignore_for_file: constant_identifier_names
 // ignore_for_file: curly_braces_in_flow_control_structures
 // ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
-// ignore_for_file: non_constant_identifier_names
+// ignore_for_file: non_constant_identifier_names, prefer_relative_imports
 
 import 'dart:core' as $core;
 
@@ -2016,13 +2016,10 @@ class GetConstellationRes extends $pb.GeneratedMessage {
 class StartChatReq extends $pb.GeneratedMessage {
   factory StartChatReq({
     $core.String? starId,
-    $core.Iterable<$core.String>? contextMomentIds,
     $core.String? chatSessionId,
   }) {
     final result = create();
     if (starId != null) result.starId = starId;
-    if (contextMomentIds != null)
-      result.contextMomentIds.addAll(contextMomentIds);
     if (chatSessionId != null) result.chatSessionId = chatSessionId;
     return result;
   }
@@ -2041,8 +2038,7 @@ class StartChatReq extends $pb.GeneratedMessage {
       package: const $pb.PackageName(_omitMessageNames ? '' : 'ego'),
       createEmptyInstance: create)
     ..aOS(1, _omitFieldNames ? '' : 'starId')
-    ..pPS(2, _omitFieldNames ? '' : 'contextMomentIds')
-    ..aOS(3, _omitFieldNames ? '' : 'chatSessionId')
+    ..aOS(2, _omitFieldNames ? '' : 'chatSessionId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2074,16 +2070,13 @@ class StartChatReq extends $pb.GeneratedMessage {
   void clearStarId() => $_clearField(1);
 
   @$pb.TagNumber(2)
-  $pb.PbList<$core.String> get contextMomentIds => $_getList(1);
-
-  @$pb.TagNumber(3)
-  $core.String get chatSessionId => $_getSZ(2);
-  @$pb.TagNumber(3)
-  set chatSessionId($core.String value) => $_setString(2, value);
-  @$pb.TagNumber(3)
-  $core.bool hasChatSessionId() => $_has(2);
-  @$pb.TagNumber(3)
-  void clearChatSessionId() => $_clearField(3);
+  $core.String get chatSessionId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set chatSessionId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasChatSessionId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearChatSessionId() => $_clearField(2);
 }
 
 class StartChatRes extends $pb.GeneratedMessage {

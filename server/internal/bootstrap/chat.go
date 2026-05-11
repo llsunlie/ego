@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"context"
 	"fmt"
+	"math/rand/v2"
 
 	conversationapp "ego-server/internal/conversation/app"
 	conversationdomain "ego-server/internal/conversation/domain"
@@ -26,7 +27,10 @@ func (stubChatGenerator) GenerateOpening(_ context.Context, topic string, moment
 }
 
 func (stubChatGenerator) GenerateReply(_ context.Context, input conversationdomain.GenerateReplyInput) (*conversationdomain.GenerateReplyOutput, error) {
-	refs := buildChatRefs(input.ContextMoments)
+	var refs []conversationdomain.MomentReference
+	if rand.IntN(100) < 70 {
+		refs = buildChatRefs(input.ContextMoments)
+	}
 	return &conversationdomain.GenerateReplyOutput{
 		Content:           "嗯，我明白你的感受。那时候的我也是这样的，有些事说出来就好多了。",
 		ReferencedMoments: refs,

@@ -8,7 +8,8 @@
 // ignore_for_file: constant_identifier_names
 // ignore_for_file: curly_braces_in_flow_control_structures
 // ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
-// ignore_for_file: non_constant_identifier_names, unused_import
+// ignore_for_file: non_constant_identifier_names, prefer_relative_imports
+// ignore_for_file: unused_import
 
 import 'dart:convert' as $convert;
 import 'dart:core' as $core;
@@ -556,22 +557,14 @@ const StartChatReq$json = {
   '1': 'StartChatReq',
   '2': [
     {'1': 'star_id', '3': 1, '4': 1, '5': 9, '10': 'starId'},
-    {
-      '1': 'context_moment_ids',
-      '3': 2,
-      '4': 3,
-      '5': 9,
-      '10': 'contextMomentIds'
-    },
-    {'1': 'chat_session_id', '3': 3, '4': 1, '5': 9, '10': 'chatSessionId'},
+    {'1': 'chat_session_id', '3': 2, '4': 1, '5': 9, '10': 'chatSessionId'},
   ],
 };
 
 /// Descriptor for `StartChatReq`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List startChatReqDescriptor = $convert.base64Decode(
-    'CgxTdGFydENoYXRSZXESFwoHc3Rhcl9pZBgBIAEoCVIGc3RhcklkEiwKEmNvbnRleHRfbW9tZW'
-    '50X2lkcxgCIAMoCVIQY29udGV4dE1vbWVudElkcxImCg9jaGF0X3Nlc3Npb25faWQYAyABKAlS'
-    'DWNoYXRTZXNzaW9uSWQ=');
+    'CgxTdGFydENoYXRSZXESFwoHc3Rhcl9pZBgBIAEoCVIGc3RhcklkEiYKD2NoYXRfc2Vzc2lvbl'
+    '9pZBgCIAEoCVINY2hhdFNlc3Npb25JZA==');
 
 @$core.Deprecated('Use startChatResDescriptor instead')
 const StartChatRes$json = {

@@ -19,10 +19,10 @@ err()  { echo -e "${RED}[$(date +%H:%M:%S)]${NC} $1"; }
 
 cleanup() {
     log "shutting down..."
-    kill $GO_PID 2>/dev/null || true
-    kill $FLUTTER_PID 2>/dev/null || true
-    wait $GO_PID 2>/dev/null || true
-    wait $FLUTTER_PID 2>/dev/null || true
+    kill ${GO_PID:-} 2>/dev/null || true
+    kill ${FLUTTER_PID:-} 2>/dev/null || true
+    wait ${GO_PID:-} 2>/dev/null || true
+    wait ${FLUTTER_PID:-} 2>/dev/null || true
     log "done"
 }
 trap cleanup EXIT INT TERM
