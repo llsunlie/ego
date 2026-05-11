@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"ego-server/internal/config"
+	"ego-server/internal/platform/ai"
 	"ego-server/internal/platform/auth"
 	"ego-server/internal/platform/logging"
 	"ego-server/internal/platform/postgres"
@@ -15,12 +16,13 @@ import (
 )
 
 type Platform struct {
-	Pool   *pgxpool.Pool
-	JWTKey []byte
-	JWTExp time.Duration
-	Hasher auth.BcryptHasher
-	Tokens auth.JWTIssuer
-	Logger *slog.Logger
+	Pool     *pgxpool.Pool
+	JWTKey   []byte
+	JWTExp   time.Duration
+	Hasher   auth.BcryptHasher
+	Tokens   auth.JWTIssuer
+	Logger   *slog.Logger
+	AIClient *ai.Client
 }
 
 func InitPlatform(cfg *config.Config) (*Platform, error) {
@@ -46,13 +48,21 @@ func InitPlatform(cfg *config.Config) (*Platform, error) {
 	}
 	jwtExp := time.Duration(expHours) * time.Hour
 
+	aiClient := ai.NewClient(ai.Config{
+		APIKey:         cfg.AIAPIKey,
+		BaseURL:        cfg.AIBaseURL,
+		EmbeddingModel: cfg.AIEmbeddingModel,
+		ChatModel:      cfg.AIChatModel,
+	})
+
 	return &Platform{
-		Pool:   pool,
-		JWTKey: jwtKey,
-		JWTExp: jwtExp,
-		Hasher: auth.BcryptHasher{},
-		Tokens: auth.JWTIssuer{Secret: jwtKey, Exp: jwtExp},
-		Logger: logger,
+		Pool:     pool,
+		JWTKey:   jwtKey,
+		JWTExp:   jwtExp,
+		Hasher:   auth.BcryptHasher{},
+		Tokens:   auth.JWTIssuer{Secret: jwtKey, Exp: jwtExp},
+		Logger:   logger,
+		AIClient: aiClient,
 	}, nil
 }
 

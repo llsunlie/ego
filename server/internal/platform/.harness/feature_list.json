@@ -29,6 +29,18 @@
         "server/internal/platform/postgres/sqlc/moments_test.go",
         "server/internal/platform/postgres/sqlc/traces_test.go"
       ]
+    },
+    {
+      "id": "platform.ai",
+      "title": "AI client — OpenAI-compatible embedding + chat completion",
+      "status": "passing",
+      "evidence": [
+        "server/internal/platform/ai/config.go",
+        "server/internal/platform/ai/client.go",
+        "server/internal/platform/ai/similarity.go",
+        "server/internal/platform/ai/client_test.go",
+        "server/internal/platform/ai/embedding_test.go"
+      ]
     }
   ]
 }

@@ -1,34 +1,98 @@
 package config
 
-import "os"
+import (
+	"bufio"
+	"os"
+	"path/filepath"
+	"strings"
+)
 
 type Config struct {
-	DatabaseURL string
-	JWTSecret   string
-	Port        string
-	WebPort     string
-	JWTExpHours string
-	LogLevel    string
-	LogFormat   string
-	LogOutput   string
+	DatabaseURL      string
+	JWTSecret        string
+	Port             string
+	WebPort          string
+	JWTExpHours      string
+	LogLevel         string
+	LogFormat        string
+	LogOutput        string
+	AIAPIKey         string
+	AIBaseURL        string
+	AIEmbeddingModel string
+	AIChatModel      string
 }
 
 func Load() *Config {
+	// .env is the single source of configuration defaults.
+	// Copy .env.example to .env and fill in your values.
+	// OS environment variables take precedence over .env values.
+	loadEnvFile()
+
 	return &Config{
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://ego:ego@localhost:5432/ego?sslmode=disable"),
-		JWTSecret:   getEnv("JWT_SECRET", "dev-secret-change-in-production"),
-		Port:        getEnv("PORT", "9443"),
-		WebPort:     getEnv("WEB_PORT", "9080"),
-		JWTExpHours: getEnv("JWT_EXP_HOURS", "720"),
-		LogLevel:    getEnv("LOG_LEVEL", "info"),
-		LogFormat:   getEnv("LOG_FORMAT", "text"),
-		LogOutput:   getEnv("LOG_OUTPUT", "stdout"),
+		DatabaseURL:      os.Getenv("DATABASE_URL"),
+		JWTSecret:        os.Getenv("JWT_SECRET"),
+		Port:             os.Getenv("PORT"),
+		WebPort:          os.Getenv("WEB_PORT"),
+		JWTExpHours:      os.Getenv("JWT_EXP_HOURS"),
+		LogLevel:         os.Getenv("LOG_LEVEL"),
+		LogFormat:        os.Getenv("LOG_FORMAT"),
+		LogOutput:        os.Getenv("LOG_OUTPUT"),
+		AIAPIKey:         os.Getenv("AI_API_KEY"),
+		AIBaseURL:        os.Getenv("AI_BASE_URL"),
+		AIEmbeddingModel: os.Getenv("AI_EMBEDDING_MODEL"),
+		AIChatModel:      os.Getenv("AI_CHAT_MODEL"),
 	}
 }
 
-func getEnv(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
+// loadEnvFile searches upward from the current working directory for a
+// .env file and sets KEY=VALUE pairs into the environment. OS env vars
+// (already set) are never overwritten. Malformed lines are silently skipped.
+func loadEnvFile() {
+	f := openEnvFile()
+	if f == nil {
+		return
 	}
-	return fallback
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, val, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		val = strings.TrimSpace(val)
+		if key == "" {
+			continue
+		}
+		// OS env takes precedence.
+		if _, exists := os.LookupEnv(key); exists {
+			continue
+		}
+		os.Setenv(key, val)
+	}
+	_ = scanner.Err()
+}
+
+func openEnvFile() *os.File {
+	// Start from CWD and walk up to find .env.
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil
+	}
+	for {
+		p := filepath.Join(cwd, ".env")
+		if f, err := os.Open(p); err == nil {
+			return f
+		}
+		parent := filepath.Dir(cwd)
+		if parent == cwd {
+			return nil
+		}
+		cwd = parent
+	}
 }
