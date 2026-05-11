@@ -122,12 +122,10 @@ class EgoClient {
   Future<grpc.StartChatRes> startChat(
     Ref ref, {
     required String starId,
-    List<String> contextMomentIds = const [],
     String chatSessionId = '',
   }) async {
     final req = grpc.StartChatReq(
       starId: starId,
-      contextMomentIds: contextMomentIds,
       chatSessionId: chatSessionId,
     );
     return _stub.startChat(req, options: _withAuth(ref));

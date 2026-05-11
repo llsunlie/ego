@@ -2,7 +2,6 @@ CREATE TABLE chat_sessions (
   id                 UUID PRIMARY KEY,
   user_id            UUID NOT NULL,
   star_id            UUID NOT NULL,
-  context_moment_ids UUID[] NOT NULL,
   created_at         TIMESTAMPTZ NOT NULL
 );
 CREATE INDEX idx_chat_sessions_user ON chat_sessions(user_id);

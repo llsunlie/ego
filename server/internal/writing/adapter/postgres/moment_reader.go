@@ -42,3 +42,22 @@ func (r *ChatMomentReader) FindByIDs(ctx context.Context, ids []string) ([]domai
 	}
 	return moments, nil
 }
+
+func (r *ChatMomentReader) FindByTraceID(ctx context.Context, traceID string) ([]domain.Moment, error) {
+	uid, err := uuid.Parse(traceID)
+	if err != nil {
+		return nil, err
+	}
+	pgID := pgtype.UUID{Bytes: [16]byte(uid), Valid: true}
+
+	rows, err := r.queries.ListMomentsByTraceID(ctx, pgID)
+	if err != nil {
+		return nil, err
+	}
+
+	moments := make([]domain.Moment, len(rows))
+	for i, row := range rows {
+		moments[i] = *toDomainMoment(row)
+	}
+	return moments, nil
+}

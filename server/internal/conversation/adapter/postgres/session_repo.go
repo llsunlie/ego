@@ -34,21 +34,11 @@ func (r *SessionRepository) Create(ctx context.Context, session *domain.ChatSess
 		return err
 	}
 
-	contextMomentIDs := make([]pgtype.UUID, len(session.ContextMomentIDs))
-	for i, id := range session.ContextMomentIDs {
-		mid, err := uuid.Parse(id)
-		if err != nil {
-			return err
-		}
-		contextMomentIDs[i] = pgtype.UUID{Bytes: [16]byte(mid), Valid: true}
-	}
-
 	return r.queries.CreateChatSession(ctx, sqlc.CreateChatSessionParams{
-		ID:               pgtype.UUID{Bytes: [16]byte(uid), Valid: true},
-		UserID:           pgtype.UUID{Bytes: [16]byte(userID), Valid: true},
-		StarID:           pgtype.UUID{Bytes: [16]byte(starID), Valid: true},
-		ContextMomentIds: contextMomentIDs,
-		CreatedAt:        pgtype.Timestamptz{Time: session.CreatedAt, Valid: true},
+		ID:        pgtype.UUID{Bytes: [16]byte(uid), Valid: true},
+		UserID:    pgtype.UUID{Bytes: [16]byte(userID), Valid: true},
+		StarID:    pgtype.UUID{Bytes: [16]byte(starID), Valid: true},
+		CreatedAt: pgtype.Timestamptz{Time: session.CreatedAt, Valid: true},
 	})
 }
 
@@ -74,17 +64,10 @@ func toDomainChatSession(row sqlc.ChatSession) *domain.ChatSession {
 	userID, _ := uuid.FromBytes(row.UserID.Bytes[:])
 	starID, _ := uuid.FromBytes(row.StarID.Bytes[:])
 
-	contextMomentIDs := make([]string, len(row.ContextMomentIds))
-	for i, uid := range row.ContextMomentIds {
-		mid, _ := uuid.FromBytes(uid.Bytes[:])
-		contextMomentIDs[i] = mid.String()
-	}
-
 	return &domain.ChatSession{
-		ID:               id.String(),
-		UserID:           userID.String(),
-		StarID:           starID.String(),
-		ContextMomentIDs: contextMomentIDs,
-		CreatedAt:        row.CreatedAt.Time,
+		ID:        id.String(),
+		UserID:    userID.String(),
+		StarID:    starID.String(),
+		CreatedAt: row.CreatedAt.Time,
 	}
 }

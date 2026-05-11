@@ -31,9 +31,8 @@ func NewHandler(startChat StartChatUseCase, sendMessage SendMessageUseCase) *Han
 
 func (h *Handler) StartChat(ctx context.Context, req *pb.StartChatReq) (*pb.StartChatRes, error) {
 	out, err := h.startChat.Execute(ctx, app.StartChatInput{
-		StarID:           req.StarId,
-		ContextMomentIDs: req.ContextMomentIds,
-		ChatSessionID:    req.ChatSessionId,
+		StarID:        req.StarId,
+		ChatSessionID: req.ChatSessionId,
 	})
 	if err != nil {
 		return nil, err

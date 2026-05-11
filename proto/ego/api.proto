@@ -260,9 +260,8 @@ message GetConstellationRes {
 // =========================================================================
 
 message StartChatReq {
-  string star_id                    = 1;  // 对应一个 Star
-  repeated string context_moment_ids = 2;  // 上下文 Moment id 列表
-  string chat_session_id            = 3;  // 可选，传入旧 session_id 恢复对话
+  string star_id         = 1;  // 对应一个 Star
+  string chat_session_id = 2;  // 可选，传入旧 session_id 恢复对话
 }
 
 message StartChatRes {

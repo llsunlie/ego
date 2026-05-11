@@ -46,11 +46,18 @@ func (m *mockStarReader) FindByID(ctx context.Context, id string) (*starmapdomai
 }
 
 type mockMomentReader struct {
-	findByIDsFn func(ctx context.Context, ids []string) ([]writingdomain.Moment, error)
+	findByIDsFn      func(ctx context.Context, ids []string) ([]writingdomain.Moment, error)
+	findByTraceIDFn  func(ctx context.Context, traceID string) ([]writingdomain.Moment, error)
 }
 
 func (m *mockMomentReader) FindByIDs(ctx context.Context, ids []string) ([]writingdomain.Moment, error) {
 	return m.findByIDsFn(ctx, ids)
+}
+func (m *mockMomentReader) FindByTraceID(ctx context.Context, traceID string) ([]writingdomain.Moment, error) {
+	if m.findByTraceIDFn != nil {
+		return m.findByTraceIDFn(ctx, traceID)
+	}
+	return nil, nil
 }
 
 type mockChatGenerator struct {
@@ -114,7 +121,6 @@ func TestStartChat_NewSession(t *testing.T) {
 
 	out, err := uc.Execute(ctx, StartChatInput{
 		StarID:           "star-1",
-		ContextMomentIDs: []string{"mom-1"},
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -143,7 +149,6 @@ func TestStartChat_ResumeSession(t *testing.T) {
 		findByIDFn: func(ctx context.Context, id string) (*domain.ChatSession, error) {
 			return &domain.ChatSession{
 				ID: "session-1", UserID: "user-1", StarID: "star-1",
-				ContextMomentIDs: []string{"mom-1"},
 			}, nil
 		},
 	}
@@ -282,7 +287,6 @@ func TestStartChat_NewSession_EmptyContextMoments(t *testing.T) {
 
 	out, err := uc.Execute(ctx, StartChatInput{
 		StarID:           "star-1",
-		ContextMomentIDs: nil,
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

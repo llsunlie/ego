@@ -23,6 +23,7 @@ type StarReader interface {
 
 type MomentReader interface {
 	FindByIDs(ctx context.Context, ids []string) ([]writingdomain.Moment, error)
+	FindByTraceID(ctx context.Context, traceID string) ([]writingdomain.Moment, error)
 }
 
 type ChatGenerator interface {

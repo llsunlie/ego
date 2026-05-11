@@ -21,7 +21,6 @@ func TestSendMessage_Success(t *testing.T) {
 		findByIDFn: func(ctx context.Context, id string) (*domain.ChatSession, error) {
 			return &domain.ChatSession{
 				ID: "session-1", UserID: "user-1", StarID: "star-1",
-				ContextMomentIDs: []string{"mom-1"},
 			}, nil
 		},
 	}

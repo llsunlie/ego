@@ -19,11 +19,10 @@ type ChatMessage struct {
 }
 
 type ChatSession struct {
-	ID               pgtype.UUID
-	UserID           pgtype.UUID
-	StarID           pgtype.UUID
-	ContextMomentIds []pgtype.UUID
-	CreatedAt        pgtype.Timestamptz
+	ID        pgtype.UUID
+	UserID    pgtype.UUID
+	StarID    pgtype.UUID
+	CreatedAt pgtype.Timestamptz
 }
 
 type Constellation struct {

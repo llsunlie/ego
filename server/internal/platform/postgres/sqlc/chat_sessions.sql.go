@@ -12,16 +12,15 @@ import (
 )
 
 const createChatSession = `-- name: CreateChatSession :exec
-INSERT INTO chat_sessions (id, user_id, star_id, context_moment_ids, created_at)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO chat_sessions (id, user_id, star_id, created_at)
+VALUES ($1, $2, $3, $4)
 `
 
 type CreateChatSessionParams struct {
-	ID               pgtype.UUID
-	UserID           pgtype.UUID
-	StarID           pgtype.UUID
-	ContextMomentIds []pgtype.UUID
-	CreatedAt        pgtype.Timestamptz
+	ID        pgtype.UUID
+	UserID    pgtype.UUID
+	StarID    pgtype.UUID
+	CreatedAt pgtype.Timestamptz
 }
 
 func (q *Queries) CreateChatSession(ctx context.Context, arg CreateChatSessionParams) error {
@@ -29,14 +28,13 @@ func (q *Queries) CreateChatSession(ctx context.Context, arg CreateChatSessionPa
 		arg.ID,
 		arg.UserID,
 		arg.StarID,
-		arg.ContextMomentIds,
 		arg.CreatedAt,
 	)
 	return err
 }
 
 const getChatSessionByID = `-- name: GetChatSessionByID :one
-SELECT id, user_id, star_id, context_moment_ids, created_at
+SELECT id, user_id, star_id, created_at
 FROM chat_sessions WHERE id = $1
 `
 
@@ -47,7 +45,6 @@ func (q *Queries) GetChatSessionByID(ctx context.Context, id pgtype.UUID) (ChatS
 		&i.ID,
 		&i.UserID,
 		&i.StarID,
-		&i.ContextMomentIds,
 		&i.CreatedAt,
 	)
 	return i, err

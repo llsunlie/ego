@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"ego-server/internal/conversation/domain"
+	writingdomain "ego-server/internal/writing/domain"
 )
 
 type SendMessageUseCase struct {
@@ -78,9 +79,12 @@ func (uc *SendMessageUseCase) Execute(ctx context.Context, input SendMessageInpu
 		return nil, fmt.Errorf("find star: %w", err)
 	}
 
-	contextMoments, err := uc.moments.FindByIDs(ctx, session.ContextMomentIDs)
-	if err != nil {
-		return nil, fmt.Errorf("find context moments: %w", err)
+	var contextMoments []writingdomain.Moment
+	if star.TraceID != "" {
+		contextMoments, err = uc.moments.FindByTraceID(ctx, star.TraceID)
+		if err != nil {
+			return nil, fmt.Errorf("find moments by trace: %w", err)
+		}
 	}
 
 	history, err := uc.messages.ListBySessionID(ctx, session.ID)
