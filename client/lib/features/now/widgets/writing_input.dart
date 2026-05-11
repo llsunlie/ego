@@ -70,13 +70,15 @@ class _WritingInputState extends ConsumerState<WritingInput> {
     }
     final tip = state.isReopen ? '光继续听着' : '想说多久说多久，什么时候停都行';
 
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return AnimatedPositioned(
       duration: const Duration(milliseconds: 350),
       curve: Curves.easeOut,
       left: 24,
       right: 24,
-      top: show ? 0 : -600,
-      bottom: show ? 0 : 600,
+      top: show ? 0 : -screenHeight,
+      bottom: show ? 0 : screenHeight,
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,

@@ -59,12 +59,14 @@ class _EchoSectionState extends ConsumerState<EchoSection> {
       WidgetsBinding.instance.addPostFrameCallback((_) => _scheduleStaggers());
     }
 
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return AnimatedPositioned(
       duration: const Duration(milliseconds: 500),
       curve: Curves.easeOut,
       left: 24,
       right: 24,
-      top: visible ? 100 : -600,
+      top: visible ? 100 : -screenHeight,
       bottom: 0,
       child: AnimatedOpacity(
         duration: const Duration(milliseconds: 400),
