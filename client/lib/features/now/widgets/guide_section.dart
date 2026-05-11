@@ -5,13 +5,17 @@ class GuideText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Text(
-      '有什么想说的吗',
-      style: TextStyle(
-        fontSize: 14,
-        color: Color(0xFFA8A8C0),
-        letterSpacing: 5,
-        fontWeight: FontWeight.w200,
+    return FractionallySizedBox(
+      widthFactor: 0.5,
+      child: const Text(
+        '有什么想说的吗',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 14,
+          color: Color(0xFFA8A8C0),
+          letterSpacing: 5,
+          fontWeight: FontWeight.w200,
+        ),
       ),
     );
   }
@@ -28,7 +32,7 @@ class WriteButton extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 60),
       child: Center(
         child: FractionallySizedBox(
-          widthFactor: 0.3,
+          widthFactor: 0.65,
           child: ElevatedButton(
             onPressed: onTap,
             style: ElevatedButton.styleFrom(

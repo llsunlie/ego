@@ -89,14 +89,14 @@ class _NowPageState extends ConsumerState<NowPage>
                   MemoryDotGroup(dimmed: !isIdle),
                   // Guide text below the light (idle only)
                   if (isIdle)
-                    const Positioned(
+                    Positioned(
                       top: 0,
                       left: 0,
                       right: 0,
                       bottom: 0,
                       child: Align(
-                        alignment: Alignment(0, 0.55),
-                        child: AnimatedOpacity(
+                        alignment: const Alignment(0, 0.55),
+                        child: const AnimatedOpacity(
                           duration: Duration(milliseconds: 400),
                           opacity: 1.0,
                           child: GuideText(),
