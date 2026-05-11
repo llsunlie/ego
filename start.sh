@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 GRPC_PORT="${PORT:-9443}"
 WEB_PORT="${WEB_PORT:-9080}"
 FLUTTER_PORT="${FLUTTER_PORT:-9081}"
+REACT_PORT="${REACT_PORT:-5173}"
 
 # Terminal colors
 RED='\033[0;31m'
@@ -63,15 +64,17 @@ cleanup() {
     log "shutting down..."
     [ -n "${GO_PID:-}" ] && kill_process "$GO_PID"
     [ -n "${FLUTTER_PID:-}" ] && kill_process "$FLUTTER_PID"
+    [ -n "${REACT_PID:-}" ] && kill_process "$REACT_PID"
     wait $GO_PID 2>/dev/null || true
     wait $FLUTTER_PID 2>/dev/null || true
+    wait $REACT_PID 2>/dev/null || true
     log "done"
 }
 trap cleanup EXIT INT TERM
 
 # ── kill stale ports ────────────────────────────────────────────────
-log "clearing ports ${GRPC_PORT} ${WEB_PORT} ${FLUTTER_PORT}..."
-for port in $GRPC_PORT $WEB_PORT $FLUTTER_PORT; do
+log "clearing ports ${GRPC_PORT} ${WEB_PORT} ${FLUTTER_PORT} ${REACT_PORT}..."
+for port in $GRPC_PORT $WEB_PORT $FLUTTER_PORT $REACT_PORT; do
     kill_port "$port"
 done
 sleep 0.5
@@ -122,13 +125,37 @@ if ! curl -s -o /dev/null "http://localhost:${FLUTTER_PORT}" 2>/dev/null; then
 fi
 log "flutter ready  http://localhost:${FLUTTER_PORT}"
 
+# ── react web frontend (optional) ─────────────────────────────────────
+if [ -f "$ROOT/web/package.json" ]; then
+    log "starting react web frontend..."
+    cd "$ROOT/web"
+    npx vite --host 0.0.0.0 --port "$REACT_PORT" &
+    REACT_PID=$!
+
+    for i in $(seq 1 30); do
+        if curl -s -o /dev/null "http://localhost:${REACT_PORT}" 2>/dev/null; then break; fi
+        sleep 1
+    done
+
+    if ! curl -s -o /dev/null "http://localhost:${REACT_PORT}" 2>/dev/null; then
+        err "react web frontend failed to start on :$REACT_PORT"
+        exit 1
+    fi
+    log "react ready  http://localhost:${REACT_PORT}"
+else
+    log "react skipped (no web/package.json)"
+fi
+
 echo ""
 echo -e "  ${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "  ${GREEN}  ego dev server running${NC}"
 echo ""
-echo -e "   Web UI: http://localhost:${FLUTTER_PORT}"
-echo -e "   gRPC:   localhost:${GRPC_PORT}"
-echo -e "   WebRPC: localhost:${WEB_PORT}"
+if [ -f "$ROOT/web/package.json" ]; then
+    echo -e "   React:   http://localhost:${REACT_PORT}"
+fi
+echo -e "   Flutter: http://localhost:${FLUTTER_PORT}"
+echo -e "   gRPC:    localhost:${GRPC_PORT}"
+echo -e "   gRPC-web: localhost:${WEB_PORT}"
 echo -e "  ${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
