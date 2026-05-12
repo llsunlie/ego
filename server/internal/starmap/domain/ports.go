@@ -49,7 +49,8 @@ type ConstellationMatcher interface {
 	FindMatch(ctx context.Context, topic string, existing []Constellation) (string, error)
 }
 
-// ConstellationAssetGenerator generates constellation-level assets.
+// ConstellationAssetGenerator generates constellation-level assets including
+// a topic embedding for fast matching.
 type ConstellationAssetGenerator interface {
-	Generate(ctx context.Context, moments []writingdomain.Moment) (name string, insight string, prompts []string, err error)
+	Generate(ctx context.Context, moments []writingdomain.Moment) (topic string, topicEmbedding []float32, name string, insight string, prompts []string, err error)
 }

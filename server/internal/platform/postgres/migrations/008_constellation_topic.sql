@@ -1,0 +1,1 @@
+ALTER TABLE constellations ADD COLUMN topic TEXT NOT NULL DEFAULT '';
