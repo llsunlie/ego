@@ -8,6 +8,7 @@ import (
 
 func NewChatHandler(p *Platform) pb.EgoServer {
 	return conversation.NewHandler(conversation.Deps{
-		DB: p.Pool,
+		DB:       p.Pool,
+		AIClient: p.AIClient,
 	})
 }
