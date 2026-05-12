@@ -1,10 +1,12 @@
 package conversation
 
 import (
+	conversationai "ego-server/internal/conversation/adapter/ai"
 	conversationgrpc "ego-server/internal/conversation/adapter/grpc"
 	conversationid "ego-server/internal/conversation/adapter/id"
 	conversationpostgres "ego-server/internal/conversation/adapter/postgres"
 	conversationapp "ego-server/internal/conversation/app"
+	platformai "ego-server/internal/platform/ai"
 	"ego-server/internal/platform/postgres/sqlc"
 	starmappostgres "ego-server/internal/starmap/adapter/postgres"
 	writingpostgres "ego-server/internal/writing/adapter/postgres"
@@ -13,7 +15,8 @@ import (
 // Deps contains process-level resources and external capabilities needed to
 // assemble the conversation bounded context.
 type Deps struct {
-	DB sqlc.DBTX
+	DB       sqlc.DBTX
+	AIClient *platformai.Client
 }
 
 // NewHandler wires the conversation module's adapters, application use cases,
@@ -27,7 +30,7 @@ func NewHandler(deps Deps) *conversationgrpc.Handler {
 	momentReader := writingpostgres.NewChatMomentReader(queries)
 
 	ids := conversationid.NewUUIDGenerator()
-	chatGen := conversationapp.NewDefaultChatGenerator()
+	chatGen := conversationai.NewChatGenerator(deps.AIClient)
 
 	startChat := conversationapp.NewStartChatUseCase(
 		sessionRepo, messageRepo, starReader, momentReader,
