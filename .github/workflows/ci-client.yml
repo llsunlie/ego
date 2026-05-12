@@ -1,0 +1,43 @@
+name: CI Client
+
+# 前端 CI：PR 或 push 到 main 时触发，仅 client/ 或 proto/ 有变更时运行
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'client/**'
+      - 'proto/**'
+      - '.github/workflows/ci-client.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'client/**'
+      - 'proto/**'
+      - '.github/workflows/ci-client.yml'
+
+jobs:
+  # 单 job：静态分析 + 单元测试
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      # 拉取仓库代码
+      - uses: actions/checkout@v4
+
+      # 安装 Flutter，开启 pub 缓存，版本与 pubspec.yaml 的 Dart SDK 约束匹配
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          channel: 'stable'
+          cache: true
+
+      # 安装 Dart 依赖（缓存命中时几乎瞬间完成）
+      - name: pub get
+        run: cd client && flutter pub get
+
+      # 静态分析，检查类型错误、未使用变量等
+      - name: flutter analyze
+        run: cd client && flutter analyze
+
+      # 运行 Dart/Flutter 单元测试
+      - name: flutter test
+        run: cd client && flutter test

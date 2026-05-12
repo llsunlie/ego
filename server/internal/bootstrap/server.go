@@ -34,11 +34,19 @@ func NewServer(cfg *config.Config, p *Platform, handler pb.EgoServer) *Server {
 		grpcweb.WithCorsForRegisteredEndpointsOnly(false),
 	)
 
+	// 静态文件目录（部署时提供前端 Web 文件，本地 dev 可留空走 flutter run）
+	webDir := cfg.WebDir
+
 	httpServer := &http.Server{
 		Addr: ":" + cfg.WebPort,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if wrapped.IsGrpcWebRequest(r) || wrapped.IsAcceptableGrpcCorsRequest(r) {
 				wrapped.ServeHTTP(w, r)
+				return
+			}
+			// 非 gRPC 请求：提供前端静态文件
+			if webDir != "" {
+				http.FileServer(http.Dir(webDir)).ServeHTTP(w, r)
 				return
 			}
 			w.Header().Set("Access-Control-Allow-Origin", "*")

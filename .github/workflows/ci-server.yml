@@ -1,0 +1,30 @@
+name: CI Server
+
+# 后端 CI：PR 或 push 到 main 时触发，仅 server/ 或 proto/ 有变更时运行
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - 'proto/**'
+      - '.github/workflows/ci-server.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - 'proto/**'
+      - '.github/workflows/ci-server.yml'
+
+jobs:
+  # 单 job：静态检查（go test 需 PostgreSQL，CI 环境无，仅保留 vet）
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'server/go.mod'
+
+      - name: go vet
+        run: cd server && go vet ./...

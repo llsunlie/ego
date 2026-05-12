@@ -1,5 +1,6 @@
 class AppConstants {
-  static const String serverHost = 'localhost';
+  // 编译时注入：本地默认 localhost，CD 工作流通过 --dart-define=SERVER_HOST=IP 传入
+  static const String serverHost = String.fromEnvironment('SERVER_HOST', defaultValue: 'localhost');
   static const int serverPort = 9443;
   static const int serverWebPort = 9080;
 
@@ -38,3 +39,4 @@ class AppConstants {
   // Chat
   static const double chatSheetMaxHeight = 0.85;
 }
+

@@ -1,0 +1,122 @@
+name: CD Backend
+
+# 后端 CD：PR 时编译验证，push main 时编译 + 部署到腾讯云
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - '.github/workflows/cd-backend.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - '.github/workflows/cd-backend.yml'
+
+jobs:
+  # PR 和 push 都执行：仅交叉编译验证
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'server/go.mod'
+
+      - name: build
+        run: cd server && GOOS=linux GOARCH=amd64 go build -o ego-server ./cmd/ego/
+
+      # 将编译产物上传为 artifact，供 deploy job 使用
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ego-server
+          path: server/ego-server
+          retention-days: 1
+
+  # 仅 push main 时执行：上传文件 → 数据库迁移 → 重启服务
+  deploy:
+    name: Deploy
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 下载 build job 编译好的二进制
+      - name: download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ego-server
+          path: server/
+
+      # 恢复可执行权限（artifact 上传时会丢失）
+      - name: restore exec permission
+        run: chmod +x server/ego-server
+
+      # SCP 上传 Go 二进制到腾讯云
+      - name: scp binary
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.TENCENT_HOST }}
+          username: ${{ secrets.TENCENT_USER }}
+          key: ${{ secrets.TENCENT_SSH_KEY }}
+          source: server/ego-server
+          target: ${{ secrets.TENCENT_DEPLOY_PATH }}
+
+      # SCP 上传 docker-compose.yml（PostgreSQL + pgvector）
+      - name: scp docker-compose
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.TENCENT_HOST }}
+          username: ${{ secrets.TENCENT_USER }}
+          key: ${{ secrets.TENCENT_SSH_KEY }}
+          source: docker-compose.yml
+          target: ${{ secrets.TENCENT_DEPLOY_PATH }}
+
+      # SCP 上传数据库迁移文件
+      - name: scp migrations
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.TENCENT_HOST }}
+          username: ${{ secrets.TENCENT_USER }}
+          key: ${{ secrets.TENCENT_SSH_KEY }}
+          source: server/internal/platform/postgres/migrations
+          target: ${{ secrets.TENCENT_DEPLOY_PATH }}
+
+      # SSH：清空旧数据 → 启动干净 PostgreSQL → 运行迁移 → 重启 ego-server
+      - name: post-deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.TENCENT_HOST }}
+          username: ${{ secrets.TENCENT_USER }}
+          key: ${{ secrets.TENCENT_SSH_KEY }}
+          script: |
+            DEPLOY=${{ secrets.TENCENT_DEPLOY_PATH }}
+
+            # 停止并清理旧容器
+            docker compose -f "$DEPLOY/docker-compose.yml" down 2>/dev/null || true
+
+            # 创建数据目录并清空旧数据（纯净环境，与 clean-start.sh 一致）
+            mkdir -p "$DEPLOY/data"
+            docker run --rm -v "$DEPLOY/data:/data" alpine sh -c 'rm -rf /data/*' 2>/dev/null || true
+
+            # 启动 PostgreSQL
+            docker compose -f "$DEPLOY/docker-compose.yml" up -d
+
+            # 等待 PostgreSQL 就绪
+            until docker compose -f "$DEPLOY/docker-compose.yml" exec -T postgres pg_isready -U ego; do
+              echo "waiting for postgres..."
+              sleep 1
+            done
+
+            # 按编号顺序执行数据库迁移文件
+            for f in $(ls "$DEPLOY/server/internal/platform/postgres/migrations"/*.sql | sort); do
+              echo "running migration: $(basename $f)"
+              docker compose -f "$DEPLOY/docker-compose.yml" exec -T postgres psql -U ego -d ego < "$f"
+            done
+
+            # 重启 ego 服务，新二进制生效
+            sudo systemctl restart ego-server
