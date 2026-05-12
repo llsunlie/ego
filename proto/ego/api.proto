@@ -110,6 +110,7 @@ message Constellation {
   int32    star_count           = 6;  // 包含的 Star 数量（方便前端判断状态）
   int64    created_at           = 7;
   int64    updated_at           = 8;
+  string   topic                = 9;  // 星座核心主题（用于匹配）
 }
 
 message ChatMessage {

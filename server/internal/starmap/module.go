@@ -1,18 +1,21 @@
 package starmap
 
 import (
-	"ego-server/internal/platform/postgres/sqlc"
+	starmapai "ego-server/internal/starmap/adapter/ai"
 	starmapgrpc "ego-server/internal/starmap/adapter/grpc"
 	starmapid "ego-server/internal/starmap/adapter/id"
 	starmappostgres "ego-server/internal/starmap/adapter/postgres"
 	starmapapp "ego-server/internal/starmap/app"
+	platformai "ego-server/internal/platform/ai"
+	"ego-server/internal/platform/postgres/sqlc"
 	writingpostgres "ego-server/internal/writing/adapter/postgres"
 )
 
 // Deps contains process-level resources and external capabilities needed to
 // assemble the starmap bounded context.
 type Deps struct {
-	DB sqlc.DBTX
+	DB       sqlc.DBTX
+	AIClient *platformai.Client
 }
 
 // NewHandler wires the starmap module's adapters, application use cases, and
@@ -25,9 +28,9 @@ func NewHandler(deps Deps) *starmapgrpc.Handler {
 	traceStasher := starmappostgres.NewTraceStasher(queries)
 	traceReader := writingpostgres.NewReader(queries)
 
-	topicGen := starmapapp.NewDefaultTopicGenerator()
-	constellationMat := starmapapp.NewDefaultConstellationMatcher()
-	assetGen := starmapapp.NewDefaultConstellationAssetGenerator()
+	topicGen := starmapai.NewTopicGenerator(deps.AIClient)
+	constellationMat := starmapai.NewConstellationMatcher(deps.AIClient)
+	assetGen := starmapai.NewConstellationAssetGenerator(deps.AIClient)
 	ids := starmapid.NewUUIDGenerator()
 
 	stashTrace := starmapapp.NewStashTraceUseCase(

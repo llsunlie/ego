@@ -25,6 +25,7 @@ func constellationToProto(c domain.Constellation) *pb.Constellation {
 		StarCount:            int32(len(c.StarIDs)),
 		CreatedAt:            c.CreatedAt.UnixMilli(),
 		UpdatedAt:            c.UpdatedAt.UnixMilli(),
+		Topic:                c.Topic,
 	}
 }
 

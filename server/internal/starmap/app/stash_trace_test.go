@@ -33,9 +33,9 @@ func (m *mockTraceStasher) MarkStashed(ctx context.Context, traceID string) erro
 }
 
 type mockStarRepo struct {
-	createFn       func(ctx context.Context, star *domain.Star) error
+	createFn        func(ctx context.Context, star *domain.Star) error
 	findByTraceIDFn func(ctx context.Context, traceID string) (*domain.Star, error)
-	findByIDsFn    func(ctx context.Context, ids []string) ([]domain.Star, error)
+	findByIDsFn     func(ctx context.Context, ids []string) ([]domain.Star, error)
 }
 
 func (m *mockStarRepo) Create(ctx context.Context, star *domain.Star) error {
@@ -88,10 +88,10 @@ func (m *mockConstellationMat) FindMatch(ctx context.Context, topic string, exis
 }
 
 type mockAssetGen struct {
-	generateFn func(ctx context.Context, moments []writingdomain.Moment) (string, string, []string, error)
+	generateFn func(ctx context.Context, moments []writingdomain.Moment) (string, []float32, string, string, []string, error)
 }
 
-func (m *mockAssetGen) Generate(ctx context.Context, moments []writingdomain.Moment) (string, string, []string, error) {
+func (m *mockAssetGen) Generate(ctx context.Context, moments []writingdomain.Moment) (string, []float32, string, string, []string, error) {
 	return m.generateFn(ctx, moments)
 }
 
@@ -171,8 +171,8 @@ func TestStashTrace_Success(t *testing.T) {
 	}
 
 	assetGen := &mockAssetGen{
-		generateFn: func(ctx context.Context, moments []writingdomain.Moment) (string, string, []string, error) {
-			return "测试星座", "一些洞察", []string{"提示1", "提示2"}, nil
+		generateFn: func(ctx context.Context, moments []writingdomain.Moment) (string, []float32, string, string, []string, error) {
+			return "关于自我探索", []float32{0.1, 0.2}, "测试星座", "一些洞察", []string{"提示1", "提示2"}, nil
 		},
 	}
 

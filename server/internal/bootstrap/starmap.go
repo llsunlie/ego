@@ -8,6 +8,7 @@ import (
 
 func NewStarmapHandler(p *Platform) pb.EgoServer {
 	return starmap.NewHandler(starmap.Deps{
-		DB: p.Pool,
+		DB:       p.Pool,
+		AIClient: p.AIClient,
 	})
 }
