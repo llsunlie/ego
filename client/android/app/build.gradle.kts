@@ -30,11 +30,39 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            // 手动解析 key.properties（避免 java.util.Properties 在 KTS 中的兼容问题）
+            val keystoreProps = mutableMapOf<String, String>()
+            rootProject.file("key.properties").let { file ->
+                if (file.exists()) {
+                    file.readLines().forEach { line ->
+                        val parts = line.split("=", limit = 2)
+                        if (parts.size == 2) {
+                            keystoreProps[parts[0].trim()] = parts[1].trim()
+                        }
+                    }
+                }
+            }
+
+            // CI 环境变量优先；本地开发回退到 key.properties
+            storeFile = file(
+                System.getenv("ANDROID_KEYSTORE_PATH")
+                    ?: keystoreProps["storeFile"]
+                    ?: "upload-keystore.jks"
+            )
+            storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                ?: keystoreProps["storePassword"] ?: ""
+            keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                ?: keystoreProps["keyAlias"] ?: ""
+            keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+                ?: keystoreProps["keyPassword"] ?: ""
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }

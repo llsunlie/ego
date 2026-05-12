@@ -12,6 +12,7 @@ type Config struct {
 	JWTSecret        string
 	Port             string
 	WebPort          string
+	WebDir           string
 	JWTExpHours      string
 	LogLevel         string
 	LogFormat        string
@@ -33,6 +34,7 @@ func Load() *Config {
 		JWTSecret:        os.Getenv("JWT_SECRET"),
 		Port:             os.Getenv("PORT"),
 		WebPort:          os.Getenv("WEB_PORT"),
+		WebDir:           os.Getenv("WEB_DIR"),
 		JWTExpHours:      os.Getenv("JWT_EXP_HOURS"),
 		LogLevel:         os.Getenv("LOG_LEVEL"),
 		LogFormat:        os.Getenv("LOG_FORMAT"),

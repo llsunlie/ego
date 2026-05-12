@@ -2,3 +2,4 @@
 data/
 .playwright-mcp/
 .tmp/
+server/ego
