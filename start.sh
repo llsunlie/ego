@@ -79,14 +79,12 @@ for port in $GRPC_PORT $WEB_PORT $FLUTTER_PORT $REACT_PORT; do
 done
 sleep 0.5
 
-# ── postgres ────────────────────────────────────────────────────────
+# ── docker services ─────────────────────────────────────────────────
 cd "$ROOT"
-if ! docker compose ps postgres 2>/dev/null | grep -q "Up"; then
-    log "starting postgres..."
-    docker compose up -d postgres
-    sleep 2
-fi
-log "postgres ready"
+log "starting docker services..."
+docker compose up -d
+sleep 2
+log "docker services ready"
 
 # ── go backend ──────────────────────────────────────────────────────
 log "building backend..."
@@ -151,11 +149,12 @@ echo -e "  ${GREEN}━━━━━━━━━━━━━━━━━━━━�
 echo -e "  ${GREEN}  ego dev server running${NC}"
 echo ""
 if [ -f "$ROOT/web/package.json" ]; then
-    echo -e "   React:   http://localhost:${REACT_PORT}"
+    echo -e "   React:    http://localhost:${REACT_PORT}"
 fi
-echo -e "   Flutter: http://localhost:${FLUTTER_PORT}"
-echo -e "   gRPC:    localhost:${GRPC_PORT}"
+echo -e "   Flutter:  http://localhost:${FLUTTER_PORT}"
+echo -e "   gRPC:     localhost:${GRPC_PORT}"
 echo -e "   gRPC-web: localhost:${WEB_PORT}"
+echo -e "   Adminer:  http://localhost:10081"
 echo -e "  ${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
