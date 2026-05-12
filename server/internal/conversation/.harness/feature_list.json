@@ -2,15 +2,27 @@
   "features": [
     {
       "id": "conversation.start_chat",
-      "title": "Start or restore past-self chat",
-      "status": "not_started",
-      "evidence": []
+      "title": "StartChat — create or resume past-self chat session",
+      "status": "passing",
+      "evidence": ["app/start_chat.go", "app/start_chat_test.go"]
     },
     {
       "id": "conversation.send_message",
-      "title": "Send message and receive cited past-self reply",
-      "status": "not_started",
-      "evidence": []
+      "title": "SendMessage — send message and receive cited past-self reply",
+      "status": "passing",
+      "evidence": ["app/send_message.go", "app/send_message_test.go"]
+    },
+    {
+      "id": "conversation.app.default_policies",
+      "title": "Keep MVP chat generation policy (DefaultChatGenerator) inside app/",
+      "status": "passing",
+      "evidence": ["app/chat_generator.go", "go test ./internal/conversation/app"]
+    },
+    {
+      "id": "conversation.module_wiring",
+      "title": "Module-level composition via module.go plus thin bootstrap injection",
+      "status": "passing",
+      "evidence": ["module.go", "adapter/id/uuid.go", "bootstrap/chat.go", "go build ./..."]
     }
   ]
 }
