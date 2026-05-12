@@ -28,6 +28,8 @@ type ChatSession struct {
 type Constellation struct {
 	ID                   pgtype.UUID
 	UserID               pgtype.UUID
+	Topic                string
+	TopicEmbedding       []float32
 	Name                 string
 	ConstellationInsight string
 	StarIds              []pgtype.UUID

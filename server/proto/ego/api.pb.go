@@ -456,6 +456,7 @@ type Constellation struct {
 	StarCount            int32                  `protobuf:"varint,6,opt,name=star_count,json=starCount,proto3" json:"star_count,omitempty"`                                 // 包含的 Star 数量（方便前端判断状态）
 	CreatedAt            int64                  `protobuf:"varint,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt            int64                  `protobuf:"varint,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Topic                string                 `protobuf:"bytes,9,opt,name=topic,proto3" json:"topic,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -544,6 +545,13 @@ func (x *Constellation) GetUpdatedAt() int64 {
 		return x.UpdatedAt
 	}
 	return 0
+}
+
+func (x *Constellation) GetTopic() string {
+	if x != nil {
+		return x.Topic
+	}
+	return ""
 }
 
 type ChatMessage struct {

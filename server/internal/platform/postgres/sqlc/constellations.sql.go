@@ -12,13 +12,15 @@ import (
 )
 
 const createConstellation = `-- name: CreateConstellation :exec
-INSERT INTO constellations (id, user_id, name, constellation_insight, star_ids, topic_prompts, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO constellations (id, user_id, topic, topic_embedding, name, constellation_insight, star_ids, topic_prompts, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 `
 
 type CreateConstellationParams struct {
 	ID                   pgtype.UUID
 	UserID               pgtype.UUID
+	Topic                string
+	TopicEmbedding       []float32
 	Name                 string
 	ConstellationInsight string
 	StarIds              []pgtype.UUID
@@ -31,6 +33,8 @@ func (q *Queries) CreateConstellation(ctx context.Context, arg CreateConstellati
 	_, err := q.db.Exec(ctx, createConstellation,
 		arg.ID,
 		arg.UserID,
+		arg.Topic,
+		arg.TopicEmbedding,
 		arg.Name,
 		arg.ConstellationInsight,
 		arg.StarIds,
@@ -42,7 +46,7 @@ func (q *Queries) CreateConstellation(ctx context.Context, arg CreateConstellati
 }
 
 const getConstellationByID = `-- name: GetConstellationByID :one
-SELECT id, user_id, name, constellation_insight, star_ids, topic_prompts, created_at, updated_at
+SELECT id, user_id, topic, topic_embedding, name, constellation_insight, star_ids, topic_prompts, created_at, updated_at
 FROM constellations WHERE id = $1
 `
 
@@ -52,6 +56,8 @@ func (q *Queries) GetConstellationByID(ctx context.Context, id pgtype.UUID) (Con
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
+		&i.Topic,
+		&i.TopicEmbedding,
 		&i.Name,
 		&i.ConstellationInsight,
 		&i.StarIds,
@@ -63,7 +69,7 @@ func (q *Queries) GetConstellationByID(ctx context.Context, id pgtype.UUID) (Con
 }
 
 const getConstellationByStarID = `-- name: GetConstellationByStarID :one
-SELECT id, user_id, name, constellation_insight, star_ids, topic_prompts, created_at, updated_at
+SELECT id, user_id, topic, topic_embedding, name, constellation_insight, star_ids, topic_prompts, created_at, updated_at
 FROM constellations WHERE star_ids @> ARRAY[$1]::UUID[]
 `
 
@@ -73,6 +79,8 @@ func (q *Queries) GetConstellationByStarID(ctx context.Context, dollar_1 []pgtyp
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
+		&i.Topic,
+		&i.TopicEmbedding,
 		&i.Name,
 		&i.ConstellationInsight,
 		&i.StarIds,
@@ -84,7 +92,7 @@ func (q *Queries) GetConstellationByStarID(ctx context.Context, dollar_1 []pgtyp
 }
 
 const listConstellationsByUserID = `-- name: ListConstellationsByUserID :many
-SELECT id, user_id, name, constellation_insight, star_ids, topic_prompts, created_at, updated_at
+SELECT id, user_id, topic, topic_embedding, name, constellation_insight, star_ids, topic_prompts, created_at, updated_at
 FROM constellations WHERE user_id = $1 ORDER BY updated_at DESC
 `
 
@@ -100,6 +108,8 @@ func (q *Queries) ListConstellationsByUserID(ctx context.Context, userID pgtype.
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
+			&i.Topic,
+			&i.TopicEmbedding,
 			&i.Name,
 			&i.ConstellationInsight,
 			&i.StarIds,
@@ -118,12 +128,14 @@ func (q *Queries) ListConstellationsByUserID(ctx context.Context, userID pgtype.
 }
 
 const updateConstellation = `-- name: UpdateConstellation :exec
-UPDATE constellations SET name = $2, constellation_insight = $3, star_ids = $4, topic_prompts = $5, updated_at = $6
+UPDATE constellations SET topic = $2, topic_embedding = $3, name = $4, constellation_insight = $5, star_ids = $6, topic_prompts = $7, updated_at = $8
 WHERE id = $1
 `
 
 type UpdateConstellationParams struct {
 	ID                   pgtype.UUID
+	Topic                string
+	TopicEmbedding       []float32
 	Name                 string
 	ConstellationInsight string
 	StarIds              []pgtype.UUID
@@ -134,6 +146,8 @@ type UpdateConstellationParams struct {
 func (q *Queries) UpdateConstellation(ctx context.Context, arg UpdateConstellationParams) error {
 	_, err := q.db.Exec(ctx, updateConstellation,
 		arg.ID,
+		arg.Topic,
+		arg.TopicEmbedding,
 		arg.Name,
 		arg.ConstellationInsight,
 		arg.StarIds,

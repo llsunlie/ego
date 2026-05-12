@@ -121,11 +121,13 @@ func (uc *StashTraceUseCase) Execute(ctx context.Context, input StashTraceInput)
 			allMoments = append(allMoments, sm...)
 		}
 
-		name, insight, prompts, err := uc.assetGen.Generate(ctx, allMoments)
+		topic, topicEmb, name, insight, prompts, err := uc.assetGen.Generate(ctx, allMoments)
 		if err != nil {
 			return nil, fmt.Errorf("regenerate assets: %w", err)
 		}
 
+		c.Topic = topic
+		c.TopicEmbedding = topicEmb
 		c.Name = name
 		c.ConstellationInsight = insight
 		c.TopicPrompts = prompts
@@ -136,7 +138,7 @@ func (uc *StashTraceUseCase) Execute(ctx context.Context, input StashTraceInput)
 			return nil, fmt.Errorf("update constellation: %w", err)
 		}
 	} else {
-		name, insight, prompts, err := uc.assetGen.Generate(ctx, moments)
+		topic, topicEmb, name, insight, prompts, err := uc.assetGen.Generate(ctx, moments)
 		if err != nil {
 			return nil, fmt.Errorf("generate assets: %w", err)
 		}
@@ -145,6 +147,8 @@ func (uc *StashTraceUseCase) Execute(ctx context.Context, input StashTraceInput)
 		c := &domain.Constellation{
 			ID:                   uc.ids.New(),
 			UserID:               userID,
+			Topic:                topic,
+			TopicEmbedding:       topicEmb,
 			Name:                 name,
 			ConstellationInsight: insight,
 			StarIDs:              []string{star.ID},

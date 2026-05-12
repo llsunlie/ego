@@ -42,6 +42,8 @@ func (r *ConstellationRepository) Create(ctx context.Context, c *domain.Constell
 	return r.queries.CreateConstellation(ctx, sqlc.CreateConstellationParams{
 		ID:                   pgtype.UUID{Bytes: [16]byte(uid), Valid: true},
 		UserID:               pgtype.UUID{Bytes: [16]byte(userID), Valid: true},
+		Topic:                c.Topic,
+		TopicEmbedding:       c.TopicEmbedding,
 		Name:                 c.Name,
 		ConstellationInsight: c.ConstellationInsight,
 		StarIds:              starIDs,
@@ -68,6 +70,8 @@ func (r *ConstellationRepository) Update(ctx context.Context, c *domain.Constell
 
 	return r.queries.UpdateConstellation(ctx, sqlc.UpdateConstellationParams{
 		ID:                   pgtype.UUID{Bytes: [16]byte(uid), Valid: true},
+		Topic:                c.Topic,
+		TopicEmbedding:       c.TopicEmbedding,
 		Name:                 c.Name,
 		ConstellationInsight: c.ConstellationInsight,
 		StarIds:              starIDs,
@@ -142,6 +146,8 @@ func toDomainConstellation(row sqlc.Constellation) *domain.Constellation {
 	return &domain.Constellation{
 		ID:                   id.String(),
 		UserID:               userID.String(),
+		Topic:                row.Topic,
+		TopicEmbedding:       row.TopicEmbedding,
 		Name:                 row.Name,
 		ConstellationInsight: row.ConstellationInsight,
 		StarIDs:              starIDs,
