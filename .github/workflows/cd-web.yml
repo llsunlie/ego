@@ -1,0 +1,41 @@
+name: CD Web
+
+# Web 部署：推送版本 tag 或手动触发时，构建 Flutter Web → SCP 到腾讯云
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release Version (e.g. v1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  # 单 job：构建 Flutter Web → 上传到腾讯云
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          channel: 'stable'
+          cache: true
+
+      # 构建 Web 产物，注入腾讯云 IP
+      - name: build web
+        run: cd client && flutter build web --base-href / --dart-define=SERVER_HOST=${{ secrets.TENCENT_HOST }}
+
+      # SCP 上传产物内容（使用 tar 避免深层目录结构）
+      - name: scp web
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.TENCENT_HOST }}
+          username: ${{ secrets.TENCENT_USER }}
+          key: ${{ secrets.TENCENT_SSH_KEY }}
+          source: client/build/web
+          target: ${{ secrets.TENCENT_DEPLOY_PATH }}
+          strip_components: 2
