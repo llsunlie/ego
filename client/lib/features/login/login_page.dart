@@ -115,7 +115,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           width: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('进入', style: TextStyle(fontSize: 16)),
+                      : const Text('登录 / 注册', style: TextStyle(fontSize: 16)),
                 ),
               ],
             ),

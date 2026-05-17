@@ -45,7 +45,7 @@ class PastSelfCard extends ConsumerWidget {
                 Expanded(
                   child: Text(
                     star.topic,
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: AppColors.textPrimary,
