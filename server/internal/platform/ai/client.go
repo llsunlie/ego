@@ -13,16 +13,18 @@ import (
 // Client is a minimal OpenAI-compatible HTTP client providing embedding
 // and chat completion. It holds no business logic and no domain knowledge.
 type Client struct {
-	cfg    Config
-	http   *http.Client
-	base   string // trailing-slash-free base URL
+	cfg       Config
+	http      *http.Client
+	embedBase string // trailing-slash-free embedding base URL
+	chatBase  string // trailing-slash-free chat base URL
 }
 
 func NewClient(cfg Config) *Client {
 	return &Client{
-		cfg:  cfg,
-		http: &http.Client{},
-		base: strings.TrimRight(cfg.BaseURL, "/"),
+		cfg:       cfg,
+		http:      &http.Client{},
+		embedBase: strings.TrimRight(cfg.EmbeddingBaseURL, "/"),
+		chatBase:  strings.TrimRight(cfg.ChatBaseURL, "/"),
 	}
 }
 
@@ -70,11 +72,11 @@ func (c *Client) CreateEmbedding(ctx context.Context, input string) (*EmbeddingR
 		return nil, fmt.Errorf("ai.Embed: marshal: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.base+"/embeddings", bytes.NewReader(reqBody))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.embedBase+"/embeddings", bytes.NewReader(reqBody))
 	if err != nil {
 		return nil, fmt.Errorf("ai.Embed: request: %w", err)
 	}
-	c.setHeaders(req)
+	c.setHeaders(req, c.cfg.EmbeddingAPIKey)
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -137,11 +139,11 @@ func (c *Client) Chat(ctx context.Context, messages []ChatMessage) (string, erro
 		return "", fmt.Errorf("ai.Chat: marshal: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.base+"/chat/completions", bytes.NewReader(reqBody))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.chatBase+"/chat/completions", bytes.NewReader(reqBody))
 	if err != nil {
 		return "", fmt.Errorf("ai.Chat: request: %w", err)
 	}
-	c.setHeaders(req)
+	c.setHeaders(req, c.cfg.ChatAPIKey)
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -165,8 +167,8 @@ func (c *Client) Chat(ctx context.Context, messages []ChatMessage) (string, erro
 
 // --- helpers ---------------------------------------------------------------
 
-func (c *Client) setHeaders(req *http.Request) {
-	req.Header.Set("Authorization", "Bearer "+c.cfg.APIKey)
+func (c *Client) setHeaders(req *http.Request, apiKey string) {
+	req.Header.Set("Authorization", "Bearer "+apiKey)
 	req.Header.Set("Content-Type", "application/json")
 }
 
