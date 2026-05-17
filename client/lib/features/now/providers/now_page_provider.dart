@@ -96,11 +96,9 @@ class NowPageNotifier extends StateNotifier<NowPageState> {
         clearIsReopen: true,
       );
 
-      if (echo != null) {
-        _fetchInsight(res.moment.id, echo.id);
-        if (echo.matchedMomentIds.isNotEmpty) {
-          _fetchMatchedMoments(echo.matchedMomentIds);
-        }
+      _fetchInsight(res.moment.id, echo?.id ?? '');
+      if (echo != null && echo.matchedMomentIds.isNotEmpty) {
+        _fetchMatchedMoments(echo.matchedMomentIds);
       }
     } catch (e) {
       state = state.copyWith(

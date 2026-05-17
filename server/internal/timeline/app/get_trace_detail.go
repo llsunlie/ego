@@ -9,9 +9,9 @@ import (
 
 // GetTraceDetailUseCase returns a full trace detail with moments, echos, and insights.
 type GetTraceDetailUseCase struct {
-	traces    domain.TraceReader
-	echos     domain.EchoReader
-	insights  domain.InsightReader
+	traces   domain.TraceReader
+	echos    domain.EchoReader
+	insights domain.InsightReader
 }
 
 func NewGetTraceDetailUseCase(
@@ -49,15 +49,13 @@ func (uc *GetTraceDetailUseCase) Execute(ctx context.Context, input GetTraceDeta
 	items := make([]writingdomain.TraceItem, len(moments))
 	for i, m := range moments {
 		echo, _ := uc.echos.FindByMomentID(ctx, m.ID)
-		var insight *writingdomain.Insight
-		if echo != nil {
-			insight, _ = uc.insights.FindByMomentID(ctx, m.ID)
-		}
-
 		var echos []writingdomain.Echo
 		if echo != nil {
 			echos = []writingdomain.Echo{*echo}
 		}
+
+		var insight *writingdomain.Insight
+		insight, _ = uc.insights.FindByMomentID(ctx, m.ID)
 
 		items[i] = writingdomain.TraceItem{
 			Moment:  m,
