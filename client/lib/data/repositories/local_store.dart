@@ -22,4 +22,9 @@ class LocalStore {
       _settings.get('onboardingDone', defaultValue: false);
   static void setOnboardingDone(bool value) =>
       _settings.put('onboardingDone', value);
+
+  static bool getStarmapTapGuideShown() =>
+      _settings.get('starmapTapGuideShown', defaultValue: false);
+  static void setStarmapTapGuideShown(bool value) =>
+      _settings.put('starmapTapGuideShown', value);
 }

@@ -37,6 +37,18 @@ const onboardingData = [
         date: '38 天前',
         text: '好几天没emo了。但我发现自己在\'观察\'自己是不是真的好了。这本身就有点奇怪吧。',
       ),
+      OnboardingDiary(
+        date: '41 天前',
+        text: '这种不踏实的感觉很熟悉。不是有什么事不对，是太对了反而让我警觉。',
+      ),
+      OnboardingDiary(
+        date: '49 天前',
+        text: '有时候觉得，人对自己好一点的时刻，反而会不安。好像不该这么轻松。',
+      ),
+      OnboardingDiary(
+        date: '53 天前',
+        text: '今天试着不去分析自己。就这样待着。好像也没什么不好。',
+      ),
     ],
     diary2: OnboardingDiary(
       date: '22 天前',
@@ -58,6 +70,18 @@ const onboardingData = [
       OnboardingDiary(
         date: '71 天前',
         text: '别人问我最近怎么样，我说\'还行\'。其实不还行。但我也不知道哪里不行。',
+      ),
+      OnboardingDiary(
+        date: '74 天前',
+        text: '今天不想总结，也不想反思。就只是想被允许什么都不想。',
+      ),
+      OnboardingDiary(
+        date: '68 天前',
+        text: '可能不是累了，是太久了。没有明确的累点，反而更消耗。',
+      ),
+      OnboardingDiary(
+        date: '56 天前',
+        text: '有一种疲惫是：什么都能做，但什么都不值得做。',
       ),
     ],
     diary2: OnboardingDiary(
@@ -81,6 +105,18 @@ const onboardingData = [
         date: '62 天前',
         text: '终于把那个计划列出来了。但写完有一种\'再也找不到借口拖着了\'的感觉。有点怕。',
       ),
+      OnboardingDiary(
+        date: '67 天前',
+        text: '两个选项都看了无数遍。但每次想的都是\'万一选错了呢\'。',
+      ),
+      OnboardingDiary(
+        date: '54 天前',
+        text: '选A还是选B，有时候不如\'先选一个\'。但我还没准备好。',
+      ),
+      OnboardingDiary(
+        date: '44 天前',
+        text: '犹豫不决的时候，我好像不是在等答案，是在等勇气。',
+      ),
     ],
     diary2: OnboardingDiary(
       date: '28 天前',
@@ -102,6 +138,18 @@ const onboardingData = [
       OnboardingDiary(
         date: '58 天前',
         text: '忽然发现我好久没哭了。不是忍着，是真的好久没有那么难受了。我想把这个记下来。',
+      ),
+      OnboardingDiary(
+        date: '61 天前',
+        text: '今天有一瞬间觉得自己挺好的。那种感觉稍纵即逝，但我想多留它一会儿。',
+      ),
+      OnboardingDiary(
+        date: '52 天前',
+        text: '不是特别的事，就是天气刚好、歌刚好、心情也刚好。',
+      ),
+      OnboardingDiary(
+        date: '42 天前',
+        text: '以前不太会注意这些小事。现在觉得，小事才是重要的。',
       ),
     ],
     diary2: OnboardingDiary(

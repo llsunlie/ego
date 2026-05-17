@@ -123,16 +123,16 @@ class _ConstellationDetailPageState
           ),
           const SizedBox(height: 24),
 
-          // ② 和那时的自己说说话
+          // ② 我想听你说更多
+          if (c.topicPrompts.isNotEmpty)
+            TopicPromptSection(prompts: c.topicPrompts),
+          const SizedBox(height: 24),
+
+          // ③ ✦ 和那时的自己说说话
           _ChatSection(
             stars: _stars,
             constellationId: widget.constellationId,
           ),
-          const SizedBox(height: 24),
-
-          // ③ ✦ 我想和你聊聊
-          if (c.topicPrompts.isNotEmpty)
-            TopicPromptSection(prompts: c.topicPrompts),
         ],
       ),
     );
@@ -152,7 +152,7 @@ class _ChatSection extends ConsumerStatefulWidget {
 class _ChatSectionState extends ConsumerState<_ChatSection> {
   bool _expanded = false;
 
-  static const _sectionTitle = '和那时的自己说说话';
+  static const _sectionTitle = '✦ 和那时的自己说说话';
   static const _maxVisible = 3;
 
   @override
@@ -171,8 +171,8 @@ class _ChatSectionState extends ConsumerState<_ChatSection> {
           child: Text(
             _sectionTitle,
             style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 13,
+              color: AppColors.gold,
+              fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
           ),

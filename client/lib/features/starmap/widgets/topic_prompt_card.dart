@@ -18,10 +18,10 @@ class TopicPromptSection extends StatelessWidget {
         const Padding(
           padding: EdgeInsets.only(bottom: 12),
           child: Text(
-            '✦ 我想和你聊聊',
+            '我想听你说更多',
             style: TextStyle(
-              color: AppColors.gold,
-              fontSize: 14,
+              color: AppColors.textSecondary,
+              fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
           ),

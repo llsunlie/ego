@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/colors.dart';
 import '../../core/providers/tab_provider.dart';
+import '../../data/repositories/local_store.dart';
 import 'data/star_position.dart';
 import 'painters/star_field_painter.dart';
 import 'providers/starmap_provider.dart';
@@ -20,6 +22,8 @@ class _StarmapPageState extends ConsumerState<StarmapPage>
   late final AnimationController _twinkleCtrl;
   List<PlacedConstellation> _placed = [];
   bool _hasLoaded = false;
+  bool _showTapGuide = false;
+  Timer? _tapGuideTimer;
 
   @override
   void initState() {
@@ -33,7 +37,24 @@ class _StarmapPageState extends ConsumerState<StarmapPage>
   @override
   void dispose() {
     _twinkleCtrl.dispose();
+    _tapGuideTimer?.cancel();
     super.dispose();
+  }
+
+  void _dismissTapGuide() {
+    _tapGuideTimer?.cancel();
+    if (_showTapGuide) {
+      setState(() => _showTapGuide = false);
+      LocalStore.setStarmapTapGuideShown(true);
+    }
+  }
+
+  void _activateTapGuide() {
+    if (_showTapGuide || LocalStore.getStarmapTapGuideShown()) return;
+    setState(() => _showTapGuide = true);
+    _tapGuideTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) _dismissTapGuide();
+    });
   }
 
   void _tryTap(Offset screenPos, Size canvasSize) {
@@ -163,22 +184,67 @@ class _StarmapPageState extends ConsumerState<StarmapPage>
       );
     }
 
+    _activateTapGuide();
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
         return GestureDetector(
-          onTapUp: (d) => _tryTap(d.localPosition, canvasSize),
-          child: AnimatedBuilder(
-            animation: _twinkleCtrl,
-            builder: (_, __) => CustomPaint(
-              size: canvasSize,
-              painter: StarFieldPainter(
-                constellations: _placed,
-                time: _twinkleCtrl.value * 2 * pi,
-                zoomScale: 1.0,
-                canvasSize: canvasSize,
+          onTapUp: (d) {
+            if (_showTapGuide) {
+              _dismissTapGuide();
+            } else {
+              _tryTap(d.localPosition, canvasSize);
+            }
+          },
+          child: Stack(
+            children: [
+              AnimatedBuilder(
+                animation: _twinkleCtrl,
+                builder: (_, __) => CustomPaint(
+                  size: canvasSize,
+                  painter: StarFieldPainter(
+                    constellations: _placed,
+                    time: _twinkleCtrl.value * 2 * pi,
+                    zoomScale: 1.0,
+                    canvasSize: canvasSize,
+                  ),
+                ),
               ),
-            ),
+              if (_showTapGuide)
+                Positioned(
+                  top: 16,
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(
+                    child: Center(
+                      child: AnimatedOpacity(
+                        opacity: _showTapGuide ? 1.0 : 0.0,
+                        duration: const Duration(milliseconds: 400),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: AppColors.gold.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: const Text(
+                            '点击星座或星星查看详情',
+                            style: TextStyle(
+                              color: AppColors.gold,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         );
       },
