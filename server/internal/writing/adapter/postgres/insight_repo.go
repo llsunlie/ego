@@ -34,9 +34,13 @@ func (r *InsightRepository) Create(ctx context.Context, insight *domain.Insight)
 	if err != nil {
 		return err
 	}
-	echoID, err := uuid.Parse(insight.EchoID)
-	if err != nil {
-		return err
+	var echoUUID pgtype.UUID
+	if insight.EchoID != "" {
+		eid, err := uuid.Parse(insight.EchoID)
+		if err != nil {
+			return err
+		}
+		echoUUID = pgtype.UUID{Bytes: [16]byte(eid), Valid: true}
 	}
 
 	relatedIDs := make([]pgtype.UUID, len(insight.RelatedMomentIDs))
@@ -55,7 +59,7 @@ func (r *InsightRepository) Create(ctx context.Context, insight *domain.Insight)
 		ID:               pgtype.UUID{Bytes: [16]byte(uid), Valid: true},
 		UserID:           pgtype.UUID{Bytes: [16]byte(userID), Valid: true},
 		MomentID:         pgtype.UUID{Bytes: [16]byte(momentID), Valid: true},
-		EchoID:           pgtype.UUID{Bytes: [16]byte(echoID), Valid: true},
+		EchoID:           echoUUID,
 		Text:             insight.Text,
 		RelatedMomentIds: relatedIDs,
 		CreatedAt:        pgtype.Timestamptz{Time: now, Valid: true},
@@ -83,7 +87,12 @@ func toDomainInsight(row sqlc.Insight) *domain.Insight {
 	id, _ := uuid.FromBytes(row.ID.Bytes[:])
 	userID, _ := uuid.FromBytes(row.UserID.Bytes[:])
 	momentID, _ := uuid.FromBytes(row.MomentID.Bytes[:])
-	echoID, _ := uuid.FromBytes(row.EchoID.Bytes[:])
+
+	var echoID string
+	if row.EchoID.Valid {
+		eid, _ := uuid.FromBytes(row.EchoID.Bytes[:])
+		echoID = eid.String()
+	}
 
 	relatedIDs := make([]string, len(row.RelatedMomentIds))
 	for i, rid := range row.RelatedMomentIds {
@@ -95,7 +104,7 @@ func toDomainInsight(row sqlc.Insight) *domain.Insight {
 		ID:               id.String(),
 		UserID:           userID.String(),
 		MomentID:         momentID.String(),
-		EchoID:           echoID.String(),
+		EchoID:           echoID,
 		Text:             row.Text,
 		RelatedMomentIDs: relatedIDs,
 		CreatedAt:        row.CreatedAt.Time,
