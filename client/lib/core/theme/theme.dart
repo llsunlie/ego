@@ -3,6 +3,7 @@ import 'colors.dart';
 
 ThemeData darkTheme() {
   return ThemeData(
+    fontFamily: 'NotoSansSC',
     brightness: Brightness.dark,
     scaffoldBackgroundColor: AppColors.darkBg,
     colorScheme: ColorScheme.dark(
