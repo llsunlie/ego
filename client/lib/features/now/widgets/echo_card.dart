@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/colors.dart';
@@ -13,51 +12,12 @@ class EchoSection extends ConsumerStatefulWidget {
 }
 
 class _EchoSectionState extends ConsumerState<EchoSection> {
-  bool _showConnector = false;
-  bool _showInsight = false;
-  Timer? _connectorTimer;
-  Timer? _insightTimer;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final state = ref.read(nowPageProvider);
-    if (state.status == NowPageStatus.echoing) {
-      _scheduleStaggers();
-    }
-  }
-
-  void _scheduleStaggers() {
-    _connectorTimer?.cancel();
-    _insightTimer?.cancel();
-    _showConnector = false;
-    _showInsight = false;
-    // Match prototype: connector at 900ms, insight at 1600ms after echo appears
-    _connectorTimer = Timer(const Duration(milliseconds: 900), () {
-      if (mounted) setState(() => _showConnector = true);
-    });
-    _insightTimer = Timer(const Duration(milliseconds: 1600), () {
-      if (mounted) setState(() => _showInsight = true);
-    });
-  }
-
-  @override
-  void dispose() {
-    _connectorTimer?.cancel();
-    _insightTimer?.cancel();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(nowPageProvider);
     final visible = state.status == NowPageStatus.echoing && !state.isLoading;
     final echo = state.echo;
-
-    // Start stagger timers when echo becomes visible
-    if (visible && !_showConnector && !_showInsight) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _scheduleStaggers());
-    }
+    final hasInsight = state.insight != null;
 
     final screenHeight = MediaQuery.of(context).size.height;
 
@@ -90,11 +50,12 @@ class _EchoSectionState extends ConsumerState<EchoSection> {
                       ),
                       const SizedBox(height: 16),
                     ],
-                    // Connector line (stagger: 900ms)
-                    _ConnectorLine(show: _showConnector),
-                    const SizedBox(height: 16),
-                    // Insight card (stagger: 1600ms)
-                    _InsightSlot(show: _showInsight, insight: state.insight),
+                    // Connector line + Insight card — shown when insight data arrives
+                    if (hasInsight) ...[
+                      _ConnectorLine(show: hasInsight),
+                      const SizedBox(height: 16),
+                      _InsightSlot(insight: state.insight),
+                    ],
                     const SizedBox(height: 20),
                     _EchoActions(
                       onContinue: () =>
@@ -307,24 +268,38 @@ class _CandidateToggleState extends State<_CandidateToggle> {
   }
 }
 
-class _InsightSlot extends StatelessWidget {
-  final bool show;
+class _InsightSlot extends StatefulWidget {
   final pb.Insight? insight;
 
-  const _InsightSlot({required this.show, this.insight});
+  const _InsightSlot({this.insight});
+
+  @override
+  State<_InsightSlot> createState() => _InsightSlotState();
+}
+
+class _InsightSlotState extends State<_InsightSlot> {
+  bool _entered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _entered = true);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final ins = insight;
+    final ins = widget.insight;
+    if (ins == null) return const SizedBox.shrink();
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 600),
-      opacity: show && ins != null ? 1.0 : 0.0,
+      opacity: _entered ? 1.0 : 0.0,
       child: AnimatedSlide(
         duration: const Duration(milliseconds: 600),
         curve: Curves.easeOut,
-        offset: show && ins != null ? Offset.zero : const Offset(0, 0.1),
-        child: show && ins != null
-            ? Container(
+        offset: _entered ? Offset.zero : const Offset(0, 0.1),
+        child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
@@ -363,8 +338,7 @@ class _InsightSlot extends StatelessWidget {
                     ),
                   ],
                 ),
-              )
-            : const SizedBox.shrink(),
+              ),
       ),
     );
   }

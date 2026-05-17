@@ -94,6 +94,7 @@ class NowPageNotifier extends StateNotifier<NowPageState> {
         echo: echo,
         isLoading: false,
         clearIsReopen: true,
+        clearInsight: true,
       );
 
       _fetchInsight(res.moment.id, echo?.id ?? '');
