@@ -8,19 +8,31 @@ import (
 )
 
 type Config struct {
-	DatabaseURL      string
-	JWTSecret        string
-	Port             string
-	WebPort          string
-	WebDir           string
-	JWTExpHours      string
-	LogLevel         string
-	LogFormat        string
-	LogOutput        string
-	AIAPIKey         string
-	AIBaseURL        string
-	AIEmbeddingModel string
-	AIChatModel      string
+	DatabaseURL          string
+	JWTSecret            string
+	Port                 string
+	WebPort              string
+	WebDir               string
+	JWTExpHours          string
+	LogLevel             string
+	LogFormat            string
+	LogOutput            string
+	AIAPIKey             string
+	AIBaseURL            string
+	AIEmbeddingModel     string
+	AIEmbeddingAPIKey    string
+	AIEmbeddingBaseURL   string
+	AIChatModel          string
+	AIChatAPIKey         string
+	AIChatBaseURL        string
+}
+
+// getEnvWithFallback returns os.Getenv(key), or os.Getenv(fallback) if empty.
+func getEnvWithFallback(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return os.Getenv(fallback)
 }
 
 func Load() *Config {
@@ -39,10 +51,14 @@ func Load() *Config {
 		LogLevel:         os.Getenv("LOG_LEVEL"),
 		LogFormat:        os.Getenv("LOG_FORMAT"),
 		LogOutput:        os.Getenv("LOG_OUTPUT"),
-		AIAPIKey:         os.Getenv("AI_API_KEY"),
-		AIBaseURL:        os.Getenv("AI_BASE_URL"),
-		AIEmbeddingModel: os.Getenv("AI_EMBEDDING_MODEL"),
-		AIChatModel:      os.Getenv("AI_CHAT_MODEL"),
+		AIAPIKey:           os.Getenv("AI_API_KEY"),
+		AIBaseURL:          os.Getenv("AI_BASE_URL"),
+		AIEmbeddingModel:   os.Getenv("AI_EMBEDDING_MODEL"),
+		AIEmbeddingAPIKey:  getEnvWithFallback("AI_EMBEDDING_API_KEY", "AI_API_KEY"),
+		AIEmbeddingBaseURL: getEnvWithFallback("AI_EMBEDDING_BASE_URL", "AI_BASE_URL"),
+		AIChatModel:        os.Getenv("AI_CHAT_MODEL"),
+		AIChatAPIKey:       getEnvWithFallback("AI_CHAT_API_KEY", "AI_API_KEY"),
+		AIChatBaseURL:      getEnvWithFallback("AI_CHAT_BASE_URL", "AI_BASE_URL"),
 	}
 }
 

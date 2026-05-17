@@ -49,10 +49,12 @@ func InitPlatform(cfg *config.Config) (*Platform, error) {
 	jwtExp := time.Duration(expHours) * time.Hour
 
 	aiClient := ai.NewClient(ai.Config{
-		APIKey:         cfg.AIAPIKey,
-		BaseURL:        cfg.AIBaseURL,
-		EmbeddingModel: cfg.AIEmbeddingModel,
-		ChatModel:      cfg.AIChatModel,
+		EmbeddingAPIKey:  cfg.AIEmbeddingAPIKey,
+		EmbeddingBaseURL: cfg.AIEmbeddingBaseURL,
+		EmbeddingModel:   cfg.AIEmbeddingModel,
+		ChatAPIKey:       cfg.AIChatAPIKey,
+		ChatBaseURL:      cfg.AIChatBaseURL,
+		ChatModel:        cfg.AIChatModel,
 	})
 
 	return &Platform{

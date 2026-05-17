@@ -58,11 +58,14 @@ func loadEnvAndClient(t *testing.T) *ai.Client {
 		t.Skip("AI_API_KEY not set in env or .env, skipping embedding test")
 	}
 
+	baseURL := envOrDefault("AI_BASE_URL", "https://api.siliconflow.cn/v1")
 	return ai.NewClient(ai.Config{
-		APIKey:         apiKey,
-		BaseURL:        envOrDefault("AI_BASE_URL", "https://api.siliconflow.cn/v1"),
-		EmbeddingModel: envOrDefault("AI_EMBEDDING_MODEL", "Qwen/Qwen3-VL-Embedding-8B"),
-		ChatModel:      envOrDefault("AI_CHAT_MODEL", "deepseek-ai/DeepSeek-V3"),
+		EmbeddingAPIKey:  apiKey,
+		EmbeddingBaseURL: baseURL,
+		EmbeddingModel:   envOrDefault("AI_EMBEDDING_MODEL", "Qwen/Qwen3-VL-Embedding-8B"),
+		ChatAPIKey:       apiKey,
+		ChatBaseURL:      baseURL,
+		ChatModel:        envOrDefault("AI_CHAT_MODEL", "deepseek-ai/DeepSeek-V3"),
 	})
 }
 

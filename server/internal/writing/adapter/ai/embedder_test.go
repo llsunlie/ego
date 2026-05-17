@@ -15,10 +15,12 @@ func newTestClient(t *testing.T, handler http.HandlerFunc) *platformai.Client {
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 	return platformai.NewClient(platformai.Config{
-		BaseURL:        srv.URL,
-		APIKey:         "test-key",
-		EmbeddingModel: "test-embed-model",
-		ChatModel:      "test-chat-model",
+		EmbeddingBaseURL: srv.URL,
+		EmbeddingAPIKey:  "test-key",
+		EmbeddingModel:   "test-embed-model",
+		ChatBaseURL:      srv.URL,
+		ChatAPIKey:       "test-key",
+		ChatModel:        "test-chat-model",
 	})
 }
 
