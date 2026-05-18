@@ -60,23 +60,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
+                  width: 120,
+                  height: 120,
+                  decoration: const BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Theme.of(context).colorScheme.primary,
-                      width: 2,
-                    ),
                   ),
-                  child: Center(
-                    child: Text(
-                      'ego',
-                      style: TextStyle(
-                        fontSize: 24,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Image.asset(
+                    'ego-logo.png',
+                    fit: BoxFit.cover,
                   ),
                 ),
                 const SizedBox(height: 48),
