@@ -33,9 +33,11 @@ func (m *mockTraceStasher) MarkStashed(ctx context.Context, traceID string) erro
 }
 
 type mockStarRepo struct {
-	createFn        func(ctx context.Context, star *domain.Star) error
-	findByTraceIDFn func(ctx context.Context, traceID string) (*domain.Star, error)
-	findByIDsFn     func(ctx context.Context, ids []string) ([]domain.Star, error)
+	createFn          func(ctx context.Context, star *domain.Star) error
+	findByTraceIDFn   func(ctx context.Context, traceID string) (*domain.Star, error)
+	findByIDsFn       func(ctx context.Context, ids []string) ([]domain.Star, error)
+	findAllByUserIDFn func(ctx context.Context, userID string) ([]domain.Star, error)
+	updateTopicFn     func(ctx context.Context, starID string, topic string) error
 }
 
 func (m *mockStarRepo) Create(ctx context.Context, star *domain.Star) error {
@@ -46,6 +48,12 @@ func (m *mockStarRepo) FindByTraceID(ctx context.Context, traceID string) (*doma
 }
 func (m *mockStarRepo) FindByIDs(ctx context.Context, ids []string) ([]domain.Star, error) {
 	return m.findByIDsFn(ctx, ids)
+}
+func (m *mockStarRepo) FindAllByUserID(ctx context.Context, userID string) ([]domain.Star, error) {
+	return m.findAllByUserIDFn(ctx, userID)
+}
+func (m *mockStarRepo) UpdateTopic(ctx context.Context, starID string, topic string) error {
+	return m.updateTopicFn(ctx, starID, topic)
 }
 
 type mockConstellationRepo struct {
@@ -117,7 +125,7 @@ func TestStashTrace_Success(t *testing.T) {
 
 	starCreated := false
 	traceStashed := false
-	constellationCreated := false
+	done := make(chan struct{})
 
 	traceReader := &mockTraceReader{
 		getByIDFn: func(ctx context.Context, id string) (*writingdomain.Trace, error) {
@@ -141,6 +149,12 @@ func TestStashTrace_Success(t *testing.T) {
 			if star.TraceID != "tr-1" {
 				t.Errorf("expected traceID 'tr-1', got %q", star.TraceID)
 			}
+			if star.Topic != "聚合中" {
+				t.Errorf("expected topic '聚合中', got %q", star.Topic)
+			}
+			return nil
+		},
+		updateTopicFn: func(ctx context.Context, starID string, topic string) error {
 			return nil
 		},
 	}
@@ -150,10 +164,10 @@ func TestStashTrace_Success(t *testing.T) {
 			return nil, nil
 		},
 		createFn: func(ctx context.Context, c *domain.Constellation) error {
-			constellationCreated = true
 			if len(c.StarIDs) != 1 {
 				t.Errorf("expected 1 star in constellation, got %d", len(c.StarIDs))
 			}
+			close(done)
 			return nil
 		},
 	}
@@ -196,8 +210,13 @@ func TestStashTrace_Success(t *testing.T) {
 	if !traceStashed {
 		t.Fatal("trace was not marked stashed")
 	}
-	if !constellationCreated {
-		t.Fatal("constellation was not created")
+
+	// Wait for async clustering to finish
+	select {
+	case <-done:
+		// constellation created asynchronously
+	case <-time.After(2 * time.Second):
+		t.Fatal("async clustering did not complete within timeout")
 	}
 }
 

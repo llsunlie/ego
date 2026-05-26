@@ -38,7 +38,7 @@ func NewHandler(deps Deps) *starmapgrpc.Handler {
 		topicGen, constellationMat, assetGen,
 		ids,
 	)
-	listConstellations := starmapapp.NewListConstellationsUseCase(constellationRepo)
+	listConstellations := starmapapp.NewListConstellationsUseCase(constellationRepo, starRepo)
 	getConstellation := starmapapp.NewGetConstellationUseCase(
 		constellationRepo, starRepo, traceReader,
 	)

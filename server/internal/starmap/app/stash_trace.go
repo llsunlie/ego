@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"ego-server/internal/platform/logging"
 	"ego-server/internal/starmap/domain"
 	writingdomain "ego-server/internal/writing/domain"
 )
@@ -68,16 +69,11 @@ func (uc *StashTraceUseCase) Execute(ctx context.Context, input StashTraceInput)
 		return nil, fmt.Errorf("list moments: %w", err)
 	}
 
-	topic, err := uc.topicGen.Generate(ctx, moments)
-	if err != nil {
-		return nil, fmt.Errorf("generate topic: %w", err)
-	}
-
 	star := &domain.Star{
 		ID:        uc.ids.New(),
 		UserID:    userID,
 		TraceID:   input.TraceID,
-		Topic:     topic,
+		Topic:     "聚合中",
 		CreatedAt: time.Now(),
 	}
 
@@ -89,24 +85,61 @@ func (uc *StashTraceUseCase) Execute(ctx context.Context, input StashTraceInput)
 		return nil, fmt.Errorf("mark stashed: %w", err)
 	}
 
-	// Constellation matching: find existing or create new lone-star constellation
+	go uc.clusterAsync(userID, star.ID, moments)
+
+	return star, nil
+}
+
+func (uc *StashTraceUseCase) clusterAsync(userID string, starID string, moments []writingdomain.Moment) {
+	ctx := context.Background()
+	logger := logging.FromContext(ctx)
+
+	topic, err := uc.topicGen.Generate(ctx, moments)
+	if err != nil {
+		logger.ErrorContext(ctx, "starmap: async topic generation failed",
+			"star_id", starID,
+			"error", err,
+		)
+		return
+	}
+
+	if err := uc.stars.UpdateTopic(ctx, starID, topic); err != nil {
+		logger.ErrorContext(ctx, "starmap: async update star topic failed",
+			"star_id", starID,
+			"error", err,
+		)
+		return
+	}
+
 	existing, err := uc.constellations.FindAllByUserID(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("list constellations: %w", err)
+		logger.ErrorContext(ctx, "starmap: async list constellations failed",
+			"star_id", starID,
+			"error", err,
+		)
+		return
 	}
 
 	matchID, err := uc.constellationMat.FindMatch(ctx, topic, existing)
 	if err != nil {
-		return nil, fmt.Errorf("match constellation: %w", err)
+		logger.ErrorContext(ctx, "starmap: async constellation match failed",
+			"star_id", starID,
+			"error", err,
+		)
+		return
 	}
 
 	if matchID != "" {
 		c, err := uc.constellations.FindByID(ctx, matchID)
 		if err != nil {
-			return nil, fmt.Errorf("find constellation: %w", err)
+			logger.ErrorContext(ctx, "starmap: async find constellation failed",
+				"star_id", starID,
+				"constellation_id", matchID,
+				"error", err,
+			)
+			return
 		}
 
-		// Collect moments from all stars in the constellation for asset regeneration
 		allMoments := make([]writingdomain.Moment, 0, len(moments)*(len(c.StarIDs)+1))
 		allMoments = append(allMoments, moments...)
 		for _, sid := range c.StarIDs {
@@ -123,7 +156,12 @@ func (uc *StashTraceUseCase) Execute(ctx context.Context, input StashTraceInput)
 
 		topic, topicEmb, name, insight, prompts, err := uc.assetGen.Generate(ctx, allMoments)
 		if err != nil {
-			return nil, fmt.Errorf("regenerate assets: %w", err)
+			logger.ErrorContext(ctx, "starmap: async asset regeneration failed",
+				"star_id", starID,
+				"constellation_id", matchID,
+				"error", err,
+			)
+			return
 		}
 
 		c.Topic = topic
@@ -131,16 +169,25 @@ func (uc *StashTraceUseCase) Execute(ctx context.Context, input StashTraceInput)
 		c.Name = name
 		c.ConstellationInsight = insight
 		c.TopicPrompts = prompts
-		c.StarIDs = append(c.StarIDs, star.ID)
+		c.StarIDs = append(c.StarIDs, starID)
 		c.UpdatedAt = time.Now()
 
 		if err := uc.constellations.Update(ctx, c); err != nil {
-			return nil, fmt.Errorf("update constellation: %w", err)
+			logger.ErrorContext(ctx, "starmap: async update constellation failed",
+				"star_id", starID,
+				"constellation_id", matchID,
+				"error", err,
+			)
+			return
 		}
 	} else {
 		topic, topicEmb, name, insight, prompts, err := uc.assetGen.Generate(ctx, moments)
 		if err != nil {
-			return nil, fmt.Errorf("generate assets: %w", err)
+			logger.ErrorContext(ctx, "starmap: async asset generation failed",
+				"star_id", starID,
+				"error", err,
+			)
+			return
 		}
 
 		now := time.Now()
@@ -151,16 +198,20 @@ func (uc *StashTraceUseCase) Execute(ctx context.Context, input StashTraceInput)
 			TopicEmbedding:       topicEmb,
 			Name:                 name,
 			ConstellationInsight: insight,
-			StarIDs:              []string{star.ID},
+			StarIDs:              []string{starID},
 			TopicPrompts:         prompts,
 			CreatedAt:            now,
 			UpdatedAt:            now,
 		}
 
 		if err := uc.constellations.Create(ctx, c); err != nil {
-			return nil, fmt.Errorf("create constellation: %w", err)
+			logger.ErrorContext(ctx, "starmap: async create constellation failed",
+				"star_id", starID,
+				"error", err,
+			)
+			return
 		}
 	}
 
-	return star, nil
+	logger.InfoContext(ctx, "starmap: async clustering completed", "star_id", starID)
 }

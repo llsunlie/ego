@@ -69,8 +69,13 @@ func TestGetConstellation_NotFound(t *testing.T) {
 			return nil, domain.ErrConstellationNotFound
 		},
 	}
+	starRepo := &mockStarRepo{
+		findByIDsFn: func(ctx context.Context, ids []string) ([]domain.Star, error) {
+			return nil, nil
+		},
+	}
 
-	uc := NewGetConstellationUseCase(constellationRepo, nil, nil)
+	uc := NewGetConstellationUseCase(constellationRepo, starRepo, nil)
 	_, err := uc.Execute(ctx, GetConstellationInput{ConstellationID: "nonexistent"})
 	if !errors.Is(err, domain.ErrConstellationNotFound) {
 		t.Fatalf("expected ErrConstellationNotFound, got %v", err)
