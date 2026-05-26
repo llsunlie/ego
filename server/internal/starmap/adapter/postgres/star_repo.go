@@ -83,6 +83,36 @@ func (r *StarRepository) FindByIDs(ctx context.Context, ids []string) ([]domain.
 	return result, nil
 }
 
+func (r *StarRepository) FindAllByUserID(ctx context.Context, userID string) ([]domain.Star, error) {
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := r.queries.ListStarsByUserID(ctx, pgtype.UUID{Bytes: [16]byte(uid), Valid: true})
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]domain.Star, len(rows))
+	for i, row := range rows {
+		s := toDomainStar(row)
+		result[i] = *s
+	}
+	return result, nil
+}
+
+func (r *StarRepository) UpdateTopic(ctx context.Context, starID string, topic string) error {
+	uid, err := uuid.Parse(starID)
+	if err != nil {
+		return err
+	}
+	return r.queries.UpdateStarTopic(ctx, sqlc.UpdateStarTopicParams{
+		ID:    pgtype.UUID{Bytes: [16]byte(uid), Valid: true},
+		Topic: topic,
+	})
+}
+
 func toDomainStar(row sqlc.Star) *domain.Star {
 	id, _ := uuid.FromBytes(row.ID.Bytes[:])
 	userID, _ := uuid.FromBytes(row.UserID.Bytes[:])

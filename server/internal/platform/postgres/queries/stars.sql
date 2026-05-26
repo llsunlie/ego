@@ -13,3 +13,10 @@ FROM stars WHERE trace_id = $1;
 -- name: ListStarsByIDs :many
 SELECT id, user_id, trace_id, topic, created_at
 FROM stars WHERE id = ANY($1::UUID[]);
+
+-- name: ListStarsByUserID :many
+SELECT id, user_id, trace_id, topic, created_at
+FROM stars WHERE user_id = $1 ORDER BY created_at DESC;
+
+-- name: UpdateStarTopic :exec
+UPDATE stars SET topic = $2 WHERE id = $1;

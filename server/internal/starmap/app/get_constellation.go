@@ -44,7 +44,26 @@ func (uc *GetConstellationUseCase) Execute(ctx context.Context, input GetConstel
 
 	c, err := uc.constellations.FindByID(ctx, input.ConstellationID)
 	if err != nil {
-		return nil, fmt.Errorf("find constellation: %w", err)
+		// Constellation not found — check if the ID matches a pending star (fake constellation)
+		stars, starErr := uc.stars.FindByIDs(ctx, []string{input.ConstellationID})
+		if starErr != nil || len(stars) == 0 || stars[0].UserID != userID {
+			return nil, fmt.Errorf("find constellation: %w", err)
+		}
+		s := stars[0]
+		now := s.CreatedAt
+		return &GetConstellationOutput{
+			Constellation: domain.Constellation{
+				ID:                   s.ID,
+				UserID:               s.UserID,
+				Name:                 s.Topic,
+				ConstellationInsight: "正在分析这些想法，稍后就会汇聚成星座…",
+				StarIDs:              []string{s.ID},
+				CreatedAt:            now,
+				UpdatedAt:            now,
+			},
+			Stars:   []domain.Star{s},
+			Moments: nil,
+		}, nil
 	}
 	if c.UserID != userID {
 		return nil, domain.ErrConstellationNotFound
@@ -55,7 +74,6 @@ func (uc *GetConstellationUseCase) Execute(ctx context.Context, input GetConstel
 		return nil, fmt.Errorf("find stars: %w", err)
 	}
 
-	// Collect all moments from all stars in this constellation
 	var moments []writingdomain.Moment
 	for _, star := range stars {
 		ms, err := uc.traceReader.ListMomentsByTraceID(ctx, star.TraceID)

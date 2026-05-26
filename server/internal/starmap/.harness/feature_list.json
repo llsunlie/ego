@@ -29,6 +29,12 @@
       "title": "Module-level composition via module.go plus thin bootstrap injection",
       "status": "passing",
       "evidence": ["module.go", "adapter/id/uuid.go", "bootstrap/starmap.go", "go build ./..."]
+    },
+    {
+      "id": "starmap.async_clustering",
+      "title": "Async StashTrace with optimistic pending-star UI — Star(topic='聚合中') returned immediately, background goroutine for AI clustering, unclustered stars surfaced as synthetic Constellations",
+      "status": "passing",
+      "evidence": ["app/stash_trace.go", "app/list_constellations.go", "app/get_constellation.go", "go test ./internal/starmap/app/..."]
     }
   ]
 }

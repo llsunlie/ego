@@ -9,10 +9,14 @@ import (
 
 type ListConstellationsUseCase struct {
 	constellations domain.ConstellationRepository
+	stars          domain.StarRepository
 }
 
-func NewListConstellationsUseCase(constellations domain.ConstellationRepository) *ListConstellationsUseCase {
-	return &ListConstellationsUseCase{constellations: constellations}
+func NewListConstellationsUseCase(
+	constellations domain.ConstellationRepository,
+	stars domain.StarRepository,
+) *ListConstellationsUseCase {
+	return &ListConstellationsUseCase{constellations: constellations, stars: stars}
 }
 
 type ListConstellationsOutput struct {
@@ -32,8 +36,35 @@ func (uc *ListConstellationsUseCase) Execute(ctx context.Context) (*ListConstell
 	}
 
 	var totalStars int32
+	clusteredStarIDs := make(map[string]bool)
 	for _, c := range all {
 		totalStars += int32(len(c.StarIDs))
+		for _, sid := range c.StarIDs {
+			clusteredStarIDs[sid] = true
+		}
+	}
+
+	stars, err := uc.stars.FindAllByUserID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list stars: %w", err)
+	}
+
+	for _, s := range stars {
+		if clusteredStarIDs[s.ID] {
+			continue
+		}
+		all = append(all, domain.Constellation{
+			ID:                   s.ID,
+			UserID:               s.UserID,
+			Name:                 s.Topic,
+			ConstellationInsight: "正在分析这些想法，稍后就会汇聚成星座…",
+			StarIDs:              []string{s.ID},
+			TopicPrompts:         nil,
+			Topic:                s.Topic,
+			CreatedAt:            s.CreatedAt,
+			UpdatedAt:            s.CreatedAt,
+		})
+		totalStars++
 	}
 
 	return &ListConstellationsOutput{

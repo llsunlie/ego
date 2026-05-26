@@ -11,6 +11,8 @@ type StarRepository interface {
 	Create(ctx context.Context, star *Star) error
 	FindByTraceID(ctx context.Context, traceID string) (*Star, error)
 	FindByIDs(ctx context.Context, ids []string) ([]Star, error)
+	FindAllByUserID(ctx context.Context, userID string) ([]Star, error)
+	UpdateTopic(ctx context.Context, starID string, topic string) error
 }
 
 // ConstellationRepository persists constellations.
