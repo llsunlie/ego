@@ -9,7 +9,7 @@ import (
 	"ego-server/internal/writing/domain"
 )
 
-const echoSimilarityThreshold = 0.55
+const echoSimilarityThreshold = 0.65
 
 // DefaultEchoMatcher finds historical Moments that resonate with the current
 // Moment by comparing their embeddings with cosine similarity.
