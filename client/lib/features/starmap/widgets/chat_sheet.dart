@@ -446,6 +446,8 @@ class _ReferencedMomentsState extends State<_ReferencedMoments> {
       ),
       child: Text(
         '${ref.date}: ${ref.snippet}',
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           fontSize: 11,
           color: Color(0xFFA89878),
