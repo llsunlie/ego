@@ -86,7 +86,17 @@ jobs:
           source: server/internal/platform/postgres/migrations
           target: ${{ secrets.TENCENT_DEPLOY_PATH }}
 
-      # SSH：清空旧数据 → 启动干净 PostgreSQL → 运行迁移 → 重启 ego-server
+      # SCP 上传 monitoring 配置（Prometheus + Loki + Promtail + Grafana）
+      - name: scp monitoring configs
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.TENCENT_HOST }}
+          username: ${{ secrets.TENCENT_USER }}
+          key: ${{ secrets.TENCENT_SSH_KEY }}
+          source: monitoring/
+          target: ${{ secrets.TENCENT_DEPLOY_PATH }}
+
+      # SSH：停止旧容器 → 清空 PG 数据 → 启动全栈服务 → 迁移 → 重启 ego-server
       - name: post-deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -99,11 +109,14 @@ jobs:
             # 停止并清理旧容器
             docker compose -f "$DEPLOY/docker-compose.yml" down 2>/dev/null || true
 
-            # 创建数据目录并清空旧数据（纯净环境，与 clean-start.sh 一致）
+            # 创建数据目录并清空旧 PG 数据（纯净环境，与 clean-start.sh 一致）
             mkdir -p "$DEPLOY/data"
             docker run --rm -v "$DEPLOY/data:/data" alpine sh -c 'rm -rf /data/*' 2>/dev/null || true
 
-            # 启动 PostgreSQL
+            # 创建日志目录供 promtail 挂载
+            mkdir -p "$DEPLOY/server/.tmp/logs/server"
+
+            # 启动所有服务（PostgreSQL + Adminer + Monitoring stack）
             docker compose -f "$DEPLOY/docker-compose.yml" up -d
 
             # 等待 PostgreSQL 就绪
