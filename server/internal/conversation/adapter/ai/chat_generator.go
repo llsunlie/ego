@@ -226,13 +226,10 @@ func buildRefs(moments []writingdomain.Moment) []domain.MomentReference {
 	refs := make([]domain.MomentReference, 0, len(moments))
 	for _, m := range moments {
 		date := m.CreatedAt.Format("1月2日")
-		snippet := []rune(m.Content)
-		if len(snippet) > 30 {
-			snippet = snippet[:30]
-		}
+		snippet := m.Content
 		refs = append(refs, domain.MomentReference{
 			Date:    date,
-			Snippet: string(snippet),
+			Snippet: snippet,
 		})
 	}
 	return refs
