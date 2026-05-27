@@ -11,6 +11,7 @@ import (
 
 	"ego-server/internal/conversation/domain"
 	platformai "ego-server/internal/platform/ai"
+	"ego-server/internal/platform/logging"
 	writingdomain "ego-server/internal/writing/domain"
 )
 
@@ -25,7 +26,7 @@ func newTestClient(t *testing.T, handler http.HandlerFunc) *platformai.Client {
 		ChatBaseURL:      srv.URL,
 		ChatAPIKey:       "test-key",
 		ChatModel:        "test-chat-model",
-	})
+	}, logging.NewNop())
 }
 
 func TestChatGenerator_GenerateOpening_Success(t *testing.T) {

@@ -4,11 +4,15 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strconv"
+	"time"
 
 	"ego-server/internal/config"
 	"ego-server/internal/platform/auth"
+	"ego-server/internal/platform/metrics"
 
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
@@ -40,6 +44,20 @@ func NewServer(cfg *config.Config, p *Platform, handler pb.EgoServer) *Server {
 	httpServer := &http.Server{
 		Addr: ":" + cfg.WebPort,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Health check — for UptimeRobot / load balancer probes.
+			if r.URL.Path == "/health" {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"status":"ok"}`))
+				return
+			}
+
+			// Prometheus metrics endpoint.
+			if r.URL.Path == "/metrics" {
+				promhttp.Handler().ServeHTTP(w, r)
+				return
+			}
+
 			if wrapped.IsGrpcWebRequest(r) || wrapped.IsAcceptableGrpcCorsRequest(r) {
 				wrapped.ServeHTTP(w, r)
 				return
@@ -54,12 +72,48 @@ func NewServer(cfg *config.Config, p *Platform, handler pb.EgoServer) *Server {
 		}),
 	}
 
+	// Wrap with Prometheus HTTP metrics middleware.
+	// Save the inner handler before wrapping to avoid infinite recursion.
+	innerHandler := httpServer.Handler
+	httpServer.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/metrics" || r.URL.Path == "/health" {
+			innerHandler.ServeHTTP(w, r)
+			return
+		}
+
+		metrics.HttpRequestsInFlight.Inc()
+		defer metrics.HttpRequestsInFlight.Dec()
+
+		start := time.Now()
+		rec := &statusRecorder{ResponseWriter: w, statusCode: http.StatusOK}
+		innerHandler.ServeHTTP(rec, r)
+
+		elapsed := time.Since(start).Seconds()
+		status := strconv.Itoa(rec.statusCode)
+		metrics.HttpRequestsTotal.WithLabelValues(r.Method, r.URL.Path, status).Inc()
+		metrics.HttpRequestDuration.WithLabelValues(r.Method, r.URL.Path).Observe(elapsed)
+	})
+
 	return &Server{
 		cfg:        cfg,
 		grpcServer: grpcServer,
 		httpServer: httpServer,
 		logger:     p.Logger,
 	}
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (r *statusRecorder) WriteHeader(code int) {
+	r.statusCode = code
+	r.ResponseWriter.WriteHeader(code)
+}
+
+func (r *statusRecorder) Unwrap() http.ResponseWriter {
+	return r.ResponseWriter
 }
 
 func (s *Server) Serve() error {

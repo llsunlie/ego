@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 func TestNew_JSON(t *testing.T) {
@@ -206,9 +208,9 @@ func TestResolveOutput_File(t *testing.T) {
 	}
 	// Write and verify the file was created.
 	_, _ = w.Write([]byte("hello\n"))
-	// Close if closable.
-	if f, ok := w.(*os.File); ok {
-		f.Close()
+	// Close the lumberjack logger so temp dir can be cleaned up.
+	if lj, ok := w.(*lumberjack.Logger); ok {
+		lj.Close()
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
