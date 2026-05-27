@@ -6,14 +6,12 @@
 #   .\start.ps1 -FrontendOnly      # start frontend only
 #   .\start.ps1 -SkipDockerCheck   # skip PostgreSQL Docker check
 #   .\start.ps1 -SkipBackendBuild  # skip Go build
-#   .\start.ps1 -FlutterPort 9099  # custom Flutter web-server port
 
 param(
     [switch] $BackendOnly,
     [switch] $FrontendOnly,
     [switch] $SkipDockerCheck,
-    [switch] $SkipBackendBuild,
-    [int] $FlutterPort = 9081
+    [switch] $SkipBackendBuild
 )
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -21,7 +19,6 @@ $grpcPort = if ($env:PORT) { $env:PORT } else { "9443" }
 $webPort  = if ($env:WEB_PORT) { $env:WEB_PORT } else { "9080" }
 
 $bkProc = $null
-$flProc = $null
 
 function Write-Step($text) {
     Write-Host "`n=== $text ==="
@@ -32,10 +29,6 @@ function Cleanup {
     if ($bkProc -and -not $bkProc.HasExited) {
         Write-Host "  stopping backend (PID $($bkProc.Id))..."
         & taskkill /F /PID $bkProc.Id 2>$null | Out-Null
-    }
-    if ($flProc -and -not $flProc.HasExited) {
-        Write-Host "  stopping Flutter (PID $($flProc.Id))..."
-        & taskkill /F /T /PID $flProc.Id 2>$null | Out-Null
     }
     Write-Host "  done"
 }
@@ -78,7 +71,30 @@ if (-not $SkipDockerCheck -and -not $FrontendOnly) {
     if (-not $pgReady) { Write-Host "[WARN] PostgreSQL may not be ready yet..." }
 }
 
-# 2. Backend
+# 2. Frontend web build (before backend, so WEB_DIR is set for backend process)
+if (-not $BackendOnly) {
+    Write-Step "Flutter web build"
+
+    Push-Location "$root/client"
+    flutter pub get 2>&1 | Out-Null
+
+    Write-Host "  building web (release)..."
+    $buildOut = flutter build web 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERROR] flutter build web failed:`n$buildOut"
+        Pop-Location
+        exit 1
+    }
+    Write-Host "  build ok"
+
+    $webDir = "$root/client/build/web"
+    Pop-Location
+
+    Write-Host "  backend will serve static files from client/build/web"
+    $env:WEB_DIR = $webDir
+}
+
+# 3. Backend
 if (-not $FrontendOnly) {
     Write-Step "killing old backend (ports $grpcPort $webPort)"
     $pids = netstat -ano 2>$null |
@@ -146,76 +162,19 @@ if (-not $FrontendOnly) {
     }
 }
 
-# 3. Frontend (Flutter web-server)
-if (-not $BackendOnly) {
-    Write-Step "Flutter web-server"
-
-    # Kill old Flutter on our port
-    $oldPids = netstat -ano 2>$null |
-        Select-String ":${FlutterPort} " |
-        Select-String "LISTENING" |
-        ForEach-Object { (-split $_)[-1] } |
-        Sort-Object -Unique
-    if ($oldPids) {
-        foreach ($p in $oldPids) {
-            & taskkill /F /PID $p 2>$null | Out-Null
-            Write-Host "  killed old Flutter PID $p"
-        }
-        Start-Sleep -Seconds 0.5
-    }
-
-    Push-Location "$root/client"
-    flutter pub get 2>&1 | Out-Null
-
-    Write-Host "  starting Flutter web-server on port $FlutterPort..."
-    $flProc = Start-Process -FilePath "flutter" `
-        -ArgumentList "run", "-d", "web-server", "--web-port", $FlutterPort, "--web-hostname", "0.0.0.0" `
-        -PassThru `
-        -NoNewWindow
-
-    # health check
-    $flReady = $false
-    for ($i = 0; $i -lt 60; $i++) {
-        try {
-            $null = Invoke-WebRequest -Uri "http://localhost:${FlutterPort}" -UseBasicParsing -TimeoutSec 1
-            $flReady = $true
-            break
-        }
-        catch { }
-        Start-Sleep -Seconds 1
-    }
-
-    if (-not $flReady) {
-        Write-Host "[WARN] Flutter may still be building... check http://localhost:${FlutterPort}"
-
-    }
-
-    Pop-Location
-
-    # banner
+# 4. Banner + wait
+if (-not $FrontendOnly) {
     Write-Host ""
     Write-Host "                                                       "
     Write-Host "  ego dev server running                               "
     Write-Host ""
-    Write-Host "   Web UI:   http://localhost:${FlutterPort}" -ForegroundColor Green
+    if (-not $BackendOnly) {
+        Write-Host "   Web UI:   http://localhost:${webPort}" -ForegroundColor Green
+    }
     Write-Host "   gRPC:     localhost:${grpcPort}"
     Write-Host "   gRPC-web: localhost:${webPort}"
     Write-Host "   Adminer:  http://localhost:10081"
     Write-Host ""
-
-    try {
-        $flProc.WaitForExit()
-    }
-    catch {
-        Write-Host "  frontend stopped"
-    }
-}
-
-# 4. Backend-only: wait
-if ($BackendOnly) {
-    Write-Host ""
-    Write-Host "  backend running: gRPC :${grpcPort}  gRPC-web :${webPort}" -ForegroundColor Green
-    Write-Host "   Adminer:  http://localhost:10081"
     Write-Host "  Press Ctrl+C to stop..."
     try { $bkProc.WaitForExit() } catch {}
 }

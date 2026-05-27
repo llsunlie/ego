@@ -31,16 +31,59 @@
 
   <title>ego</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    #ego-loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #0f172a;
+      z-index: 9999;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    #ego-loading .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255,255,255,0.15);
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      animation: ego-spin 0.8s linear infinite;
+    }
+    @keyframes ego-spin {
+      to { transform: rotate(360deg); }
+    }
+    #ego-loading .text {
+      margin-top: 16px;
+      color: rgba(255,255,255,0.5);
+      font-size: 14px;
+      letter-spacing: 0.05em;
+    }
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
-
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+  <div id="ego-loading">
+    <div class="spinner"></div>
+    <div class="text">ego</div>
+  </div>
   <script src="flutter_bootstrap.js" async></script>
+  <script>
+    // 当 Flutter 渲染出第一个元素后移除 loading 指示器
+    var observer = new MutationObserver(function(mutations, obs) {
+      if (document.querySelector('flt-glass-pane, flt-scene, flutter-view')) {
+        var el = document.getElementById('ego-loading');
+        if (el) el.remove();
+        obs.disconnect();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    // 兜底：15 秒后渐隐，避免一直卡在 loading
+    setTimeout(function() {
+      var el = document.getElementById('ego-loading');
+      if (el) { el.style.opacity = '0'; el.style.pointerEvents = 'none'; }
+      observer.disconnect();
+    }, 15000);
+  </script>
 </body>
 </html>
