@@ -5,10 +5,13 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/exp/zapslog"
 	"go.uber.org/zap/zapcore"
+
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 type Config struct {
@@ -50,11 +53,17 @@ func resolveOutput(path string) (io.Writer, error) {
 	case "stderr":
 		return os.Stderr, nil
 	default:
-		f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 			return nil, fmt.Errorf("log output: %w", err)
 		}
-		return f, nil
+		return &lumberjack.Logger{
+			Filename:   path,
+			MaxSize:    100, // MB before rotation
+			MaxBackups: 30,  // keep at most 30 old files
+			MaxAge:     30,  // days to retain old logs
+			Compress:   true,
+			LocalTime:  true,
+		}, nil
 	}
 }
 

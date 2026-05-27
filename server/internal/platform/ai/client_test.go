@@ -7,6 +7,7 @@ import (
 
 	"ego-server/internal/config"
 	"ego-server/internal/platform/ai"
+	"ego-server/internal/platform/logging"
 )
 
 func newTestClient(t *testing.T) *ai.Client {
@@ -29,7 +30,7 @@ func newTestClient(t *testing.T) *ai.Client {
 		ChatAPIKey:       apiKey,
 		ChatBaseURL:      baseURL,
 		ChatModel:        envOrDefault("AI_CHAT_MODEL", "deepseek-ai/DeepSeek-V3"),
-	})
+	}, logging.NewNop())
 }
 
 func envOrDefault(key, fallback string) string {

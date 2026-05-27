@@ -10,6 +10,7 @@ import (
 
 	"ego-server/internal/config"
 	"ego-server/internal/platform/ai"
+	"ego-server/internal/platform/logging"
 )
 
 // =========================================================================
@@ -66,7 +67,7 @@ func loadEnvAndClient(t *testing.T) *ai.Client {
 		ChatAPIKey:       apiKey,
 		ChatBaseURL:      baseURL,
 		ChatModel:        envOrDefault("AI_CHAT_MODEL", "deepseek-ai/DeepSeek-V3"),
-	})
+	}, logging.NewNop())
 }
 
 // embedAll returns embeddings for a slice of texts.

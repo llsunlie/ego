@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	platformai "ego-server/internal/platform/ai"
+	"ego-server/internal/platform/logging"
 )
 
 func newTestClient(t *testing.T, handler http.HandlerFunc) *platformai.Client {
@@ -21,7 +22,7 @@ func newTestClient(t *testing.T, handler http.HandlerFunc) *platformai.Client {
 		ChatBaseURL:      srv.URL,
 		ChatAPIKey:       "test-key",
 		ChatModel:        "test-chat-model",
-	})
+	}, logging.NewNop())
 }
 
 func TestEmbedder_Generate_Success(t *testing.T) {

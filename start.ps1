@@ -6,12 +6,14 @@
 #   .\start.ps1 -FrontendOnly      # start frontend only
 #   .\start.ps1 -SkipDockerCheck   # skip PostgreSQL Docker check
 #   .\start.ps1 -SkipBackendBuild  # skip Go build
+#   .\start.ps1 -WithMonitoring     # also start Prometheus/Grafana/Loki
 
 param(
     [switch] $BackendOnly,
     [switch] $FrontendOnly,
     [switch] $SkipDockerCheck,
-    [switch] $SkipBackendBuild
+    [switch] $SkipBackendBuild,
+    [switch] $WithMonitoring
 )
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -71,7 +73,16 @@ if (-not $SkipDockerCheck -and -not $FrontendOnly) {
     if (-not $pgReady) { Write-Host "[WARN] PostgreSQL may not be ready yet..." }
 }
 
-# 2. Frontend web build (before backend, so WEB_DIR is set for backend process)
+# 2. Monitoring stack (optional)
+if ($WithMonitoring -and -not $FrontendOnly) {
+    Write-Step "monitoring stack"
+    & "$root/restart-monitoring.ps1"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[WARN] monitoring stack failed to start, continuing without it"
+    }
+}
+
+# 3. Frontend web build
 if (-not $BackendOnly) {
     Write-Step "Flutter web build"
 
@@ -94,7 +105,7 @@ if (-not $BackendOnly) {
     $env:WEB_DIR = $webDir
 }
 
-# 3. Backend
+# 4. Backend
 if (-not $FrontendOnly) {
     Write-Step "killing old backend (ports $grpcPort $webPort)"
     $pids = netstat -ano 2>$null |
@@ -162,7 +173,7 @@ if (-not $FrontendOnly) {
     }
 }
 
-# 4. Banner + wait
+# 5. Banner + wait
 if (-not $FrontendOnly) {
     Write-Host ""
     Write-Host "                                                       "
@@ -174,6 +185,11 @@ if (-not $FrontendOnly) {
     Write-Host "   gRPC:     localhost:${grpcPort}"
     Write-Host "   gRPC-web: localhost:${webPort}"
     Write-Host "   Adminer:  http://localhost:10081"
+    if ($WithMonitoring) {
+        Write-Host "   Grafana:    http://localhost:3200  (admin/admin)"
+        Write-Host "   Prometheus: http://localhost:9090"
+        Write-Host "   Loki:       http://localhost:3100"
+    }
     Write-Host ""
     Write-Host "  Press Ctrl+C to stop..."
     try { $bkProc.WaitForExit() } catch {}

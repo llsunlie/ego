@@ -55,7 +55,7 @@ func InitPlatform(cfg *config.Config) (*Platform, error) {
 		ChatAPIKey:       cfg.AIChatAPIKey,
 		ChatBaseURL:      cfg.AIChatBaseURL,
 		ChatModel:        cfg.AIChatModel,
-	})
+	}, logger)
 
 	return &Platform{
 		Pool:     pool,
