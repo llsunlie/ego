@@ -70,4 +70,4 @@ flutter:
   fonts:
     - family: NotoSansSC
       fonts:
-        - asset: fonts/NotoSansSC-Regular.ttf
+        - asset: fonts/NotoSansSC-Regular.woff2
