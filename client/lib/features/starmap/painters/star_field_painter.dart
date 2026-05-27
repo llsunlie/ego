@@ -59,6 +59,7 @@ class StarFieldPainter extends CustomPainter {
       } else {
         _drawLone(canvas, pc);
       }
+      _drawLabel(canvas, pc);
     }
   }
 
@@ -111,6 +112,46 @@ class StarFieldPainter extends CustomPainter {
     final brightPaint = Paint()
       ..color = Colors.white.withValues(alpha: alpha * 0.6);
     canvas.drawCircle(pos, _fr * scale * 0.4, brightPaint);
+  }
+
+  // ─── Label (shared) ──────────────────────────────
+
+  void _drawLabel(Canvas canvas, PlacedConstellation pc) {
+    final nameAlpha = 0.6 + 0.15 * sin(time * 0.8 + pc.twinklePhase);
+    final labelBgPaint = Paint()
+      ..color = const Color(0xBF19160F);
+    final labelBorderPaint = Paint()
+      ..color = const Color(0x1FFDC96)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.5;
+
+    final tp = TextPainter(
+      text: TextSpan(
+        text: pc.constellation.name,
+        style: TextStyle(
+          color: const Color(0xFFD4B88A).withValues(alpha: nameAlpha),
+          fontSize: 11 / zoomScale.clamp(0.6, 1.5),
+          fontWeight: FontWeight.w400,
+        ),
+      ),
+      textDirection: ui.TextDirection.ltr,
+    )..layout(maxWidth: 200);
+
+    final sc = _s(pc.center);
+    final labelRect = RRect.fromRectAndRadius(
+      Rect.fromCenter(
+        center: Offset(sc.dx, sc.dy + _sd(22 / zoomScale)),
+        width: tp.width + 24,
+        height: tp.height + 10,
+      ),
+      const Radius.circular(14),
+    );
+    canvas.drawRRect(labelRect, labelBgPaint);
+    canvas.drawRRect(labelRect, labelBorderPaint);
+    tp.paint(
+      canvas,
+      Offset(sc.dx - tp.width / 2, sc.dy + _sd(22 / zoomScale) - tp.height / 2),
+    );
   }
 
   // ─── Forming (2 stars) ───────────────────────────
@@ -182,41 +223,6 @@ class StarFieldPainter extends CustomPainter {
       canvas.drawCircle(pos, _sr * scale * 0.35, brightPaint);
     }
 
-    final nameAlpha = 0.6 + 0.15 * sin(time * 0.8 + pc.twinklePhase);
-    final labelBgPaint = Paint()
-      ..color = const Color(0xBF19160F);
-    final labelBorderPaint = Paint()
-      ..color = const Color(0x1FFDC96)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.5;
-
-    final tp = TextPainter(
-      text: TextSpan(
-        text: pc.constellation.name,
-        style: TextStyle(
-          color: const Color(0xFFD4B88A).withValues(alpha: nameAlpha),
-          fontSize: 11 / zoomScale.clamp(0.6, 1.5),
-          fontWeight: FontWeight.w400,
-        ),
-      ),
-      textDirection: ui.TextDirection.ltr,
-    )..layout(maxWidth: 200);
-
-    final sc = _s(pc.center);
-    final labelRect = RRect.fromRectAndRadius(
-      Rect.fromCenter(
-        center: Offset(sc.dx, sc.dy + _sd(22 / zoomScale)),
-        width: tp.width + 24,
-        height: tp.height + 10,
-      ),
-      const Radius.circular(14),
-    );
-    canvas.drawRRect(labelRect, labelBgPaint);
-    canvas.drawRRect(labelRect, labelBorderPaint);
-    tp.paint(
-      canvas,
-      Offset(sc.dx - tp.width / 2, sc.dy + _sd(22 / zoomScale) - tp.height / 2),
-    );
   }
 
   void _drawConnectionLines(Canvas canvas, PlacedConstellation pc) {
