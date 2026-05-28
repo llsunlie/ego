@@ -15,6 +15,9 @@
 5. **CustomPainter/Overlay 字体**：`TextPainter` 和 `showDialog` 内需显式指定字体
 6. **Flutter build -O4**：最高 JS 优化 + `--no-source-maps`
 7. **服务端 Gzip**：`http.FileServer` + gziphandler，main.dart.js 传输 ~1MB
+8. **字体并行加载**：`<link rel="preload" as="fetch" crossorigin="anonymous">`，CanvasKit 用 fetch 而非 @font-face 加载字体，as=fetch 匹配加载路径，字体与 JS 并行下载
+9. **字体 Preload 无效**：~~`<link rel="preload">`~~ as=font 对 CanvasKit 无效，已移除
+10. **Wasm 编译无效**：~~`--wasm`~~ 运行时崩溃，grpc-web 等依赖暂不兼容
 
 ## 效果
 
