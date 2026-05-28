@@ -542,6 +542,8 @@ class _PrimaryButton extends StatelessWidget {
           fontSize: 15,
           fontWeight: FontWeight.w500,
           letterSpacing: 2,
+          fontFamily: 'NotoSansSC',
+          fontFamilyFallback: ['NotoSansSymbols2'],
         ),
       ),
       child: Text(label),

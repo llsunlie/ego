@@ -79,18 +79,22 @@ fi
 log "backend ready  gRPC :${GRPC_PORT}  gRPC-web :${WEB_PORT}"
 
 # ---------- flutter web ----------
-log "starting flutter web-server..."
+log "building flutter web (release)..."
 cd "$ROOT/client"
-flutter run -d web-server --web-port "$FLUTTER_PORT" --web-hostname 0.0.0.0 &
+flutter build web --release --base-href /
+
+log "starting web server..."
+cd "$ROOT/client/build/web"
+python3 -m http.server "$FLUTTER_PORT" --bind 0.0.0.0 &
 FLUTTER_PID=$!
 
-for i in $(seq 1 30); do
+for i in $(seq 1 10); do
     if curl -s -o /dev/null "http://localhost:${FLUTTER_PORT}" 2>/dev/null; then break; fi
     sleep 1
 done
 
 if ! curl -s -o /dev/null "http://localhost:${FLUTTER_PORT}" 2>/dev/null; then
-    err "flutter web-server failed to start on :$FLUTTER_PORT"
+    err "web server failed to start on :$FLUTTER_PORT"
     exit 1
 fi
 log "flutter ready  http://localhost:${FLUTTER_PORT}"

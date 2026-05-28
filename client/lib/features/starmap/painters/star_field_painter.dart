@@ -129,6 +129,8 @@ class StarFieldPainter extends CustomPainter {
       text: TextSpan(
         text: pc.constellation.name,
         style: TextStyle(
+          fontFamily: 'NotoSansSC',
+          fontFamilyFallback: const ['NotoSansSymbols2'],
           color: const Color(0xFFD4B88A).withValues(alpha: nameAlpha),
           fontSize: 11 / zoomScale.clamp(0.6, 1.5),
           fontWeight: FontWeight.w400,

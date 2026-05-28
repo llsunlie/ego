@@ -67,7 +67,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: Image.asset(
-                    'ego-logo.png',
+                    'ego-logo.webp',
                     fit: BoxFit.cover,
                   ),
                 ),

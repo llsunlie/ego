@@ -59,7 +59,7 @@ flutter:
   uses-material-design: true
 
   assets:
-    - ego-logo.png
+    - ego-logo.webp
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
@@ -70,4 +70,7 @@ flutter:
   fonts:
     - family: NotoSansSC
       fonts:
-        - asset: fonts/NotoSansSC-Regular.woff2
+        - asset: fonts/noto-sans-sc-v40-chinese-simplified-regular.woff2
+    - family: NotoSansSymbols2
+      fonts:
+        - asset: fonts/noto-sans-symbols-2-v25-symbols-regular.woff2
