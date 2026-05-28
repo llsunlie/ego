@@ -81,7 +81,7 @@ log "backend ready  gRPC :${GRPC_PORT}  gRPC-web :${WEB_PORT}"
 # ---------- flutter web ----------
 log "building flutter web (release)..."
 cd "$ROOT/client"
-flutter build web --release --base-href /
+flutter build web --release -O4 --no-source-maps --base-href /
 
 log "starting web server..."
 cd "$ROOT/client/build/web"

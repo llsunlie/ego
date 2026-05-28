@@ -11,6 +11,7 @@ import (
 	"ego-server/internal/platform/auth"
 	"ego-server/internal/platform/metrics"
 
+	"github.com/NYTimes/gziphandler"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
@@ -71,6 +72,9 @@ func NewServer(cfg *config.Config, p *Platform, handler pb.EgoServer) *Server {
 			w.WriteHeader(http.StatusOK)
 		}),
 	}
+
+	// Wrap with gzip compression for static assets (JS, CSS, HTML).
+	httpServer.Handler = gziphandler.GzipHandler(httpServer.Handler)
 
 	// Wrap with Prometheus HTTP metrics middleware.
 	// Save the inner handler before wrapping to avoid infinite recursion.
