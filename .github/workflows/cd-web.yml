@@ -27,7 +27,7 @@ jobs:
 
       # 构建 Web 产物，注入腾讯云 IP
       - name: build web
-        run: cd client && flutter build web --release --base-href / --dart-define=SERVER_HOST=${{ secrets.TENCENT_HOST }}
+        run: cd client && flutter build web --release -O4 --no-source-maps --base-href / --dart-define=SERVER_HOST=${{ secrets.TENCENT_HOST }}
 
       # SCP 上传产物内容（使用 tar 避免深层目录结构）
       - name: scp web
