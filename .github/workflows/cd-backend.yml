@@ -119,8 +119,8 @@ jobs:
             # 启动所有服务（PostgreSQL + Adminer + Monitoring stack）
             docker compose -f "$DEPLOY/docker-compose.yml" up -d
 
-            # 等待 PostgreSQL 就绪
-            until docker compose -f "$DEPLOY/docker-compose.yml" exec -T postgres pg_isready -U ego; do
+            # 等待 PostgreSQL 就绪（包括 ego 数据库创建完成）
+            until docker compose -f "$DEPLOY/docker-compose.yml" exec -T postgres psql -U ego -d ego -c 'SELECT 1' > /dev/null 2>&1; do
               echo "waiting for postgres..."
               sleep 1
             done
