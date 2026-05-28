@@ -4,6 +4,7 @@ import 'colors.dart';
 ThemeData darkTheme() {
   return ThemeData(
     fontFamily: 'NotoSansSC',
+    fontFamilyFallback: const ['NotoSansSymbols2'],
     brightness: Brightness.dark,
     scaffoldBackgroundColor: AppColors.darkBg,
     colorScheme: ColorScheme.dark(
