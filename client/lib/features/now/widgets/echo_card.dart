@@ -388,48 +388,66 @@ class _EchoActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final buttonStyle = ElevatedButton.styleFrom(
+      backgroundColor: AppColors.gold.withValues(alpha: 0.12),
+      foregroundColor: AppColors.warmGold,
+      padding: const EdgeInsets.symmetric(vertical: 13),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(26),
+        side: BorderSide(
+          color: AppColors.gold.withValues(alpha: 0.35),
+        ),
+      ),
+      textStyle: const TextStyle(
+        fontFamily: 'NotoSansSC',
+        fontFamilyFallback: ['NotoSansSymbols2'],
+      ),
+    );
+
     return Column(
       children: [
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: onContinue,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.gold.withValues(alpha: 0.12),
-              foregroundColor: AppColors.warmGold,
-              padding: const EdgeInsets.symmetric(vertical: 13),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(26),
-                side: BorderSide(
-                  color: AppColors.gold.withValues(alpha: 0.35),
+        Row(
+          children: [
+            Expanded(
+              flex: 5,
+              child: ElevatedButton(
+                onPressed: onContinue,
+                style: buttonStyle.copyWith(
+                  textStyle: WidgetStateProperty.all(
+                    const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w300,
+                      letterSpacing: 1,
+                      fontFamily: 'NotoSansSC',
+                      fontFamilyFallback: ['NotoSansSymbols2'],
+                    ),
+                  ),
                 ),
-              ),
-              textStyle: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w300,
-                letterSpacing: 1,
-                fontFamily: 'NotoSansSC',
-                fontFamilyFallback: ['NotoSansSymbols2'],
+                child: const Text('顺着再想想'),
               ),
             ),
-            child: const Text('顺着再想想'),
-          ),
+            const SizedBox(width: 10),
+            Expanded(
+              flex: 5,
+              child: ElevatedButton(
+                onPressed: onStash,
+                style: buttonStyle.copyWith(
+                  textStyle: WidgetStateProperty.all(
+                    const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w300,
+                      letterSpacing: 1,
+                      fontFamily: 'NotoSansSC',
+                      fontFamilyFallback: ['NotoSansSymbols2'],
+                    ),
+                  ),
+                ),
+                child: const Text('✦ 收进星图'),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 14),
-        TextButton(
-          onPressed: onStash,
-          style: TextButton.styleFrom(
-            foregroundColor: const Color(0xFFA8A8C0),
-            textStyle: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w300,
-              letterSpacing: 1.5,
-              fontFamily: 'NotoSansSC',
-              fontFamilyFallback: ['NotoSansSymbols2'],
-            ),
-          ),
-          child: const Text('✦ 收进星图'),
-        ),
         TextButton(
           onPressed: onDismiss,
           style: TextButton.styleFrom(

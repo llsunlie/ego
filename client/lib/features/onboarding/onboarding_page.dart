@@ -90,13 +90,13 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
           onLike: _likeDiary,
         ),
       3 => _StepInsight(
-          data: onboardingData[_feelingIdx],
-          onContinue: _toPreview,
-        ),
+        data: onboardingData[_feelingIdx],
+        onContinue: _toPreview,
+      ),
       4 => _StepPreview(
-          controller: _previewCtrl,
-          onFinish: _finish,
-        ),
+        controller: _previewCtrl,
+        onFinish: _finish,
+      ),
       _ => const SizedBox.shrink(),
     };
   }
@@ -306,14 +306,23 @@ class _StepDiary extends StatelessWidget {
 
 // ─── Step 3: Insight + Respond ────────────────────────────────
 
-class _StepInsight extends StatelessWidget {
+class _StepInsight extends StatefulWidget {
   final OnboardingGroup data;
   final VoidCallback onContinue;
 
   const _StepInsight({required this.data, required this.onContinue});
 
   @override
+  State<_StepInsight> createState() => _StepInsightState();
+}
+
+class _StepInsightState extends State<_StepInsight> {
+  bool _showTip = false;
+  bool _showTipContent = false;
+
+  @override
   Widget build(BuildContext context) {
+    final data = widget.data;
     return SingleChildScrollView(
       key: const ValueKey('insight'),
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -415,20 +424,59 @@ class _StepInsight extends StatelessWidget {
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
-            child: _GhostButton(
-              label: '继续',
-              primary: true,
-              onTap: onContinue,
-              expand: true,
+            child: _OutlineButton(
+              label: '✦ 收进星图',
+              onTap: () {
+                setState(() => _showTip = true);
+                Future.delayed(
+                  const Duration(milliseconds: 500),
+                  () => mounted ? setState(() => _showTipContent = true) : null,
+                );
+              },
             ),
           ),
+          if (_showTip) ...[
+            const _ConnectorLine(show: true),
+            AnimatedOpacity(
+              duration: const Duration(milliseconds: 500),
+              opacity: _showTipContent ? 1.0 : 0.0,
+              child: Column(
+                children: [
+                  const Text(
+                    '✦',
+                    style: TextStyle(fontSize: 28, color: Color(0xFFCCA880)),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    '点击收进星图，ego会慢慢更了解你，你还可以在星图里和过去写下记录的自己对话',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFFD8D8E8),
+                      height: 1.7,
+                      fontFamily: 'NotoSansSC',
+                      fontFamilyFallback: ['NotoSansSymbols2'],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: _OutlineButton(
+                      label: '开始体验',
+                      onTap: widget.onContinue,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-// ─── Step 4: Preview ───────────────────────────────────────────
+// ─── Step 5: Preview ───────────────────────────────────────────
 
 class _StepPreview extends StatefulWidget {
   final AnimationController controller;
@@ -451,7 +499,6 @@ class _StepPreviewState extends State<_StepPreview> {
   }
 
   void _onTick() {
-    // Show button after all 7 lines have appeared (~13.5s / 16s = 0.84)
     if (widget.controller.value > 0.84 && !_showButton) {
       setState(() => _showButton = true);
     }
@@ -476,7 +523,7 @@ class _StepPreviewState extends State<_StepPreview> {
             children: [
               ...List.generate(onboardingPreviewLines.length, (i) {
                 final start = i * 1.8 / 16.0;
-                final end = start + 0.2; // 0.2 = fade-in duration
+                final end = start + 0.2;
                 final t = widget.controller.value;
                 final appear = t < start
                     ? 0.0
@@ -642,6 +689,62 @@ class _DiaryCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _OutlineButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _OutlineButton({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      onPressed: onTap,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.gold.withValues(alpha: 0.12),
+        foregroundColor: AppColors.warmGold,
+        padding: const EdgeInsets.symmetric(vertical: 13),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(26),
+          side: BorderSide(
+            color: AppColors.gold.withValues(alpha: 0.35),
+          ),
+        ),
+        textStyle: const TextStyle(
+          fontFamily: 'NotoSansSC',
+          fontFamilyFallback: ['NotoSansSymbols2'],
+        ),
+      ),
+      child: Text(label),
+    );
+  }
+}
+
+class _ConnectorLine extends StatelessWidget {
+  final bool show;
+  const _ConnectorLine({required this.show});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 1,
+      height: 48,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.transparent,
+              AppColors.gold.withValues(alpha: 0.6),
+              Colors.transparent,
+            ],
+          ),
+        ),
       ),
     );
   }
