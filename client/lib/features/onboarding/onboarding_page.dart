@@ -602,13 +602,11 @@ class _GhostButton extends StatelessWidget {
   final String label;
   final bool primary;
   final VoidCallback onTap;
-  final bool expand;
 
   const _GhostButton({
     required this.label,
     this.primary = false,
     required this.onTap,
-    this.expand = false,
   });
 
   @override
@@ -619,9 +617,7 @@ class _GhostButton extends StatelessWidget {
     final textColor =
         primary ? AppColors.warmGold : const Color(0xFF8B8B9E);
 
-    return SizedBox(
-      width: expand ? double.infinity : null,
-      child: TextButton(
+    return TextButton(
         onPressed: onTap,
         style: TextButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -639,8 +635,7 @@ class _GhostButton extends StatelessWidget {
             letterSpacing: 1,
           ),
         ),
-      ),
-    );
+      );
   }
 }
 
