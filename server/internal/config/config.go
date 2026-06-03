@@ -21,11 +21,13 @@ type Config struct {
 	AIAPIKey              string
 	AIBaseURL             string
 	AIEmbeddingModel      string
+	AIEmbeddingDim        string
 	AIEmbeddingAPIKey     string
 	AIEmbeddingBaseURL    string
 	AIChatModel           string
 	AIChatAPIKey          string
 	AIChatBaseURL         string
+	EchoRecallTopK        string
 	AliyunAccessKeyID     string
 	AliyunAccessKeySecret string
 	AliyunSmsSignName     string
@@ -64,11 +66,13 @@ func Load() *Config {
 		AIAPIKey:              os.Getenv("AI_API_KEY"),
 		AIBaseURL:             os.Getenv("AI_BASE_URL"),
 		AIEmbeddingModel:      os.Getenv("AI_EMBEDDING_MODEL"),
+		AIEmbeddingDim:        getEnvDefault("AI_EMBEDDING_DIM", "4096"),
 		AIEmbeddingAPIKey:     getEnvWithFallback("AI_EMBEDDING_API_KEY", "AI_API_KEY"),
 		AIEmbeddingBaseURL:    getEnvWithFallback("AI_EMBEDDING_BASE_URL", "AI_BASE_URL"),
 		AIChatModel:           os.Getenv("AI_CHAT_MODEL"),
 		AIChatAPIKey:          getEnvWithFallback("AI_CHAT_API_KEY", "AI_API_KEY"),
 		AIChatBaseURL:         getEnvWithFallback("AI_CHAT_BASE_URL", "AI_BASE_URL"),
+		EchoRecallTopK:        getEnvDefault("ECHO_RECALL_TOP_K", "10"),
 		AliyunAccessKeyID:     os.Getenv("ALIYUN_ACCESS_KEY_ID"),
 		AliyunAccessKeySecret: os.Getenv("ALIYUN_ACCESS_KEY_SECRET"),
 		AliyunSmsSignName:     os.Getenv("ALIYUN_SMS_SIGN_NAME"),
@@ -78,6 +82,13 @@ func Load() *Config {
 		AliyunSmsInterval:     os.Getenv("ALIYUN_SMS_INTERVAL"),
 		TLSDomain:             os.Getenv("TLS_DOMAIN"),
 	}
+}
+
+func getEnvDefault(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }
 
 // loadEnvFile searches upward from the current working directory for a

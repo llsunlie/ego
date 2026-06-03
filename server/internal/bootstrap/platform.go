@@ -17,14 +17,16 @@ import (
 )
 
 type Platform struct {
-	Pool       *pgxpool.Pool
-	JWTKey     []byte
-	JWTExp     time.Duration
-	Hasher     auth.BcryptHasher
-	Tokens     auth.JWTIssuer
-	Logger     *slog.Logger
-	AIClient   *ai.Client
-	SmsService *sms.AliyunSmsService
+	Pool           *pgxpool.Pool
+	JWTKey         []byte
+	JWTExp         time.Duration
+	Hasher         auth.BcryptHasher
+	Tokens         auth.JWTIssuer
+	Logger         *slog.Logger
+	AIClient       *ai.Client
+	SmsService     *sms.AliyunSmsService
+	AIEmbeddingDim int
+	EchoRecallTopK int32
 }
 
 func InitPlatform(cfg *config.Config) (*Platform, error) {
@@ -49,6 +51,16 @@ func InitPlatform(cfg *config.Config) (*Platform, error) {
 		return nil, fmt.Errorf("invalid JWT_EXP_HOURS: %w", err)
 	}
 	jwtExp := time.Duration(expHours) * time.Hour
+	embeddingDim, err := strconv.Atoi(cfg.AIEmbeddingDim)
+	if err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("invalid AI_EMBEDDING_DIM: %w", err)
+	}
+	echoRecallTopK, err := strconv.Atoi(cfg.EchoRecallTopK)
+	if err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("invalid ECHO_RECALL_TOP_K: %w", err)
+	}
 
 	aiClient := ai.NewClient(ai.Config{
 		EmbeddingAPIKey:  cfg.AIEmbeddingAPIKey,
@@ -59,15 +71,23 @@ func InitPlatform(cfg *config.Config) (*Platform, error) {
 		ChatModel:        cfg.AIChatModel,
 	}, logger)
 
+	logger.Debug("platform config parsed",
+		"ai_embedding_model", cfg.AIEmbeddingModel,
+		"ai_embedding_dim", embeddingDim,
+		"echo_recall_top_k", echoRecallTopK,
+	)
+
 	return &Platform{
-		Pool:       pool,
-		JWTKey:     jwtKey,
-		JWTExp:     jwtExp,
-		Hasher:     auth.BcryptHasher{},
-		Tokens:     auth.JWTIssuer{Secret: jwtKey, Exp: jwtExp},
-		Logger:     logger,
-		AIClient:   aiClient,
-		SmsService: newSmsService(cfg, pool),
+		Pool:           pool,
+		JWTKey:         jwtKey,
+		JWTExp:         jwtExp,
+		Hasher:         auth.BcryptHasher{},
+		Tokens:         auth.JWTIssuer{Secret: jwtKey, Exp: jwtExp},
+		Logger:         logger,
+		AIClient:       aiClient,
+		SmsService:     newSmsService(cfg, pool),
+		AIEmbeddingDim: embeddingDim,
+		EchoRecallTopK: int32(echoRecallTopK),
 	}, nil
 }
 

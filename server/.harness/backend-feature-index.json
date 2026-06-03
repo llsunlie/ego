@@ -1,5 +1,20 @@
 {
-  "features": [],
+  "features": [
+    {
+      "id": "backend.echo_pgvector_recall_p1",
+      "title": "P1 Echo recall uses Platform pgvector storage and Writing candidate reader",
+      "status": "passing",
+      "modules": ["platform", "writing"],
+      "evidence": [
+        "server/internal/platform/postgres/migrations/010_moment_embedding_vectors.sql",
+        "server/internal/bootstrap/platform.go",
+        "server/internal/bootstrap/writing.go",
+        "server/internal/writing/module.go",
+        "server/internal/writing/app/create_moment.go",
+        "go test ./internal/writing/..."
+      ]
+    }
+  ],
   "notes": [
     "This file indexes backend cross-module features only.",
     "Module-local tasks belong in server/internal/{module}/.harness/feature_list.json."

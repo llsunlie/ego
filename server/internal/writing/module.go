@@ -13,8 +13,10 @@ import (
 // Deps contains process-level resources and external capabilities needed to
 // assemble the writing bounded context.
 type Deps struct {
-	DB       sqlc.DBTX
-	AIClient *platformai.Client
+	DB             sqlc.DBTX
+	AIClient       *platformai.Client
+	EmbeddingDim   int
+	EchoRecallTopK int32
 }
 
 // NewHandler wires the writing module's adapters and use cases.
@@ -22,7 +24,8 @@ func NewHandler(deps Deps) *writinggrpc.Handler {
 	queries := sqlc.New(deps.DB)
 
 	traceRepo := writingpostgres.NewTraceRepository(queries)
-	momentRepo := writingpostgres.NewMomentRepository(queries)
+	momentRepo := writingpostgres.NewMomentRepositoryWithVector(queries, deps.DB, deps.EmbeddingDim)
+	echoCandidateReader := writingpostgres.NewEchoCandidateReader(queries, deps.DB, deps.EmbeddingDim)
 	echoRepo := writingpostgres.NewEchoRepository(queries)
 	insightRepo := writingpostgres.NewInsightRepository(queries)
 	reader := writingpostgres.NewReader(queries)
@@ -32,10 +35,10 @@ func NewHandler(deps Deps) *writinggrpc.Handler {
 	echoMatcher := writingapp.NewDefaultEchoMatcher()
 	insightGenerator := writingai.NewInsightGenerator(deps.AIClient, momentRepo, echoRepo)
 
-	createMoment := writingapp.NewCreateMomentUseCase(
-		traceRepo, momentRepo, echoRepo,
-		embedder, echoMatcher,
-		ids,
+	createMoment := writingapp.NewCreateMomentUseCaseWithCandidates(
+		traceRepo, momentRepo, echoCandidateReader,
+		echoRepo, embedder, echoMatcher,
+		ids, deps.EchoRecallTopK,
 	)
 
 	generateInsight := writingapp.NewGenerateInsightUseCase(

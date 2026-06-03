@@ -1,6 +1,12 @@
 # platform Progress
 
-## Current State
+## Current State (2026-06-03)
+
+- Postgres vector support: P1 Echo recall adds migration `010_moment_embedding_vectors.sql`, enabling `vector`, creating `moment_embedding_vectors`, and adding HNSW cosine index for 4096-dim active Moment embeddings.
+- Config/bootstrap: platform config now exposes `AI_EMBEDDING_DIM` (default `4096`) and `ECHO_RECALL_TOP_K` (default `10`) so Writing can receive validated embedding dimension and recall limit from process-level bootstrap.
+- Startup debug logging records the parsed embedding model, embedding dimension, and Echo recall topK without exposing secrets.
+
+## Previous State
 
 - Auth: JWT primitives and gRPC interceptor implemented, tests passing.
 - Postgres: Docker Compose configured (pgvector/pgvector:pg16), volume fixed to managed Docker volume. Connection pool (`Connect()`) tested. Migrations applied. sqlc queries tested — 21 tests passing.

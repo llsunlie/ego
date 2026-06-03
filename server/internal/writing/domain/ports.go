@@ -18,6 +18,12 @@ type MomentRepository interface {
 	ListByUserID(ctx context.Context, userID string) ([]Moment, error)
 }
 
+// EchoCandidateReader returns a bounded set of historical Moments that are
+// nearest to the current Moment's content embedding.
+type EchoCandidateReader interface {
+	FindNearestMoments(ctx context.Context, userID string, currentMomentID string, model string, embedding []float32, limit int32) ([]Moment, error)
+}
+
 // MomentReader is the cross-module read-only contract for Moments.
 // Used by Timeline, Starmap, and Conversation modules.
 type MomentReader interface {

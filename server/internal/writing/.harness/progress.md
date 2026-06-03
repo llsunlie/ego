@@ -1,6 +1,23 @@
 # writing Progress
 
-## Current State (2026-05-10)
+## Current State (2026-06-03)
+
+P1 Echo recall efficiency optimization implemented. Writing now keeps `moments.embeddings` JSONB for long-term compatibility while dual-writing the active content embedding into `moment_embedding_vectors` for pgvector/HNSW topK recall. `CreateMomentUseCase` uses the `EchoCandidateReader` port as the primary candidate source; pgvector query errors surface directly and do not fall back to full user-history scans.
+
+Historical vector backfill is available through `server/cmd/backfill-moment-vectors`, using the active `AI_EMBEDDING_MODEL` and `AI_EMBEDDING_DIM` configuration. `ECHO_RECALL_TOP_K` is configurable and defaults to 10.
+
+Core P1 paths now include structured debug logs for vector dual-write, pgvector topK candidate recall, and historical vector backfill. Logs avoid raw content and embedding payloads, recording only ids, model, dimension, limits, counts, and elapsed time.
+
+### Test summary
+
+| Layer | Tests | Status |
+|---|---|---|
+| `app/` | CreateMoment candidate-reader tests and EchoMatcher threshold tests | All pass |
+| `adapter/postgres/` | vector literal validation | All pass |
+| `internal/writing/...` | module package tests | All pass |
+| `server ./...` | global package tests | Fails in unrelated `internal/conversation/adapter/ai` truncation test |
+
+## Previous State (2026-05-10)
 
 Writing module fully aligned with updated design docs (`docs/app/entity-relationships.md`, `docs/app/api.proto`). All unit tests and smoke tests pass. Build: `go build ./...` succeeds.
 

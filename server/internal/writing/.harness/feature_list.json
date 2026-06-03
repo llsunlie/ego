@@ -31,6 +31,19 @@
       "evidence": ["app/create_moment.go", "app/create_moment_test.go"]
     },
     {
+      "id": "writing.app.echo_pgvector_recall",
+      "title": "Use pgvector/HNSW topK recall as Echo candidate source",
+      "status": "passing",
+      "evidence": [
+        "app/create_moment.go",
+        "app/create_moment_test.go",
+        "adapter/postgres/echo_candidate_reader.go",
+        "adapter/postgres/vector_test.go",
+        "internal/platform/postgres/migrations/010_moment_embedding_vectors.sql",
+        "go test ./internal/writing/..."
+      ]
+    },
+    {
       "id": "writing.app.generate_insight",
       "title": "Implement GenerateInsight use case (generate current-session insight via AI)",
       "status": "passing",

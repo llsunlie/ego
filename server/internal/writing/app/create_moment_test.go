@@ -16,29 +16,51 @@ type mockTraceRepo struct {
 	deleteFn  func(ctx context.Context, id string) error
 }
 
-func (m *mockTraceRepo) Create(ctx context.Context, trace *domain.Trace) error { return m.createFn(ctx, trace) }
-func (m *mockTraceRepo) GetByID(ctx context.Context, id string) (*domain.Trace, error) { return m.getByIDFn(ctx, id) }
+func (m *mockTraceRepo) Create(ctx context.Context, trace *domain.Trace) error {
+	return m.createFn(ctx, trace)
+}
+func (m *mockTraceRepo) GetByID(ctx context.Context, id string) (*domain.Trace, error) {
+	return m.getByIDFn(ctx, id)
+}
 func (m *mockTraceRepo) Update(ctx context.Context, trace *domain.Trace) error { return nil }
 func (m *mockTraceRepo) Delete(ctx context.Context, id string) error           { return m.deleteFn(ctx, id) }
 
 type mockMomentRepo struct {
-	createFn       func(ctx context.Context, moment *domain.Moment) error
-	getByIDFn      func(ctx context.Context, id string) (*domain.Moment, error)
-	listByTraceFn  func(ctx context.Context, traceID string) ([]domain.Moment, error)
-	listByUserFn   func(ctx context.Context, userID string) ([]domain.Moment, error)
+	createFn      func(ctx context.Context, moment *domain.Moment) error
+	getByIDFn     func(ctx context.Context, id string) (*domain.Moment, error)
+	listByTraceFn func(ctx context.Context, traceID string) ([]domain.Moment, error)
+	listByUserFn  func(ctx context.Context, userID string) ([]domain.Moment, error)
 }
 
-func (m *mockMomentRepo) Create(ctx context.Context, moment *domain.Moment) error { return m.createFn(ctx, moment) }
-func (m *mockMomentRepo) GetByID(ctx context.Context, id string) (*domain.Moment, error) { return m.getByIDFn(ctx, id) }
-func (m *mockMomentRepo) ListByTraceID(ctx context.Context, traceID string) ([]domain.Moment, error) { return m.listByTraceFn(ctx, traceID) }
-func (m *mockMomentRepo) ListByUserID(ctx context.Context, userID string) ([]domain.Moment, error) { return m.listByUserFn(ctx, userID) }
+func (m *mockMomentRepo) Create(ctx context.Context, moment *domain.Moment) error {
+	return m.createFn(ctx, moment)
+}
+func (m *mockMomentRepo) GetByID(ctx context.Context, id string) (*domain.Moment, error) {
+	return m.getByIDFn(ctx, id)
+}
+func (m *mockMomentRepo) ListByTraceID(ctx context.Context, traceID string) ([]domain.Moment, error) {
+	return m.listByTraceFn(ctx, traceID)
+}
+func (m *mockMomentRepo) ListByUserID(ctx context.Context, userID string) ([]domain.Moment, error) {
+	return m.listByUserFn(ctx, userID)
+}
+
+type mockEchoCandidateReader struct {
+	findNearestFn func(ctx context.Context, userID string, currentMomentID string, model string, embedding []float32, limit int32) ([]domain.Moment, error)
+}
+
+func (m *mockEchoCandidateReader) FindNearestMoments(ctx context.Context, userID string, currentMomentID string, model string, embedding []float32, limit int32) ([]domain.Moment, error) {
+	return m.findNearestFn(ctx, userID, currentMomentID, model, embedding, limit)
+}
 
 type mockEchoRepo struct {
 	createFn         func(ctx context.Context, echo *domain.Echo) error
 	findByMomentIDFn func(ctx context.Context, momentID string) (*domain.Echo, error)
 }
 
-func (m *mockEchoRepo) Create(ctx context.Context, echo *domain.Echo) error { return m.createFn(ctx, echo) }
+func (m *mockEchoRepo) Create(ctx context.Context, echo *domain.Echo) error {
+	return m.createFn(ctx, echo)
+}
 func (m *mockEchoRepo) FindByMomentID(ctx context.Context, momentID string) (*domain.Echo, error) {
 	return m.findByMomentIDFn(ctx, momentID)
 }
@@ -349,19 +371,136 @@ func TestCreateMoment_EchoMatchingError(t *testing.T) {
 	}
 }
 
-func TestExcludeSelf(t *testing.T) {
-	moments := []domain.Moment{
-		{ID: "a"},
-		{ID: "b"},
-		{ID: "c"},
+func TestCreateMoment_UsesNearestCandidateReaderWithConfiguredTopK(t *testing.T) {
+	userID := "user-1"
+	traceID := "trace-1"
+	momentID := "moment-1"
+	topK := int32(3)
+
+	traces := &mockTraceRepo{
+		createFn: func(ctx context.Context, trace *domain.Trace) error {
+			trace.ID = traceID
+			return nil
+		},
+		deleteFn: func(ctx context.Context, id string) error { return nil },
 	}
-	result := excludeSelf(moments, "b")
-	if len(result) != 2 {
-		t.Fatalf("expected 2, got %d", len(result))
+
+	moments := &mockMomentRepo{
+		createFn: func(ctx context.Context, moment *domain.Moment) error {
+			moment.ID = momentID
+			return nil
+		},
+		listByUserFn: func(ctx context.Context, id string) ([]domain.Moment, error) {
+			t.Fatal("ListByUserID should not be used when nearest candidate reader is configured")
+			return nil, nil
+		},
 	}
-	for _, m := range result {
-		if m.ID == "b" {
-			t.Fatal("expected 'b' to be excluded")
-		}
+
+	embedding := &mockEmbeddingGen{
+		generateFn: func(ctx context.Context, content string) ([]domain.EmbeddingEntry, error) {
+			return []domain.EmbeddingEntry{{Model: "active-model", Embedding: []float32{0.1, 0.2}}}, nil
+		},
+	}
+
+	candidates := &mockEchoCandidateReader{
+		findNearestFn: func(ctx context.Context, gotUserID string, currentMomentID string, model string, embedding []float32, limit int32) ([]domain.Moment, error) {
+			if gotUserID != userID {
+				t.Fatalf("expected userID %s, got %s", userID, gotUserID)
+			}
+			if currentMomentID != momentID {
+				t.Fatalf("expected currentMomentID %s, got %s", momentID, currentMomentID)
+			}
+			if model != "active-model" {
+				t.Fatalf("expected model active-model, got %s", model)
+			}
+			if limit != topK {
+				t.Fatalf("expected topK %d, got %d", topK, limit)
+			}
+			return []domain.Moment{{ID: "old-1"}}, nil
+		},
+	}
+
+	echo := &mockEchoMatcher{
+		matchFn: func(ctx context.Context, current *domain.Moment, history []domain.Moment) ([]domain.MatchedMoment, error) {
+			if len(history) != 1 || history[0].ID != "old-1" {
+				t.Fatalf("expected pgvector candidate old-1, got %+v", history)
+			}
+			return []domain.MatchedMoment{{MomentID: "old-1", Similarity: 0.9}}, nil
+		},
+	}
+
+	echos := &mockEchoRepo{
+		createFn: func(ctx context.Context, echo *domain.Echo) error {
+			return nil
+		},
+	}
+
+	uc := NewCreateMomentUseCaseWithCandidates(
+		traces,
+		moments,
+		candidates,
+		echos,
+		embedding,
+		echo,
+		&mockIDGen{id: "id-seq"},
+		topK,
+	)
+	output, err := uc.Execute(withUserID(context.Background(), userID), CreateMomentInput{
+		Content: "hello",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if output.Echo == nil {
+		t.Fatal("expected echo from nearest candidates")
+	}
+	if output.Echo.MatchedMomentIDs[0] != "old-1" {
+		t.Fatalf("expected matched old-1, got %s", output.Echo.MatchedMomentIDs[0])
+	}
+}
+
+func TestCreateMoment_NearestCandidateFailureDoesNotFallbackToFullScan(t *testing.T) {
+	userID := "user-1"
+
+	traces := &mockTraceRepo{
+		createFn: func(ctx context.Context, trace *domain.Trace) error { return nil },
+		deleteFn: func(ctx context.Context, id string) error { return nil },
+	}
+
+	moments := &mockMomentRepo{
+		createFn: func(ctx context.Context, moment *domain.Moment) error { return nil },
+		listByUserFn: func(ctx context.Context, id string) ([]domain.Moment, error) {
+			t.Fatal("ListByUserID should not be used as a fallback")
+			return nil, nil
+		},
+	}
+
+	embedding := &mockEmbeddingGen{
+		generateFn: func(ctx context.Context, content string) ([]domain.EmbeddingEntry, error) {
+			return []domain.EmbeddingEntry{{Model: "active-model", Embedding: []float32{0.1}}}, nil
+		},
+	}
+
+	candidates := &mockEchoCandidateReader{
+		findNearestFn: func(ctx context.Context, userID string, currentMomentID string, model string, embedding []float32, limit int32) ([]domain.Moment, error) {
+			return nil, errors.New("pgvector unavailable")
+		},
+	}
+
+	uc := NewCreateMomentUseCaseWithCandidates(
+		traces,
+		moments,
+		candidates,
+		nil,
+		embedding,
+		nil,
+		&mockIDGen{id: "id-seq"},
+		10,
+	)
+	_, err := uc.Execute(withUserID(context.Background(), userID), CreateMomentInput{
+		Content: "hello",
+	})
+	if err == nil {
+		t.Fatal("expected pgvector candidate failure to surface")
 	}
 }

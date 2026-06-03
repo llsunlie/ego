@@ -12,12 +12,14 @@ import (
 // CreateMomentUseCase orchestrates the creation of a Moment (and optionally a Trace),
 // embedding generation, and echo matching.
 type CreateMomentUseCase struct {
-	traces    domain.TraceRepository
-	moments   domain.MomentRepository
-	echos     domain.EchoRepository
-	embedding domain.EmbeddingGenerator
-	echo      domain.EchoMatcher
-	ids       IDGenerator
+	traces         domain.TraceRepository
+	moments        domain.MomentRepository
+	echoCandidates domain.EchoCandidateReader
+	echos          domain.EchoRepository
+	embedding      domain.EmbeddingGenerator
+	echo           domain.EchoMatcher
+	ids            IDGenerator
+	echoRecallTopK int32
 }
 
 func NewCreateMomentUseCase(
@@ -28,14 +30,59 @@ func NewCreateMomentUseCase(
 	echo domain.EchoMatcher,
 	ids IDGenerator,
 ) *CreateMomentUseCase {
-	return &CreateMomentUseCase{
-		traces:    traces,
-		moments:   moments,
-		echos:     echos,
-		embedding: embedding,
-		echo:      echo,
-		ids:       ids,
+	return NewCreateMomentUseCaseWithCandidates(
+		traces,
+		moments,
+		listByUserCandidateReader{moments: moments},
+		echos,
+		embedding,
+		echo,
+		ids,
+		10,
+	)
+}
+
+func NewCreateMomentUseCaseWithCandidates(
+	traces domain.TraceRepository,
+	moments domain.MomentRepository,
+	echoCandidates domain.EchoCandidateReader,
+	echos domain.EchoRepository,
+	embedding domain.EmbeddingGenerator,
+	echo domain.EchoMatcher,
+	ids IDGenerator,
+	echoRecallTopK int32,
+) *CreateMomentUseCase {
+	if echoRecallTopK <= 0 {
+		echoRecallTopK = 10
 	}
+	return &CreateMomentUseCase{
+		traces:         traces,
+		moments:        moments,
+		echoCandidates: echoCandidates,
+		echos:          echos,
+		embedding:      embedding,
+		echo:           echo,
+		ids:            ids,
+		echoRecallTopK: echoRecallTopK,
+	}
+}
+
+type listByUserCandidateReader struct {
+	moments domain.MomentRepository
+}
+
+func (r listByUserCandidateReader) FindNearestMoments(ctx context.Context, userID string, currentMomentID string, _ string, _ []float32, _ int32) ([]domain.Moment, error) {
+	allMoments, err := r.moments.ListByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	var result []domain.Moment
+	for _, m := range allMoments {
+		if m.ID != currentMomentID {
+			result = append(result, m)
+		}
+	}
+	return result, nil
 }
 
 type CreateMomentInput struct {
@@ -158,14 +205,26 @@ func (uc *CreateMomentUseCase) createMoment(ctx context.Context, userID, traceID
 
 func (uc *CreateMomentUseCase) matchEcho(ctx context.Context, moment *domain.Moment, userID string) (*domain.Echo, error) {
 	logger := logging.FromContext(ctx)
-	allMoments, err := uc.moments.ListByUserID(ctx, userID)
-	if err != nil {
-		logger.ErrorContext(ctx, "CreateMoment: list history failed", "user_id", userID, "error", err)
-		return nil, fmt.Errorf("list history: %w", err)
+	if len(moment.Embeddings) == 0 {
+		logger.DebugContext(ctx, "CreateMoment: no embedding for echo matching", "moment_id", moment.ID)
+		return nil, nil
 	}
-	logger.DebugContext(ctx, "CreateMoment: loaded history", "user_id", userID, "total_moments", len(allMoments))
 
-	history := excludeSelf(allMoments, moment.ID)
+	currentEmbedding := moment.Embeddings[0]
+	history, err := uc.echoCandidates.FindNearestMoments(
+		ctx,
+		userID,
+		moment.ID,
+		currentEmbedding.Model,
+		currentEmbedding.Embedding,
+		uc.echoRecallTopK,
+	)
+	if err != nil {
+		logger.ErrorContext(ctx, "CreateMoment: nearest echo candidates failed", "user_id", userID, "moment_id", moment.ID, "error", err)
+		return nil, fmt.Errorf("nearest echo candidates: %w", err)
+	}
+	logger.DebugContext(ctx, "CreateMoment: loaded echo candidates", "user_id", userID, "candidate_count", len(history), "top_k", uc.echoRecallTopK)
+
 	if len(history) == 0 {
 		logger.DebugContext(ctx, "CreateMoment: no history to match (first moment)")
 		return nil, nil
@@ -200,14 +259,4 @@ func (uc *CreateMomentUseCase) matchEcho(ctx context.Context, moment *domain.Mom
 	}
 
 	return echo, nil
-}
-
-func excludeSelf(moments []domain.Moment, selfID string) []domain.Moment {
-	var result []domain.Moment
-	for _, m := range moments {
-		if m.ID != selfID {
-			result = append(result, m)
-		}
-	}
-	return result
 }

@@ -8,7 +8,9 @@ import (
 
 func NewWritingHandler(p *Platform) pb.EgoServer {
 	return writing.NewHandler(writing.Deps{
-		DB:       p.Pool,
-		AIClient: p.AIClient,
+		DB:             p.Pool,
+		AIClient:       p.AIClient,
+		EmbeddingDim:   p.AIEmbeddingDim,
+		EchoRecallTopK: p.EchoRecallTopK,
 	})
 }

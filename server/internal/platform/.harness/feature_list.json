@@ -31,6 +31,17 @@
       ]
     },
     {
+      "id": "platform.postgres.pgvector_moment_embeddings",
+      "title": "pgvector migration for active Moment embedding recall",
+      "status": "passing",
+      "evidence": [
+        "server/internal/platform/postgres/migrations/010_moment_embedding_vectors.sql",
+        "server/internal/config/config.go",
+        "server/internal/bootstrap/platform.go",
+        "go test ./internal/writing/..."
+      ]
+    },
+    {
       "id": "platform.ai",
       "title": "AI client — OpenAI-compatible embedding + chat completion",
       "status": "passing",
