@@ -1,8 +1,10 @@
 # starmap Progress
 
-## Current State (2026-05-26)
+## Current State (2026-06-04)
 
 Starmap module with async clustering and optimistic pending-star UI. `StashTrace` returns immediately (~50ms) with Star(topic="聚合中"), background goroutine handles the AI pipeline (topic → match → assets → constellation). `ListConstellations` surfaces unclustered stars as synthetic single-star constellations so the frontend can render them immediately.
+
+P4 TraceProfile sidecar persistence is implemented. `StashTrace` still returns immediately and the existing async topic clustering path is unchanged. A separate background path generates a TraceProfile from trace moments, retries LLM JSON generation up to two times, falls back to a minimal profile when needed, embeds `profile_text`, and upserts `trace_profiles` plus `trace_profile_vectors`. TraceProfile failures are logged and do not block existing constellation clustering.
 
 ### Test summary
 
@@ -10,6 +12,7 @@ Starmap module with async clustering and optimistic pending-star UI. `StashTrace
 |---|---|---|
 | `app/` | 11 (4 StashTrace + 3 ListConstellations + 4 GetConstellation) | All pass |
 | `adapter/grpc/` | 5 (StashTrace, StashTrace_Error, ListConstellations, GetConstellation, GetConstellation_Error) | All pass |
+| `internal/starmap/...` | TraceProfile sidecar persistence and existing starmap tests | All pass |
 
 ### Completed layers
 
@@ -18,11 +21,13 @@ Starmap module with async clustering and optimistic pending-star UI. `StashTrace
 | `domain` | `types.go`, `ports.go`, `errors.go` | Complete |
 | `app` | `ports.go`, `stash_trace.go`, `list_constellations.go`, `get_constellation.go`, `topic_generator.go`, `constellation_matcher.go`, `constellation_asset_generator.go` | Complete |
 | `adapter/postgres` | `star_repo.go`, `constellation_repo.go`, `trace_stasher.go`, `star_reader.go` | Complete |
+| `adapter/postgres` | `trace_profile_repo.go` | Complete |
+| `adapter/ai` | `trace_profile_generator.go` | Complete |
 | `adapter/grpc` | `handler.go`, `mapper.go` | Complete |
 | `adapter/id` | `uuid.go` | Complete |
 | `module wiring` | `module.go` | Complete |
 | `bootstrap` | `bootstrap/starmap.go` | Complete |
-| `platform/migrations` | `006_starmap.sql` | Complete |
+| `platform/migrations` | `006_starmap.sql`, `011_trace_profiles.sql` | Complete |
 | `platform/queries` | `stars.sql`, `constellations.sql` | Complete |
 
 ### RPCs owned by Starmap
@@ -43,6 +48,7 @@ Starmap module with async clustering and optimistic pending-star UI. `StashTrace
 6. **Two-level assembly**: `bootstrap/starmap.go` passes only DB pool; `starmap/module.go` assembles repos, business policies, app use cases, and gRPC handler.
 7. **Handler use-case interfaces**: Handler accepts interfaces rather than concrete use-case types, enabling clean mock testing.
 8. **Mapper in adapter/grpc**: Proto conversion kept in `mapper.go`.
+9. **TraceProfile as sidecar**: TraceProfile is generated asynchronously after `StashTrace` and persisted for future aggregation work. It does not replace the current topic-based constellation clustering in P4.
 
 ### Known Issues
 

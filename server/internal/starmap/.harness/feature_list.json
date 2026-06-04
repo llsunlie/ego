@@ -35,6 +35,20 @@
       "title": "Async StashTrace with optimistic pending-star UI — Star(topic='聚合中') returned immediately, background goroutine for AI clustering, unclustered stars surfaced as synthetic Constellations",
       "status": "passing",
       "evidence": ["app/stash_trace.go", "app/list_constellations.go", "app/get_constellation.go", "go test ./internal/starmap/app/..."]
+    },
+    {
+      "id": "starmap.trace_profile_persistence",
+      "title": "P4 TraceProfile sidecar persistence after StashTrace",
+      "status": "passing",
+      "evidence": [
+        "domain/types.go",
+        "domain/ports.go",
+        "adapter/ai/trace_profile_generator.go",
+        "adapter/postgres/trace_profile_repo.go",
+        "app/stash_trace.go",
+        "app/stash_trace_test.go",
+        "go test ./internal/starmap/..."
+      ]
     }
   ]
 }

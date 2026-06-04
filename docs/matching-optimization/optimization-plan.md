@@ -35,8 +35,8 @@
 | P1 | Echo 召回效率优化 | 用数据库 topK 替代应用层全量扫描 | pgvector/HNSW 召回能力、候选 topK 接口 | 已完成 |
 | P2 | Echo 匹配质量优化 | 先用规则降低重复和同 Trace 干扰 | 候选过滤、去重、时间/Trace 规则、内部 echo_score | 已完成 |
 | P2.5 | Elasticsearch sparse search | 引入词面/短语召回，并与 dense 召回融合 | ES index、中文 analyzer、回填、RRF hybrid recall | 已完成 |
-| P3 | Echo 结果语义与前端兼容 | 保持 proto 基本兼容，同时让 similarity/score 含义清晰 | Echo score 口径文档、前端展示兼容说明 | 待设计 |
-| P4 | TraceProfile 持久化 | 为星座聚合提供稳定的 Trace 级画像 | TraceProfile 生成、存储、回填任务 | 待设计 |
+| P3 | Echo 结果语义与前端兼容 | 保持 proto 基本兼容，同时让 similarity/score 含义清晰 | Echo score 口径文档、前端展示兼容说明 | 已完成 |
+| P4 | TraceProfile 旁路持久化 | 为星座聚合提供稳定的 Trace 级画像 | TraceProfile 异步生成、存储、profile embedding | 已完成 |
 | P5 | ConstellationProfile 改造 | 让星座从短 topic 聚合升级为长期主题画像聚合 | 星座画像结构、兼容旧展示字段 | 待设计 |
 | P6 | 星座匹配流程升级 | 用 TraceProfile 匹配 ConstellationProfile | 候选召回、评分、加入/新建/暂存流程 | 待设计 |
 | P7 | lonely / forming / active 状态落地 | 表达星座从孤星到稳定主题的形成过程 | 状态规则、列表/详情返回兼容 | 待讨论 |
@@ -123,11 +123,12 @@
 - 为星座聚合提供 Trace 级算法画像。
 
 任务：
-- 讨论 TraceProfile 的生成时机。
-- 讨论 TraceProfile 的输入材料范围。
-- 设计 TraceProfile 持久化结构。
-- 增加 TraceProfile 生成与读取能力。
-- 处理历史 Trace 的回填策略。
+- 在 `StashTrace` 后台旁路异步生成 TraceProfile，不阻塞当前返回。
+- 当前星座 topic 聚合照旧，不在 P4 替换。
+- 设计并创建 `trace_profiles` 与 `trace_profile_vectors`。
+- 生成 `topic`、`summary`、`keywords`、`emotions`、`scenes`、`central_pattern`、`representative_moment_id` 与 `profile_text`。
+- 对 `profile_text` 生成 embedding 并写入独立 pgvector 表。
+- LLM 生成失败最多重试 2 次，仍失败则 fallback；embedding 失败写入 `failed` profile 但不写 vector。
 
 ### P5. ConstellationProfile 改造
 

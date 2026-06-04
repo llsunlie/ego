@@ -56,3 +56,13 @@ type ConstellationMatcher interface {
 type ConstellationAssetGenerator interface {
 	Generate(ctx context.Context, moments []writingdomain.Moment) (topic string, topicEmbedding []float32, name string, insight string, prompts []string, err error)
 }
+
+// TraceProfileGenerator builds a persistent algorithm profile for a stashed Trace.
+type TraceProfileGenerator interface {
+	Generate(ctx context.Context, trace writingdomain.Trace, moments []writingdomain.Moment) (*TraceProfile, *TraceProfileVector, error)
+}
+
+// TraceProfileRepository persists TraceProfiles and their optional vectors.
+type TraceProfileRepository interface {
+	Upsert(ctx context.Context, profile *TraceProfile, vector *TraceProfileVector) error
+}

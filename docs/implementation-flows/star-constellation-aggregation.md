@@ -51,6 +51,7 @@ gRPC: StashTrace
         -> stars.Create(Star{topic:"聚合中"})
         -> traceStasher.MarkStashed(traceID)
         -> go clusterAsync(userID, starID, moments)
+        -> go generateTraceProfileAsync(trace, moments)
         -> 同步返回 Star
 
 后台 clusterAsync:
@@ -60,6 +61,10 @@ gRPC: StashTrace
   -> constellationMat.FindMatch(topic, existing)
   -> 若匹配：聚合新旧全部 Moment，重生成星座资产并 Update
   -> 若未匹配：基于当前 Moment 生成资产并 Create Constellation
+
+后台 generateTraceProfileAsync:
+  -> TraceProfileGenerator.Generate(trace, moments)
+  -> TraceProfileRepository.Upsert(profile, vector)
 ```
 
 模块装配在 `server/internal/starmap/module.go`：
@@ -71,6 +76,8 @@ sqlc.Queries
   -> adapter/ai.TopicGenerator
   -> adapter/ai.ConstellationMatcher
   -> adapter/ai.ConstellationAssetGenerator
+  -> adapter/ai.TraceProfileGenerator
+  -> adapter/postgres.TraceProfileRepository
   -> StashTraceUseCase / ListConstellationsUseCase / GetConstellationUseCase
   -> starmap gRPC Handler
 ```
@@ -92,10 +99,43 @@ sqlc.Queries
      Topic: "聚合中"
 7. traceStasher.MarkStashed(traceID)
 8. 启动 go clusterAsync(...)
-9. 返回 StashTraceRes{star}
+9. 启动 go generateTraceProfileAsync(...)
+10. 返回 StashTraceRes{star}
 ```
 
 同步部分的失败会直接导致 `StashTrace` RPC 返回错误，Star 不一定创建成功。异步部分失败不会影响已返回的 RPC。
+
+### TraceProfile 旁路画像
+
+P4 新增 `generateTraceProfileAsync(trace, moments)` 作为旁路后台任务。它不替换当前 topic 聚类，也不影响 `StashTrace` 返回。
+
+```text
+generateTraceProfileAsync
+  -> adapter/ai.TraceProfileGenerator.Generate(trace, moments)
+       -> LLM 生成结构化 TraceProfile
+       -> 失败最多重试 2 次
+       -> 仍失败则 fallback minimal profile
+       -> embedding(profile_text)
+  -> adapter/postgres.TraceProfileRepository.Upsert(profile, vector)
+```
+
+当前 TraceProfile 字段：
+
+```text
+topic
+summary
+keywords
+emotions
+scenes
+central_pattern
+representative_moment_id
+profile_text
+status
+retry_count
+last_error
+```
+
+`central_pattern` 表示 trace 中的核心模式、关注点或处境结构，允许为空；它不是强制的“冲突”。如果 embedding 失败，会持久化 `status=failed` 的 profile，但不会写入 `trace_profile_vectors`。
 
 ### Trace.stashed 写入说明
 
@@ -284,6 +324,9 @@ Now 页会把 prompt 放进输入框 hint，并不会把 constellation ID 或 mo
 | 单个已有星座 embedding 失败 | 跳过该星座 |
 | 资产 Chat/JSON 失败 | 使用 fallback 默认资产 |
 | 资产 topic embedding 失败 | 无缓存 embedding，仍创建/更新星座 |
+| TraceProfile LLM 失败 | 最多重试 2 次，仍失败则生成 fallback profile |
+| TraceProfile embedding 失败 | 写入 `status=failed` profile，不写 vector，不影响当前星座聚类 |
+| TraceProfile 持久化失败 | 只记日志，不影响当前星座聚类 |
 | 后台任一步骤返回 hard error | 只记日志，Star 可能长期停留在未聚类/合成单星状态 |
 
 当前没有任务队列、重试机制、dead-letter 或后台 reconciliation。服务重启会丢失正在执行的 goroutine；失败的 Star 后续会持续以合成单星星座出现，直到人工修复或未来补偿任务处理。
@@ -314,6 +357,9 @@ Now 页会把 prompt 放进输入框 hint，并不会把 constellation ID 或 mo
 | AI Topic 生成 | `server/internal/starmap/adapter/ai/topic_generator.go` |
 | AI 星座匹配 | `server/internal/starmap/adapter/ai/constellation_matcher.go` |
 | AI 资产生成 | `server/internal/starmap/adapter/ai/constellation_asset_generator.go` |
+| AI TraceProfile 生成 | `server/internal/starmap/adapter/ai/trace_profile_generator.go` |
+| TraceProfile 持久化 | `server/internal/starmap/adapter/postgres/trace_profile_repo.go` |
+| TraceProfile 迁移 | `server/internal/platform/postgres/migrations/011_trace_profiles.sql` |
 | MVP 策略 | `server/internal/starmap/app/topic_generator.go`, `server/internal/starmap/app/constellation_matcher.go`, `server/internal/starmap/app/constellation_asset_generator.go` |
 | Postgres 适配 | `server/internal/starmap/adapter/postgres/` |
 | Writing 只读适配 | `server/internal/writing/adapter/postgres/reader.go` |

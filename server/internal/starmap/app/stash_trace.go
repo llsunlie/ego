@@ -18,6 +18,8 @@ type StashTraceUseCase struct {
 	topicGen         domain.TopicGenerator
 	constellationMat domain.ConstellationMatcher
 	assetGen         domain.ConstellationAssetGenerator
+	profileGen       domain.TraceProfileGenerator
+	profileRepo      domain.TraceProfileRepository
 	ids              IDGenerator
 }
 
@@ -31,6 +33,32 @@ func NewStashTraceUseCase(
 	assetGen domain.ConstellationAssetGenerator,
 	ids IDGenerator,
 ) *StashTraceUseCase {
+	return NewStashTraceUseCaseWithTraceProfile(
+		traceReader,
+		traceStasher,
+		stars,
+		constellations,
+		topicGen,
+		constellationMat,
+		assetGen,
+		nil,
+		nil,
+		ids,
+	)
+}
+
+func NewStashTraceUseCaseWithTraceProfile(
+	traceReader domain.TraceReader,
+	traceStasher domain.TraceStasher,
+	stars domain.StarRepository,
+	constellations domain.ConstellationRepository,
+	topicGen domain.TopicGenerator,
+	constellationMat domain.ConstellationMatcher,
+	assetGen domain.ConstellationAssetGenerator,
+	profileGen domain.TraceProfileGenerator,
+	profileRepo domain.TraceProfileRepository,
+	ids IDGenerator,
+) *StashTraceUseCase {
 	return &StashTraceUseCase{
 		traceReader:      traceReader,
 		traceStasher:     traceStasher,
@@ -39,6 +67,8 @@ func NewStashTraceUseCase(
 		topicGen:         topicGen,
 		constellationMat: constellationMat,
 		assetGen:         assetGen,
+		profileGen:       profileGen,
+		profileRepo:      profileRepo,
 		ids:              ids,
 	}
 }
@@ -86,8 +116,38 @@ func (uc *StashTraceUseCase) Execute(ctx context.Context, input StashTraceInput)
 	}
 
 	go uc.clusterAsync(userID, star.ID, moments)
+	go uc.generateTraceProfileAsync(*trace, moments)
 
 	return star, nil
+}
+
+func (uc *StashTraceUseCase) generateTraceProfileAsync(trace writingdomain.Trace, moments []writingdomain.Moment) {
+	if uc.profileGen == nil || uc.profileRepo == nil {
+		return
+	}
+
+	ctx := context.Background()
+	logger := logging.FromContext(ctx)
+	profile, vector, err := uc.profileGen.Generate(ctx, trace, moments)
+	if err != nil {
+		logger.ErrorContext(ctx, "starmap: async trace profile generation failed",
+			"trace_id", trace.ID,
+			"error", err,
+		)
+		return
+	}
+	if err := uc.profileRepo.Upsert(ctx, profile, vector); err != nil {
+		logger.ErrorContext(ctx, "starmap: async trace profile upsert failed",
+			"trace_id", trace.ID,
+			"error", err,
+		)
+		return
+	}
+	logger.InfoContext(ctx, "starmap: async trace profile completed",
+		"trace_id", trace.ID,
+		"status", profile.Status,
+		"has_vector", vector != nil,
+	)
 }
 
 func (uc *StashTraceUseCase) clusterAsync(userID string, starID string, moments []writingdomain.Moment) {

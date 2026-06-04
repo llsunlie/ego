@@ -55,6 +55,15 @@
       ]
     },
     {
+      "id": "platform.postgres.trace_profiles",
+      "title": "Postgres pgvector storage for TraceProfile sidecar embeddings",
+      "status": "passing",
+      "evidence": [
+        "server/internal/platform/postgres/migrations/011_trace_profiles.sql",
+        "go test ./internal/starmap/..."
+      ]
+    },
+    {
       "id": "platform.ai",
       "title": "AI client — OpenAI-compatible embedding + chat completion",
       "status": "passing",

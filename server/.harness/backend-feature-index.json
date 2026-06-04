@@ -30,6 +30,21 @@
         "server/cmd/backfill-moment-search/main.go",
         "go test ./internal/writing/app ./internal/writing/adapter/elasticsearch ./cmd/backfill-moment-search ./internal/bootstrap"
       ]
+    },
+    {
+      "id": "backend.trace_profile_sidecar_p4",
+      "title": "P4 TraceProfile sidecar persistence after StashTrace",
+      "status": "passing",
+      "modules": ["platform", "starmap"],
+      "evidence": [
+        "server/internal/platform/postgres/migrations/011_trace_profiles.sql",
+        "server/internal/bootstrap/starmap.go",
+        "server/internal/starmap/module.go",
+        "server/internal/starmap/adapter/ai/trace_profile_generator.go",
+        "server/internal/starmap/adapter/postgres/trace_profile_repo.go",
+        "server/internal/starmap/app/stash_trace.go",
+        "go test ./internal/starmap/..."
+      ]
     }
   ],
   "notes": [
