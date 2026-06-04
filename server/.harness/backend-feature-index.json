@@ -45,6 +45,18 @@
         "server/internal/starmap/app/stash_trace.go",
         "go test ./internal/starmap/..."
       ]
+    },
+    {
+      "id": "backend.trace_profile_quality_p5",
+      "title": "P5 TraceProfile quality baseline before constellation matching replacement",
+      "status": "passing",
+      "modules": ["starmap"],
+      "evidence": [
+        "docs/matching-optimization/test-data/trace_profile_cases.json",
+        "docs/matching-optimization/trace-profile-quality-plan.md",
+        "server/internal/starmap/adapter/ai/trace_profile_generator_test.go",
+        "go test ./internal/starmap/..."
+      ]
     }
   ],
   "notes": [

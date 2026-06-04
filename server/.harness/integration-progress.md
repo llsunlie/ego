@@ -18,6 +18,7 @@ Module-local progress belongs in each module's `.harness/progress.md`.
 - Platform owns `011_trace_profiles.sql` for structured TraceProfile storage and pgvector profile embeddings.
 - Starmap owns TraceProfile generation, retry/fallback behavior, async sidecar orchestration after `StashTrace`, and Postgres upsert persistence.
 - Current constellation topic clustering remains unchanged; TraceProfile does not replace matching in P4.
+- P5 TraceProfile quality baseline is established with fixed review samples and generator helper regression tests; it still does not change proto/API or constellation matching behavior.
 - Existing proto/API surface is unchanged.
 
 ## Last Verified
@@ -28,10 +29,11 @@ Module-local progress belongs in each module's `.harness/progress.md`.
 - 2026-06-04: `go test ./...` passes.
 - 2026-06-04: `docker compose config` and `docker compose build elasticsearch` pass; IK plugin installs successfully.
 - 2026-06-04: `go test ./internal/starmap/...` passes with TraceProfile sidecar persistence.
+- 2026-06-04: `go test ./internal/starmap/...` passes with TraceProfile quality helper coverage.
 
 ## Next Best Step
 
 - Apply pending database migration and run `server/cmd/backfill-moment-vectors` before enabling dense recall against existing data.
 - Start Elasticsearch and run `server/cmd/backfill-moment-search` before relying on sparse recall against existing data.
 - Apply pending `011_trace_profiles.sql` migration before relying on TraceProfile persistence.
-- Continue with P5 ConstellationProfile design before replacing topic-based constellation matching.
+- Continue with P6 ConstellationProfile design before replacing topic-based constellation matching.

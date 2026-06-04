@@ -37,11 +37,12 @@
 | P2.5 | Elasticsearch sparse search | 引入词面/短语召回，并与 dense 召回融合 | ES index、中文 analyzer、回填、RRF hybrid recall | 已完成 |
 | P3 | Echo 结果语义与前端兼容 | 保持 proto 基本兼容，同时让 similarity/score 含义清晰 | Echo score 口径文档、前端展示兼容说明 | 已完成 |
 | P4 | TraceProfile 旁路持久化 | 为星座聚合提供稳定的 Trace 级画像 | TraceProfile 异步生成、存储、profile embedding | 已完成 |
-| P5 | ConstellationProfile 改造 | 让星座从短 topic 聚合升级为长期主题画像聚合 | 星座画像结构、兼容旧展示字段 | 待设计 |
-| P6 | 星座匹配流程升级 | 用 TraceProfile 匹配 ConstellationProfile | 候选召回、评分、加入/新建/暂存流程 | 待设计 |
-| P7 | lonely / forming / active 状态落地 | 表达星座从孤星到稳定主题的形成过程 | 状态规则、列表/详情返回兼容 | 待讨论 |
-| P8 | 星座画像持续演化 | 避免星座被第一次 topic 固化 | 加入 Trace 后的同步统计更新与异步画像更新 | 待设计 |
-| P9 | 观测、回归与调参 | 可观察优化效果并持续校准 | 日志、指标、离线评估脚本、回归用例 | 待设计 |
+| P5 | TraceProfile 质量验证与调优 | 确认 TraceProfile 稳定、具体、不过度推断 | 质量样本、复核流程、生成器回归测试 | 已建立基线 |
+| P6 | ConstellationProfile 改造 | 让星座从短 topic 聚合升级为长期主题画像聚合 | 星座画像结构、兼容旧展示字段 | 待设计 |
+| P7 | 星座匹配流程升级 | 用 TraceProfile 匹配 ConstellationProfile | 候选召回、评分、加入/新建/暂存流程 | 待设计 |
+| P8 | lonely / forming / active 状态落地 | 表达星座从孤星到稳定主题的形成过程 | 状态规则、列表/详情返回兼容 | 待讨论 |
+| P9 | 星座画像持续演化 | 避免星座被第一次 topic 固化 | 加入 Trace 后的同步统计更新与异步画像更新 | 待设计 |
+| P10 | 观测、回归与调参 | 可观察优化效果并持续校准 | 日志、指标、离线评估脚本、回归用例 | 待设计 |
 
 ## 任务分解
 
@@ -130,7 +131,20 @@
 - 对 `profile_text` 生成 embedding 并写入独立 pgvector 表。
 - LLM 生成失败最多重试 2 次，仍失败则 fallback；embedding 失败写入 `failed` profile 但不写 vector。
 
-### P5. ConstellationProfile 改造
+### P5. TraceProfile 质量验证与调优
+
+目标：
+- 在替换星座聚合前，确认 TraceProfile 输出可用。
+- 避免后续 ConstellationProfile 匹配被过泛 topic、过度推断或错误代表 moment 污染。
+
+任务：
+- 建立 TraceProfile 固定质量样本。
+- 明确 topic、summary、keywords、emotions、scenes、central_pattern、representative_moment_id 的人工复核口径。
+- 增加生成器纯函数回归测试。
+- 通过日志观察真实 TraceProfile 输出，继续调整 prompt 和规范化规则。
+- 保持当前 topic-based constellation clustering 不变。
+
+### P6. ConstellationProfile 改造
 
 目标：
 - 将星座从短 topic 驱动改为长期主题画像驱动。
@@ -141,7 +155,7 @@
 - 设计 profile embedding 与 centroid embedding 的职责边界。
 - 设计从现有 Constellation 数据迁移到新画像结构的路径。
 
-### P6. 星座匹配流程升级
+### P7. 星座匹配流程升级
 
 目标：
 - 用 TraceProfile 匹配 ConstellationProfile，替代当前 topic embedding 直接匹配。
@@ -153,7 +167,7 @@
 - 设计加入已有星座、新建星座、保留孤星的决策边界。
 - 更新 StashTrace、ListConstellations、GetConstellation 相关测试。
 
-### P7. lonely / forming / active 状态落地
+### P8. lonely / forming / active 状态落地
 
 目标：
 - 让算法状态表达“孤星等待同伴”“主题正在形成”“主题已经稳定”的过程。
@@ -164,7 +178,7 @@
 - 讨论前端是否需要感知该状态，或仅后端兼容为现有 constellation 输出。
 - 讨论 lonely star 是否参与后续匹配与合并。
 
-### P8. 星座画像持续演化
+### P9. 星座画像持续演化
 
 目标：
 - 避免星座长期被第一次生成的 topic 或画像锁死。
@@ -175,7 +189,7 @@
 - 讨论更新失败、重试、幂等与补偿机制。
 - 讨论代表性 Moment 的选择与更新规则。
 
-### P9. 观测、回归与调参
+### P10. 观测、回归与调参
 
 目标：
 - 让匹配优化可观察、可回归、可持续调参。
@@ -206,6 +220,7 @@
 - `echo-ranking-design.md`
 - `echo-sparse-search-design.md`
 - `trace-profile-design.md`
+- `trace-profile-quality-plan.md`
 - `constellation-profile-design.md`
 - `constellation-state-design.md`
 - `matching-evaluation-plan.md`

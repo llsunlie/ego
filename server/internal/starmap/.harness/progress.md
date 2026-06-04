@@ -6,13 +6,15 @@ Starmap module with async clustering and optimistic pending-star UI. `StashTrace
 
 P4 TraceProfile sidecar persistence is implemented. `StashTrace` still returns immediately and the existing async topic clustering path is unchanged. A separate background path generates a TraceProfile from trace moments, retries LLM JSON generation up to two times, falls back to a minimal profile when needed, embeds `profile_text`, and upserts `trace_profiles` plus `trace_profile_vectors`. TraceProfile failures are logged and do not block existing constellation clustering.
 
+P5 TraceProfile quality baseline is established. Fixed review cases now live under `docs/matching-optimization/test-data/trace_profile_cases.json`, and adapter-level regression tests cover prompt construction, JSON parsing, field normalization, fallback behavior, and profile text construction without calling live AI services.
+
 ### Test summary
 
 | Layer | Tests | Status |
 |---|---|---|
 | `app/` | 11 (4 StashTrace + 3 ListConstellations + 4 GetConstellation) | All pass |
 | `adapter/grpc/` | 5 (StashTrace, StashTrace_Error, ListConstellations, GetConstellation, GetConstellation_Error) | All pass |
-| `internal/starmap/...` | TraceProfile sidecar persistence and existing starmap tests | All pass |
+| `internal/starmap/...` | TraceProfile sidecar persistence, TraceProfile quality helper coverage, and existing starmap tests | All pass |
 
 ### Completed layers
 
@@ -49,6 +51,7 @@ P4 TraceProfile sidecar persistence is implemented. `StashTrace` still returns i
 7. **Handler use-case interfaces**: Handler accepts interfaces rather than concrete use-case types, enabling clean mock testing.
 8. **Mapper in adapter/grpc**: Proto conversion kept in `mapper.go`.
 9. **TraceProfile as sidecar**: TraceProfile is generated asynchronously after `StashTrace` and persisted for future aggregation work. It does not replace the current topic-based constellation clustering in P4.
+10. **TraceProfile quality before replacement**: P5 validates generation quality before ConstellationProfile or matching replacement work. Quality samples and generator helper tests are the baseline for prompt tuning.
 
 ### Known Issues
 

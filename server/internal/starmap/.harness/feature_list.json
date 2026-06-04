@@ -49,6 +49,17 @@
         "app/stash_trace_test.go",
         "go test ./internal/starmap/..."
       ]
+    },
+    {
+      "id": "starmap.trace_profile_quality_p5",
+      "title": "P5 TraceProfile quality baseline and generator regression coverage",
+      "status": "passing",
+      "evidence": [
+        "adapter/ai/trace_profile_generator_test.go",
+        "docs/matching-optimization/test-data/trace_profile_cases.json",
+        "docs/matching-optimization/trace-profile-quality-plan.md",
+        "go test ./internal/starmap/..."
+      ]
     }
   ]
 }

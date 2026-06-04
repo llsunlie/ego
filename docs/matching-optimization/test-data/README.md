@@ -10,6 +10,7 @@
 |---|---|
 | `echo_cases.json` | Echo 匹配评估样本 |
 | `constellation_cases.json` | 星座聚合评估样本 |
+| `trace_profile_cases.json` | TraceProfile 生成质量评估样本 |
 
 ## 使用约定
 
@@ -17,6 +18,7 @@
 - `expected_negative_ids` 表示不应命中的候选。
 - `must_exclude_ids` 表示无论分数多高都必须排除的候选。
 - `expected_action` 表示星座聚合的预期动作。
+- `expected_quality` 表示 TraceProfile 人工复核口径，不要求模型逐字命中。
 - 本目录只维护评估数据，不定义算法、权重、prompt 或数据库结构。
 
 ## 更新规则
