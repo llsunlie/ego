@@ -10,6 +10,7 @@ import (
 	"ego-server/internal/identity/adapter/sms"
 	"ego-server/internal/platform/ai"
 	"ego-server/internal/platform/auth"
+	"ego-server/internal/platform/elasticsearch"
 	"ego-server/internal/platform/logging"
 	"ego-server/internal/platform/postgres"
 
@@ -25,8 +26,12 @@ type Platform struct {
 	Logger         *slog.Logger
 	AIClient       *ai.Client
 	SmsService     *sms.AliyunSmsService
+	ESClient       *elasticsearch.Client
 	AIEmbeddingDim int
 	EchoRecallTopK int32
+	EchoSparseTopK int32
+	EchoHybridRRFK int
+	EchoSparseOn   bool
 }
 
 func InitPlatform(cfg *config.Config) (*Platform, error) {
@@ -61,6 +66,21 @@ func InitPlatform(cfg *config.Config) (*Platform, error) {
 		pool.Close()
 		return nil, fmt.Errorf("invalid ECHO_RECALL_TOP_K: %w", err)
 	}
+	echoSparseTopK, err := strconv.Atoi(cfg.EchoSparseTopK)
+	if err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("invalid ECHO_SPARSE_RECALL_TOP_K: %w", err)
+	}
+	echoHybridRRFK, err := strconv.Atoi(cfg.EchoHybridRRFK)
+	if err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("invalid ECHO_HYBRID_RRF_K: %w", err)
+	}
+	echoSparseOn, err := strconv.ParseBool(cfg.EchoSparseEnabled)
+	if err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("invalid ECHO_SPARSE_RECALL_ENABLED: %w", err)
+	}
 
 	aiClient := ai.NewClient(ai.Config{
 		EmbeddingAPIKey:  cfg.AIEmbeddingAPIKey,
@@ -70,11 +90,19 @@ func InitPlatform(cfg *config.Config) (*Platform, error) {
 		ChatBaseURL:      cfg.AIChatBaseURL,
 		ChatModel:        cfg.AIChatModel,
 	}, logger)
+	esClient := elasticsearch.NewClient(elasticsearch.Config{
+		URL:      cfg.ElasticsearchURL,
+		Username: cfg.ElasticsearchUser,
+		Password: cfg.ElasticsearchPass,
+	}, logger)
 
 	logger.Debug("platform config parsed",
 		"ai_embedding_model", cfg.AIEmbeddingModel,
 		"ai_embedding_dim", embeddingDim,
 		"echo_recall_top_k", echoRecallTopK,
+		"echo_sparse_enabled", echoSparseOn,
+		"echo_sparse_top_k", echoSparseTopK,
+		"echo_hybrid_rrf_k", echoHybridRRFK,
 	)
 
 	return &Platform{
@@ -86,8 +114,12 @@ func InitPlatform(cfg *config.Config) (*Platform, error) {
 		Logger:         logger,
 		AIClient:       aiClient,
 		SmsService:     newSmsService(cfg, pool),
+		ESClient:       esClient,
 		AIEmbeddingDim: embeddingDim,
 		EchoRecallTopK: int32(echoRecallTopK),
+		EchoSparseTopK: int32(echoSparseTopK),
+		EchoHybridRRFK: echoHybridRRFK,
+		EchoSparseOn:   echoSparseOn,
 	}, nil
 }
 

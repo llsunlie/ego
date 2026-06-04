@@ -28,6 +28,12 @@ type Config struct {
 	AIChatAPIKey          string
 	AIChatBaseURL         string
 	EchoRecallTopK        string
+	ElasticsearchURL      string
+	ElasticsearchUser     string
+	ElasticsearchPass     string
+	EchoSparseEnabled     string
+	EchoSparseTopK        string
+	EchoHybridRRFK        string
 	AliyunAccessKeyID     string
 	AliyunAccessKeySecret string
 	AliyunSmsSignName     string
@@ -73,6 +79,12 @@ func Load() *Config {
 		AIChatAPIKey:          getEnvWithFallback("AI_CHAT_API_KEY", "AI_API_KEY"),
 		AIChatBaseURL:         getEnvWithFallback("AI_CHAT_BASE_URL", "AI_BASE_URL"),
 		EchoRecallTopK:        getEnvDefault("ECHO_RECALL_TOP_K", "10"),
+		ElasticsearchURL:      getEnvDefault("ELASTICSEARCH_URL", "http://localhost:9200"),
+		ElasticsearchUser:     os.Getenv("ELASTICSEARCH_USERNAME"),
+		ElasticsearchPass:     os.Getenv("ELASTICSEARCH_PASSWORD"),
+		EchoSparseEnabled:     getEnvDefault("ECHO_SPARSE_RECALL_ENABLED", "true"),
+		EchoSparseTopK:        getEnvDefault("ECHO_SPARSE_RECALL_TOP_K", "10"),
+		EchoHybridRRFK:        getEnvDefault("ECHO_HYBRID_RRF_K", "60"),
 		AliyunAccessKeyID:     os.Getenv("ALIYUN_ACCESS_KEY_ID"),
 		AliyunAccessKeySecret: os.Getenv("ALIYUN_ACCESS_KEY_SECRET"),
 		AliyunSmsSignName:     os.Getenv("ALIYUN_SMS_SIGN_NAME"),

@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"testing"
+	"time"
 
 	"ego-server/internal/writing/domain"
 )
@@ -195,5 +196,156 @@ func TestDefaultEchoMatcher_SimilarityJustAboveThreshold(t *testing.T) {
 	}
 	if len(matches) != 1 {
 		t.Fatalf("expected 1 match above threshold (sim >= 0.65), got %d", len(matches))
+	}
+}
+
+func TestDefaultEchoMatcher_ExcludesSameTrace(t *testing.T) {
+	matcher := NewDefaultEchoMatcher()
+	now := time.Date(2026, 6, 4, 10, 0, 0, 0, time.UTC)
+	cur := &domain.Moment{
+		ID:        "m1",
+		TraceID:   "trace-current",
+		CreatedAt: now,
+		Embeddings: []domain.EmbeddingEntry{
+			{Model: "test", Embedding: []float32{1, 0}},
+		},
+	}
+	history := []domain.Moment{
+		{ID: "same-trace", TraceID: "trace-current", CreatedAt: now.Add(-24 * time.Hour), Embeddings: []domain.EmbeddingEntry{
+			{Model: "test", Embedding: []float32{1, 0}},
+		}},
+		{ID: "other-trace", TraceID: "trace-old", CreatedAt: now.Add(-24 * time.Hour), Embeddings: []domain.EmbeddingEntry{
+			{Model: "test", Embedding: []float32{1, 0}},
+		}},
+	}
+	matches, err := matcher.Match(context.Background(), cur, history)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(matches) != 1 || matches[0].MomentID != "other-trace" {
+		t.Fatalf("expected only other trace match, got %+v", matches)
+	}
+}
+
+func TestDefaultEchoMatcher_DoesNotFilterRecentCandidates(t *testing.T) {
+	matcher := NewDefaultEchoMatcher()
+	now := time.Date(2026, 6, 4, 10, 0, 0, 0, time.UTC)
+	cur := &domain.Moment{
+		ID:        "m1",
+		TraceID:   "trace-current",
+		CreatedAt: now,
+		Embeddings: []domain.EmbeddingEntry{
+			{Model: "test", Embedding: []float32{1, 0}},
+		},
+	}
+	history := []domain.Moment{
+		{ID: "recent", TraceID: "trace-recent", CreatedAt: now.Add(-5 * time.Minute), Embeddings: []domain.EmbeddingEntry{
+			{Model: "test", Embedding: []float32{1, 0}},
+		}},
+		{ID: "old-enough", TraceID: "trace-old", CreatedAt: now.Add(-24 * time.Hour), Embeddings: []domain.EmbeddingEntry{
+			{Model: "test", Embedding: []float32{1, 0}},
+		}},
+	}
+	matches, err := matcher.Match(context.Background(), cur, history)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(matches) != 2 {
+		t.Fatalf("expected recent and old-enough matches, got %+v", matches)
+	}
+	seen := map[string]bool{}
+	for _, match := range matches {
+		seen[match.MomentID] = true
+	}
+	if !seen["recent"] || !seen["old-enough"] {
+		t.Fatalf("expected recent and old-enough matches, got %+v", matches)
+	}
+}
+
+func TestDefaultEchoMatcher_DedupesSameHistoricalTraceByEchoScore(t *testing.T) {
+	matcher := NewDefaultEchoMatcher()
+	now := time.Date(2026, 6, 4, 10, 0, 0, 0, time.UTC)
+	cur := &domain.Moment{
+		ID:        "m1",
+		TraceID:   "trace-current",
+		CreatedAt: now,
+		Embeddings: []domain.EmbeddingEntry{
+			{Model: "test", Embedding: []float32{1, 0}},
+		},
+	}
+	history := []domain.Moment{
+		{ID: "same-trace-lower", TraceID: "trace-shared", CreatedAt: now.Add(-24 * time.Hour), Embeddings: []domain.EmbeddingEntry{
+			{Model: "test", Embedding: []float32{0.7, 0.71414286}},
+		}},
+		{ID: "same-trace-higher", TraceID: "trace-shared", CreatedAt: now.Add(-24 * time.Hour), Embeddings: []domain.EmbeddingEntry{
+			{Model: "test", Embedding: []float32{0.8, 0.6}},
+		}},
+	}
+	matches, err := matcher.Match(context.Background(), cur, history)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(matches) != 1 || matches[0].MomentID != "same-trace-higher" {
+		t.Fatalf("expected higher scoring candidate for shared trace, got %+v", matches)
+	}
+}
+
+func TestDefaultEchoMatcher_LimitsMatchesToThree(t *testing.T) {
+	matcher := NewDefaultEchoMatcher()
+	now := time.Date(2026, 6, 4, 10, 0, 0, 0, time.UTC)
+	cur := &domain.Moment{
+		ID:        "m1",
+		TraceID:   "trace-current",
+		CreatedAt: now,
+		Embeddings: []domain.EmbeddingEntry{
+			{Model: "test", Embedding: []float32{1, 0}},
+		},
+	}
+	history := []domain.Moment{
+		{ID: "h1", TraceID: "t1", CreatedAt: now.Add(-24 * time.Hour), Embeddings: []domain.EmbeddingEntry{{Model: "test", Embedding: []float32{1, 0}}}},
+		{ID: "h2", TraceID: "t2", CreatedAt: now.Add(-24 * time.Hour), Embeddings: []domain.EmbeddingEntry{{Model: "test", Embedding: []float32{0.95, 0.3122499}}}},
+		{ID: "h3", TraceID: "t3", CreatedAt: now.Add(-24 * time.Hour), Embeddings: []domain.EmbeddingEntry{{Model: "test", Embedding: []float32{0.9, 0.4358899}}}},
+		{ID: "h4", TraceID: "t4", CreatedAt: now.Add(-24 * time.Hour), Embeddings: []domain.EmbeddingEntry{{Model: "test", Embedding: []float32{0.85, 0.5267827}}}},
+	}
+	matches, err := matcher.Match(context.Background(), cur, history)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(matches) != 3 {
+		t.Fatalf("expected 3 matches, got %d", len(matches))
+	}
+}
+
+func TestDefaultEchoMatcher_OrdersByEchoScoreButKeepsRawSimilarity(t *testing.T) {
+	matcher := NewDefaultEchoMatcher()
+	now := time.Date(2026, 6, 4, 10, 0, 0, 0, time.UTC)
+	cur := &domain.Moment{
+		ID:        "m1",
+		TraceID:   "trace-current",
+		CreatedAt: now,
+		Embeddings: []domain.EmbeddingEntry{
+			{Model: "test", Embedding: []float32{1, 0}},
+		},
+	}
+	history := []domain.Moment{
+		{ID: "yesterday", TraceID: "t1", CreatedAt: now.Add(-24 * time.Hour), Embeddings: []domain.EmbeddingEntry{
+			{Model: "test", Embedding: []float32{0.66, 0.7510659}}, // score 0.67
+		}},
+		{ID: "old", TraceID: "t2", CreatedAt: now.Add(-30 * 24 * time.Hour), Embeddings: []domain.EmbeddingEntry{
+			{Model: "test", Embedding: []float32{0.68, 0.7332121}}, // score 0.685
+		}},
+	}
+	matches, err := matcher.Match(context.Background(), cur, history)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(matches) != 2 {
+		t.Fatalf("expected 2 matches, got %d", len(matches))
+	}
+	if matches[0].MomentID != "old" {
+		t.Fatalf("expected old candidate first by echo_score, got %+v", matches)
+	}
+	if matches[0].Similarity < 0.67 || matches[0].Similarity > 0.69 {
+		t.Fatalf("expected raw cosine similarity around 0.68, got %f", matches[0].Similarity)
 	}
 }

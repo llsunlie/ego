@@ -16,10 +16,15 @@
    - 目标：把 topK 召回交给数据库，提高检索效率。
    - 应避免继续依赖应用层全量扫描历史 Moment 作为长期方案。
 
-3. TraceProfile 需要持久化。
+3. Echo sparse search 使用 Elasticsearch。
+   - 目标：补足 dense embedding 对具体短语、反复措辞和词面呼应不敏感的问题。
+   - 方案方向：pgvector dense recall + Elasticsearch sparse recall + RRF 融合。
+   - 中文分词优先评估 IK analyzer，并以 char ngram 字段作为兜底。
+
+4. TraceProfile 需要持久化。
    - TraceProfile 是星座聚合的算法中间层，不等同于用户可见的 MomentInsight。
 
-4. 星座聚合允许较大改造。
+5. 星座聚合允许较大改造。
    - 当前是新版本阶段，可以对 Constellation 数据结构与匹配流程做替换兼容。
 
 ## 总体阶段
@@ -27,8 +32,9 @@
 | 阶段 | 任务 | 目标 | 产出 | 状态 |
 |---|---|---|---|---|
 | P0 | 建立评估样本与验收口径 | 让后续优化有可比较的基准 | Echo/星座正负样本、人工验收标准 | 已完成 |
-| P1 | Echo 召回效率优化 | 用数据库 topK 替代应用层全量扫描 | pgvector/HNSW 召回能力、候选 topK 接口 | 待设计 |
-| P2 | Echo 匹配质量优化 | 从“向量相似”升级为“回声匹配” | 候选过滤、去重、时间/Trace 规则、可选 rerank 流程 | 待设计 |
+| P1 | Echo 召回效率优化 | 用数据库 topK 替代应用层全量扫描 | pgvector/HNSW 召回能力、候选 topK 接口 | 已完成 |
+| P2 | Echo 匹配质量优化 | 先用规则降低重复和同 Trace 干扰 | 候选过滤、去重、时间/Trace 规则、内部 echo_score | 已完成 |
+| P2.5 | Elasticsearch sparse search | 引入词面/短语召回，并与 dense 召回融合 | ES index、中文 analyzer、回填、RRF hybrid recall | 已完成 |
 | P3 | Echo 结果语义与前端兼容 | 保持 proto 基本兼容，同时让 similarity/score 含义清晰 | Echo score 口径文档、前端展示兼容说明 | 待设计 |
 | P4 | TraceProfile 持久化 | 为星座聚合提供稳定的 Trace 级画像 | TraceProfile 生成、存储、回填任务 | 待设计 |
 | P5 | ConstellationProfile 改造 | 让星座从短 topic 聚合升级为长期主题画像聚合 | 星座画像结构、兼容旧展示字段 | 待设计 |
@@ -68,14 +74,37 @@
 ### P2. Echo 匹配质量优化
 
 目标：
-- 在候选 topK 基础上，提高 Echo 的“回声感”，减少表层语义误匹配。
+- 在候选 topK 基础上，先用确定性规则提高 Echo 的“回声感”，减少同 Trace 内容和连续重复候选。
 
 任务：
-- 讨论并确定 Echo 候选过滤规则。
-- 讨论是否排除当前 Trace、如何处理过近时间、如何避免同一 Trace 多条重复候选。
-- 讨论候选综合评分的组成，但不在本任务表中固定具体权重。
-- 讨论是否引入小规模 LLM rerank，以及失败时的降级方式。
+- 排除当前 Trace 内的候选。
+- 增加时间距离轻量加权。
+- 同 Trace 候选只保留内部分最高的一条。
+- 最多返回 3 条 Echo matched moments。
+- `similarities` 保持原始 cosine similarity；内部排序使用 `echo_score`。
 - 更新 Echo 相关测试与评估样本。
+
+### P2.5. Elasticsearch sparse search
+
+目标：
+- 引入 ES sparse recall，补足 pgvector dense recall 对具体短语、反复措辞和词面呼应不敏感的问题。
+
+任务：
+- 增加 Elasticsearch 本地服务与中文 analyzer 方案。
+- 设计 Moment search index mapping。
+- 将 Moment 写入同步到 ES search index。
+- 增加历史 Moment 回填到 ES 的独立命令。
+- 增加 ES sparse topK recall。
+- 使用 RRF 融合 dense rank 与 sparse rank。
+- 将融合候选接入 P2 EchoRanker。
+
+当前结果：
+- `CreateMoment` 同步 best-effort 写入 ES，写入失败只记录日志，不阻断创建。
+- Echo 候选由 pgvector dense topK 与 ES sparse topK 并发召回，通过 RRF 融合后进入 P2 EchoRanker。
+- pgvector dense 查询失败会直接返回错误；ES sparse 查询或回读失败只记录 warn，并继续使用 dense 候选。
+- 历史 Moment 可通过 `server/cmd/backfill-moment-search` 回填到 ES。
+- 本地 `docker-compose.yml` 已加入 Elasticsearch + IK analyzer 自定义镜像。
+- 日志保留 `echo recall candidates`、`echo match candidate scores` 与 `echo final matches` 核心诊断信息，用于查看 dense、ES、RRF 融合、EchoMatcher 分数计算和最终 Echo 命中的具体候选；中间碎片日志与 gRPC 完整 req/res 日志已降噪。
 
 ### P3. Echo 结果语义与前端兼容
 
@@ -152,6 +181,8 @@
 
 任务：
 - 增加 Echo 召回数量、过滤数量、最终返回数量等日志或指标。
+- Echo 召回日志应优先记录 dense / ES / fused / final matches 的候选摘要，包括 `moment_id`、`trace_id`、`created_at`、短 `content_preview` 与最终 `similarity`；避免只记录“某步骤完成”的低价值流水日志。
+- gRPC composite 层不记录完整 req/res，避免重复输出用户原文；业务层按场景记录可用于判断算法效果的受限 preview。
 - 增加星座匹配候选数、匹配分、状态变化等日志或指标。
 - 建立离线评估入口。
 - 建立关键样本的回归测试或人工复核流程。
@@ -164,6 +195,7 @@
 - 不在本计划中固定 LLM rerank prompt。
 - 不在本计划中直接定义数据库迁移细节。
 - 不在本计划中直接修改 proto。
+- 不使用手写关键词表替代 sparse search。
 
 ## 后续文档建议
 
@@ -171,6 +203,7 @@
 
 - `echo-retrieval-design.md`
 - `echo-ranking-design.md`
+- `echo-sparse-search-design.md`
 - `trace-profile-design.md`
 - `constellation-profile-design.md`
 - `constellation-state-design.md`

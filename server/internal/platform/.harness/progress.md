@@ -1,10 +1,11 @@
 # platform Progress
 
-## Current State (2026-06-03)
+## Current State (2026-06-04)
 
 - Postgres vector support: P1 Echo recall adds migration `010_moment_embedding_vectors.sql`, enabling `vector`, creating `moment_embedding_vectors`, and adding HNSW cosine index for 4096-dim active Moment embeddings.
 - Config/bootstrap: platform config now exposes `AI_EMBEDDING_DIM` (default `4096`) and `ECHO_RECALL_TOP_K` (default `10`) so Writing can receive validated embedding dimension and recall limit from process-level bootstrap.
-- Startup debug logging records the parsed embedding model, embedding dimension, and Echo recall topK without exposing secrets.
+- Elasticsearch sparse recall support: platform config now exposes `ELASTICSEARCH_URL`, optional basic auth, `ECHO_SPARSE_RECALL_ENABLED`, `ECHO_SPARSE_RECALL_TOP_K`, and `ECHO_HYBRID_RRF_K`. Bootstrap creates a shared ES HTTP client and passes it to Writing.
+- Startup debug logging records the parsed embedding model, embedding dimension, Echo recall topK, sparse recall toggle, sparse topK, and RRF K without exposing secrets.
 
 ## Previous State
 

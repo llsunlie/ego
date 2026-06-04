@@ -13,6 +13,23 @@
         "server/internal/writing/app/create_moment.go",
         "go test ./internal/writing/..."
       ]
+    },
+    {
+      "id": "backend.echo_sparse_hybrid_recall_p25",
+      "title": "P2.5 Echo recall fuses pgvector dense candidates with Elasticsearch sparse candidates",
+      "status": "passing",
+      "modules": ["platform", "writing"],
+      "evidence": [
+        "server/internal/platform/elasticsearch/client.go",
+        "server/internal/bootstrap/platform.go",
+        "server/internal/bootstrap/writing.go",
+        "server/internal/writing/module.go",
+        "server/internal/writing/adapter/elasticsearch/moment_search.go",
+        "server/internal/writing/adapter/elasticsearch/moment_search_test.go",
+        "server/internal/writing/app/echo_hybrid.go",
+        "server/cmd/backfill-moment-search/main.go",
+        "go test ./internal/writing/app ./internal/writing/adapter/elasticsearch ./cmd/backfill-moment-search ./internal/bootstrap"
+      ]
     }
   ],
   "notes": [

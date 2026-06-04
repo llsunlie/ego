@@ -63,13 +63,6 @@ func (r *EchoCandidateReader) FindNearestMoments(ctx context.Context, userID str
 	}
 
 	start := time.Now()
-	logger.DebugContext(ctx, "EchoCandidateReader: querying nearest moments",
-		"user_id", userID,
-		"moment_id", currentMomentID,
-		"model", model,
-		"dim", len(embedding),
-		"top_k", limit,
-	)
 	rows, err := r.db.Query(ctx, findNearestMomentsSQL,
 		pgtype.UUID{Bytes: [16]byte(uid), Valid: true},
 		model,

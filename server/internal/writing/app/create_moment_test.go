@@ -28,6 +28,7 @@ func (m *mockTraceRepo) Delete(ctx context.Context, id string) error           {
 type mockMomentRepo struct {
 	createFn      func(ctx context.Context, moment *domain.Moment) error
 	getByIDFn     func(ctx context.Context, id string) (*domain.Moment, error)
+	getByIDsFn    func(ctx context.Context, ids []string) ([]domain.Moment, error)
 	listByTraceFn func(ctx context.Context, traceID string) ([]domain.Moment, error)
 	listByUserFn  func(ctx context.Context, userID string) ([]domain.Moment, error)
 }
@@ -37,6 +38,12 @@ func (m *mockMomentRepo) Create(ctx context.Context, moment *domain.Moment) erro
 }
 func (m *mockMomentRepo) GetByID(ctx context.Context, id string) (*domain.Moment, error) {
 	return m.getByIDFn(ctx, id)
+}
+func (m *mockMomentRepo) GetByIDs(ctx context.Context, ids []string) ([]domain.Moment, error) {
+	if m.getByIDsFn == nil {
+		return nil, nil
+	}
+	return m.getByIDsFn(ctx, ids)
 }
 func (m *mockMomentRepo) ListByTraceID(ctx context.Context, traceID string) ([]domain.Moment, error) {
 	return m.listByTraceFn(ctx, traceID)
@@ -51,6 +58,22 @@ type mockEchoCandidateReader struct {
 
 func (m *mockEchoCandidateReader) FindNearestMoments(ctx context.Context, userID string, currentMomentID string, model string, embedding []float32, limit int32) ([]domain.Moment, error) {
 	return m.findNearestFn(ctx, userID, currentMomentID, model, embedding, limit)
+}
+
+type mockMomentSearchIndexer struct {
+	indexFn func(ctx context.Context, moment domain.Moment) error
+}
+
+func (m *mockMomentSearchIndexer) IndexMoment(ctx context.Context, moment domain.Moment) error {
+	return m.indexFn(ctx, moment)
+}
+
+type mockSparseCandidateReader struct {
+	searchFn func(ctx context.Context, current domain.Moment, limit int32) ([]string, error)
+}
+
+func (m *mockSparseCandidateReader) SearchMomentIDs(ctx context.Context, current domain.Moment, limit int32) ([]string, error) {
+	return m.searchFn(ctx, current, limit)
 }
 
 type mockEchoRepo struct {
@@ -502,5 +525,200 @@ func TestCreateMoment_NearestCandidateFailureDoesNotFallbackToFullScan(t *testin
 	})
 	if err == nil {
 		t.Fatal("expected pgvector candidate failure to surface")
+	}
+}
+
+func TestCreateMoment_SearchIndexFailureDoesNotFailCreateMoment(t *testing.T) {
+	userID := "user-1"
+
+	traces := &mockTraceRepo{
+		createFn: func(ctx context.Context, trace *domain.Trace) error {
+			trace.ID = "trace-1"
+			return nil
+		},
+		deleteFn: func(ctx context.Context, id string) error { return nil },
+	}
+	moments := &mockMomentRepo{
+		createFn: func(ctx context.Context, moment *domain.Moment) error {
+			moment.ID = "moment-1"
+			return nil
+		},
+	}
+	embedding := &mockEmbeddingGen{
+		generateFn: func(ctx context.Context, content string) ([]domain.EmbeddingEntry, error) {
+			return []domain.EmbeddingEntry{{Model: "active-model", Embedding: []float32{0.1}}}, nil
+		},
+	}
+	candidates := &mockEchoCandidateReader{
+		findNearestFn: func(ctx context.Context, userID string, currentMomentID string, model string, embedding []float32, limit int32) ([]domain.Moment, error) {
+			return nil, nil
+		},
+	}
+	indexer := &mockMomentSearchIndexer{
+		indexFn: func(ctx context.Context, moment domain.Moment) error {
+			return errors.New("es unavailable")
+		},
+	}
+
+	uc := NewCreateMomentUseCaseWithHybridCandidates(
+		traces,
+		moments,
+		candidates,
+		indexer,
+		nil,
+		nil,
+		embedding,
+		nil,
+		&mockIDGen{id: "id-seq"},
+		10,
+		0,
+		60,
+	)
+	output, err := uc.Execute(withUserID(context.Background(), userID), CreateMomentInput{
+		Content: "hello",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if output.Moment.ID != "moment-1" {
+		t.Fatalf("expected created moment despite search index failure, got %s", output.Moment.ID)
+	}
+}
+
+func TestCreateMoment_UsesSparseCandidatesWhenEnabled(t *testing.T) {
+	userID := "user-1"
+
+	traces := &mockTraceRepo{
+		createFn: func(ctx context.Context, trace *domain.Trace) error {
+			trace.ID = "trace-1"
+			return nil
+		},
+		deleteFn: func(ctx context.Context, id string) error { return nil },
+	}
+	moments := &mockMomentRepo{
+		createFn: func(ctx context.Context, moment *domain.Moment) error {
+			moment.ID = "moment-1"
+			return nil
+		},
+		getByIDsFn: func(ctx context.Context, ids []string) ([]domain.Moment, error) {
+			return []domain.Moment{{ID: "sparse-1"}, {ID: "dense-1"}}, nil
+		},
+	}
+	embedding := &mockEmbeddingGen{
+		generateFn: func(ctx context.Context, content string) ([]domain.EmbeddingEntry, error) {
+			return []domain.EmbeddingEntry{{Model: "active-model", Embedding: []float32{0.1}}}, nil
+		},
+	}
+	candidates := &mockEchoCandidateReader{
+		findNearestFn: func(ctx context.Context, userID string, currentMomentID string, model string, embedding []float32, limit int32) ([]domain.Moment, error) {
+			return []domain.Moment{{ID: "dense-1"}}, nil
+		},
+	}
+	sparse := &mockSparseCandidateReader{
+		searchFn: func(ctx context.Context, current domain.Moment, limit int32) ([]string, error) {
+			if limit != 2 {
+				t.Fatalf("expected sparse topK 2, got %d", limit)
+			}
+			return []string{"sparse-1", "dense-1"}, nil
+		},
+	}
+	echo := &mockEchoMatcher{
+		matchFn: func(ctx context.Context, current *domain.Moment, history []domain.Moment) ([]domain.MatchedMoment, error) {
+			if len(history) != 2 {
+				t.Fatalf("expected merged dense+sparse candidates, got %+v", history)
+			}
+			return []domain.MatchedMoment{{MomentID: history[0].ID, Similarity: 0.9}}, nil
+		},
+	}
+	echos := &mockEchoRepo{createFn: func(ctx context.Context, echo *domain.Echo) error { return nil }}
+
+	uc := NewCreateMomentUseCaseWithHybridCandidates(
+		traces,
+		moments,
+		candidates,
+		nil,
+		sparse,
+		echos,
+		embedding,
+		echo,
+		&mockIDGen{id: "id-seq"},
+		10,
+		2,
+		60,
+	)
+	output, err := uc.Execute(withUserID(context.Background(), userID), CreateMomentInput{
+		Content: "hello",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if output.Echo == nil {
+		t.Fatal("expected echo from merged candidates")
+	}
+}
+
+func TestCreateMoment_SparseCandidateFailureDoesNotFailCreateMoment(t *testing.T) {
+	userID := "user-1"
+
+	traces := &mockTraceRepo{
+		createFn: func(ctx context.Context, trace *domain.Trace) error {
+			trace.ID = "trace-1"
+			return nil
+		},
+		deleteFn: func(ctx context.Context, id string) error { return nil },
+	}
+	moments := &mockMomentRepo{
+		createFn: func(ctx context.Context, moment *domain.Moment) error {
+			moment.ID = "moment-1"
+			return nil
+		},
+	}
+	embedding := &mockEmbeddingGen{
+		generateFn: func(ctx context.Context, content string) ([]domain.EmbeddingEntry, error) {
+			return []domain.EmbeddingEntry{{Model: "active-model", Embedding: []float32{0.1}}}, nil
+		},
+	}
+	candidates := &mockEchoCandidateReader{
+		findNearestFn: func(ctx context.Context, userID string, currentMomentID string, model string, embedding []float32, limit int32) ([]domain.Moment, error) {
+			return []domain.Moment{{ID: "dense-1"}}, nil
+		},
+	}
+	sparse := &mockSparseCandidateReader{
+		searchFn: func(ctx context.Context, current domain.Moment, limit int32) ([]string, error) {
+			return nil, errors.New("es unavailable")
+		},
+	}
+	echo := &mockEchoMatcher{
+		matchFn: func(ctx context.Context, current *domain.Moment, history []domain.Moment) ([]domain.MatchedMoment, error) {
+			if len(history) != 1 || history[0].ID != "dense-1" {
+				t.Fatalf("expected dense candidates only, got %+v", history)
+			}
+			return []domain.MatchedMoment{{MomentID: "dense-1", Similarity: 0.9}}, nil
+		},
+	}
+	echos := &mockEchoRepo{createFn: func(ctx context.Context, echo *domain.Echo) error { return nil }}
+
+	uc := NewCreateMomentUseCaseWithHybridCandidates(
+		traces,
+		moments,
+		candidates,
+		nil,
+		sparse,
+		echos,
+		embedding,
+		echo,
+		&mockIDGen{id: "id-seq"},
+		10,
+		2,
+		60,
+	)
+	output, err := uc.Execute(withUserID(context.Background(), userID), CreateMomentInput{
+		Content: "hello",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if output.Echo == nil {
+		t.Fatal("expected echo from dense candidates")
 	}
 }

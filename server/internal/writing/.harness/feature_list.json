@@ -44,6 +44,31 @@
       ]
     },
     {
+      "id": "writing.app.echo_ranking_rules",
+      "title": "Apply P2 Echo ranking rules after candidate recall",
+      "status": "passing",
+      "evidence": [
+        "app/echo_matcher.go",
+        "app/echo_matcher_test.go",
+        "docs/matching-optimization/echo-ranking-design.md",
+        "go test ./internal/writing/app"
+      ]
+    },
+    {
+      "id": "writing.app.echo_sparse_hybrid_recall",
+      "title": "Use Elasticsearch sparse recall and RRF fusion before Echo ranking",
+      "status": "passing",
+      "evidence": [
+        "app/create_moment.go",
+        "app/echo_hybrid.go",
+        "app/echo_hybrid_test.go",
+        "adapter/elasticsearch/moment_search.go",
+        "adapter/elasticsearch/moment_search_test.go",
+        "cmd/backfill-moment-search/main.go",
+        "go test ./internal/writing/app ./internal/writing/adapter/elasticsearch ./cmd/backfill-moment-search"
+      ]
+    },
+    {
       "id": "writing.app.generate_insight",
       "title": "Implement GenerateInsight use case (generate current-session insight via AI)",
       "status": "passing",

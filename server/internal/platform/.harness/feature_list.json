@@ -42,6 +42,19 @@
       ]
     },
     {
+      "id": "platform.elasticsearch",
+      "title": "Elasticsearch HTTP client and sparse recall bootstrap config",
+      "status": "passing",
+      "evidence": [
+        "server/internal/platform/elasticsearch/client.go",
+        "server/internal/config/config.go",
+        "server/internal/bootstrap/platform.go",
+        "docker-compose.yml",
+        "docker/elasticsearch/Dockerfile",
+        "go test ./internal/bootstrap ./internal/writing/adapter/elasticsearch"
+      ]
+    },
+    {
       "id": "platform.ai",
       "title": "AI client — OpenAI-compatible embedding + chat completion",
       "status": "passing",

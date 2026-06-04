@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"ego-server/internal/platform/logging"
@@ -12,14 +13,18 @@ import (
 // CreateMomentUseCase orchestrates the creation of a Moment (and optionally a Trace),
 // embedding generation, and echo matching.
 type CreateMomentUseCase struct {
-	traces         domain.TraceRepository
-	moments        domain.MomentRepository
-	echoCandidates domain.EchoCandidateReader
-	echos          domain.EchoRepository
-	embedding      domain.EmbeddingGenerator
-	echo           domain.EchoMatcher
-	ids            IDGenerator
-	echoRecallTopK int32
+	traces           domain.TraceRepository
+	moments          domain.MomentRepository
+	echoCandidates   domain.EchoCandidateReader
+	searchIndexer    domain.MomentSearchIndexer
+	sparseCandidates domain.EchoSparseCandidateReader
+	echos            domain.EchoRepository
+	embedding        domain.EmbeddingGenerator
+	echo             domain.EchoMatcher
+	ids              IDGenerator
+	echoRecallTopK   int32
+	echoSparseTopK   int32
+	echoHybridRRFK   int
 }
 
 func NewCreateMomentUseCase(
@@ -52,18 +57,55 @@ func NewCreateMomentUseCaseWithCandidates(
 	ids IDGenerator,
 	echoRecallTopK int32,
 ) *CreateMomentUseCase {
+	return NewCreateMomentUseCaseWithHybridCandidates(
+		traces,
+		moments,
+		echoCandidates,
+		nil,
+		nil,
+		echos,
+		embedding,
+		echo,
+		ids,
+		echoRecallTopK,
+		0,
+		60,
+	)
+}
+
+func NewCreateMomentUseCaseWithHybridCandidates(
+	traces domain.TraceRepository,
+	moments domain.MomentRepository,
+	echoCandidates domain.EchoCandidateReader,
+	searchIndexer domain.MomentSearchIndexer,
+	sparseCandidates domain.EchoSparseCandidateReader,
+	echos domain.EchoRepository,
+	embedding domain.EmbeddingGenerator,
+	echo domain.EchoMatcher,
+	ids IDGenerator,
+	echoRecallTopK int32,
+	echoSparseTopK int32,
+	echoHybridRRFK int,
+) *CreateMomentUseCase {
 	if echoRecallTopK <= 0 {
 		echoRecallTopK = 10
 	}
+	if echoHybridRRFK <= 0 {
+		echoHybridRRFK = 60
+	}
 	return &CreateMomentUseCase{
-		traces:         traces,
-		moments:        moments,
-		echoCandidates: echoCandidates,
-		echos:          echos,
-		embedding:      embedding,
-		echo:           echo,
-		ids:            ids,
-		echoRecallTopK: echoRecallTopK,
+		traces:           traces,
+		moments:          moments,
+		echoCandidates:   echoCandidates,
+		searchIndexer:    searchIndexer,
+		sparseCandidates: sparseCandidates,
+		echos:            echos,
+		embedding:        embedding,
+		echo:             echo,
+		ids:              ids,
+		echoRecallTopK:   echoRecallTopK,
+		echoSparseTopK:   echoSparseTopK,
+		echoHybridRRFK:   echoHybridRRFK,
 	}
 }
 
@@ -200,6 +242,11 @@ func (uc *CreateMomentUseCase) createMoment(ctx context.Context, userID, traceID
 	if err := uc.moments.Create(ctx, moment); err != nil {
 		return nil, err
 	}
+	if uc.searchIndexer != nil {
+		if err := uc.searchIndexer.IndexMoment(ctx, *moment); err != nil {
+			logger.WarnContext(ctx, "CreateMoment: index moment search failed", "moment_id", moment.ID, "error", err)
+		}
+	}
 	return moment, nil
 }
 
@@ -211,19 +258,50 @@ func (uc *CreateMomentUseCase) matchEcho(ctx context.Context, moment *domain.Mom
 	}
 
 	currentEmbedding := moment.Embeddings[0]
-	history, err := uc.echoCandidates.FindNearestMoments(
-		ctx,
-		userID,
-		moment.ID,
-		currentEmbedding.Model,
-		currentEmbedding.Embedding,
-		uc.echoRecallTopK,
-	)
-	if err != nil {
-		logger.ErrorContext(ctx, "CreateMoment: nearest echo candidates failed", "user_id", userID, "moment_id", moment.ID, "error", err)
-		return nil, fmt.Errorf("nearest echo candidates: %w", err)
+	denseCandidates := make(chan echoCandidateResult, 1)
+	sparseCandidates := make(chan []domain.Moment, 1)
+
+	go func() {
+		denseHistory, err := uc.echoCandidates.FindNearestMoments(
+			ctx,
+			userID,
+			moment.ID,
+			currentEmbedding.Model,
+			currentEmbedding.Embedding,
+			uc.echoRecallTopK,
+		)
+		denseCandidates <- echoCandidateResult{moments: denseHistory, err: err}
+	}()
+	go func() {
+		sparseCandidates <- uc.loadSparseEchoCandidates(ctx, *moment)
+	}()
+
+	denseResult := <-denseCandidates
+	sparseHistory := <-sparseCandidates
+	if denseResult.err != nil {
+		logger.ErrorContext(ctx, "CreateMoment: nearest echo candidates failed", "user_id", userID, "moment_id", moment.ID, "error", denseResult.err)
+		return nil, fmt.Errorf("nearest echo candidates: %w", denseResult.err)
 	}
-	logger.DebugContext(ctx, "CreateMoment: loaded echo candidates", "user_id", userID, "candidate_count", len(history), "top_k", uc.echoRecallTopK)
+
+	denseHistory := denseResult.moments
+	history := denseHistory
+	if len(sparseHistory) > 0 {
+		history = mergeEchoCandidatesRRF(denseHistory, sparseHistory, uc.echoHybridRRFK, maxInt(len(denseHistory), int(uc.echoSparseTopK)))
+	}
+	logger.DebugContext(ctx, "CreateMoment: echo recall candidates",
+		"user_id", userID,
+		"moment_id", moment.ID,
+		"current_preview", echoLogPreview(moment.Content),
+		"dense_candidate_count", len(denseHistory),
+		"sparse_candidate_count", len(sparseHistory),
+		"fused_candidate_count", len(history),
+		"dense_top_k", uc.echoRecallTopK,
+		"sparse_top_k", uc.echoSparseTopK,
+		"rrf_k", uc.echoHybridRRFK,
+		"dense_candidates", echoLogCandidates(denseHistory),
+		"es_candidates", echoLogCandidates(sparseHistory),
+		"fused_candidates", echoLogCandidates(history),
+	)
 
 	if len(history) == 0 {
 		logger.DebugContext(ctx, "CreateMoment: no history to match (first moment)")
@@ -244,6 +322,11 @@ func (uc *CreateMomentUseCase) matchEcho(ctx context.Context, moment *domain.Mom
 		matchedIDs[i] = m.MomentID
 		similarities[i] = m.Similarity
 	}
+	logger.DebugContext(ctx, "CreateMoment: echo final matches",
+		"moment_id", moment.ID,
+		"match_count", len(matches),
+		"matches", echoLogMatches(matches, history),
+	)
 
 	echo := &domain.Echo{
 		ID:               uc.ids.New(),
@@ -259,4 +342,100 @@ func (uc *CreateMomentUseCase) matchEcho(ctx context.Context, moment *domain.Mom
 	}
 
 	return echo, nil
+}
+
+type echoCandidateResult struct {
+	moments []domain.Moment
+	err     error
+}
+
+type momentByIDsReader interface {
+	GetByIDs(ctx context.Context, ids []string) ([]domain.Moment, error)
+}
+
+func (uc *CreateMomentUseCase) loadSparseEchoCandidates(ctx context.Context, moment domain.Moment) []domain.Moment {
+	logger := logging.FromContext(ctx)
+	if uc.sparseCandidates == nil || uc.echoSparseTopK <= 0 {
+		return nil
+	}
+	ids, err := uc.sparseCandidates.SearchMomentIDs(ctx, moment, uc.echoSparseTopK)
+	if err != nil {
+		logger.WarnContext(ctx, "CreateMoment: sparse echo candidates failed", "moment_id", moment.ID, "error", err)
+		return nil
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	reader, ok := uc.moments.(momentByIDsReader)
+	if !ok {
+		logger.WarnContext(ctx, "CreateMoment: sparse echo candidates skipped, moment repository cannot load by ids", "moment_id", moment.ID)
+		return nil
+	}
+	moments, err := reader.GetByIDs(ctx, ids)
+	if err != nil {
+		logger.WarnContext(ctx, "CreateMoment: load sparse moments failed", "moment_id", moment.ID, "error", err)
+		return nil
+	}
+	return orderMomentsByIDs(ids, moments)
+}
+
+const echoLogCandidateLimit = 5
+const echoLogPreviewRunes = 48
+
+func echoLogCandidates(moments []domain.Moment) []map[string]any {
+	limit := echoLogCandidateLimit
+	if len(moments) < limit {
+		limit = len(moments)
+	}
+	items := make([]map[string]any, 0, limit)
+	for i := 0; i < limit; i++ {
+		items = append(items, echoLogCandidate(moments[i], i+1))
+	}
+	return items
+}
+
+func echoLogMatches(matches []domain.MatchedMoment, history []domain.Moment) []map[string]any {
+	byID := make(map[string]domain.Moment, len(history))
+	for _, moment := range history {
+		byID[moment.ID] = moment
+	}
+	items := make([]map[string]any, 0, len(matches))
+	for i, match := range matches {
+		item := map[string]any{
+			"rank":       i + 1,
+			"moment_id":  match.MomentID,
+			"similarity": match.Similarity,
+		}
+		if moment, ok := byID[match.MomentID]; ok {
+			item["trace_id"] = moment.TraceID
+			item["content_preview"] = echoLogPreview(moment.Content)
+			if !moment.CreatedAt.IsZero() {
+				item["created_at"] = moment.CreatedAt.Format(time.RFC3339)
+			}
+		}
+		items = append(items, item)
+	}
+	return items
+}
+
+func echoLogCandidate(moment domain.Moment, rank int) map[string]any {
+	item := map[string]any{
+		"rank":            rank,
+		"moment_id":       moment.ID,
+		"trace_id":        moment.TraceID,
+		"content_preview": echoLogPreview(moment.Content),
+	}
+	if !moment.CreatedAt.IsZero() {
+		item["created_at"] = moment.CreatedAt.Format(time.RFC3339)
+	}
+	return item
+}
+
+func echoLogPreview(content string) string {
+	content = strings.Join(strings.Fields(content), " ")
+	runes := []rune(content)
+	if len(runes) <= echoLogPreviewRunes {
+		return content
+	}
+	return string(runes[:echoLogPreviewRunes]) + "..."
 }

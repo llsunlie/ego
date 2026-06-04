@@ -1,6 +1,6 @@
 # writing Progress
 
-## Current State (2026-06-03)
+## Current State (2026-06-04)
 
 P1 Echo recall efficiency optimization implemented. Writing now keeps `moments.embeddings` JSONB for long-term compatibility while dual-writing the active content embedding into `moment_embedding_vectors` for pgvector/HNSW topK recall. `CreateMomentUseCase` uses the `EchoCandidateReader` port as the primary candidate source; pgvector query errors surface directly and do not fall back to full user-history scans.
 
@@ -8,14 +8,22 @@ Historical vector backfill is available through `server/cmd/backfill-moment-vect
 
 Core P1 paths now include structured debug logs for vector dual-write, pgvector topK candidate recall, and historical vector backfill. Logs avoid raw content and embedding payloads, recording only ids, model, dimension, limits, counts, and elapsed time.
 
+P2 Echo ranking rules implemented. `DefaultEchoMatcher` now filters same-trace candidates, applies light time-distance scoring, deduplicates by historical trace, limits results to 3 matches, and preserves raw cosine similarity in persisted Echo similarities.
+
+P2.5 Echo sparse hybrid recall implemented. Writing now best-effort indexes new Moments into Elasticsearch, can backfill historical Moments through `server/cmd/backfill-moment-search`, queries sparse topK Moment IDs from the `ego_moments` index, loads those Moments from PostgreSQL, and merges dense pgvector rank with sparse ES rank through RRF before applying P2 Echo ranking rules. Dense pgvector and sparse ES recall now run concurrently inside `CreateMoment`; pgvector failure remains fatal, while sparse ES failure logs warn and continues with dense-only candidates.
+
+Echo recall logging now focuses on algorithm inspection: `CreateMoment: echo recall candidates` records dense, ES, and fused candidate summaries, `echo match candidate scores` records per-candidate score calculation details, and `CreateMoment: echo final matches` records final matched Moments with similarity. Composite gRPC request/response body logs and low-value ES success step logs are intentionally suppressed.
+
 ### Test summary
 
 | Layer | Tests | Status |
 |---|---|---|
-| `app/` | CreateMoment candidate-reader tests and EchoMatcher threshold tests | All pass |
+| `app/` | CreateMoment candidate-reader tests, EchoMatcher P2 ranking tests, and RRF hybrid recall tests | All pass |
+| `adapter/elasticsearch/` | ES index creation, sparse query request, and bulk error handling tests | All pass |
+| `cmd/backfill-moment-search` | compile coverage for ES search backfill command | All pass |
 | `adapter/postgres/` | vector literal validation | All pass |
 | `internal/writing/...` | module package tests | All pass |
-| `server ./...` | global package tests | Fails in unrelated `internal/conversation/adapter/ai` truncation test |
+| `server ./...` | global package tests | All pass |
 
 ## Previous State (2026-05-10)
 
