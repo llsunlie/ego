@@ -1,0 +1,61 @@
+name: Test CD APK
+
+# 测试环境 APK 构建：push test 或手动触发时，构建签名 APK 并上传为 workflow artifact
+on:
+  push:
+    branches: [test]
+    paths:
+      - 'client/**'
+      - '.github/workflows/test-cd-apk.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: setup flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          channel: 'stable'
+          cache: true
+
+      - name: pub get
+        run: cd client && flutter pub get
+
+      - name: build apk
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > client/android/app/upload-keystore.jks
+          cd client && flutter build apk --release --dart-define=SERVER_HOST=${{ secrets.TEST_SERVER_HOST }}
+        env:
+          ANDROID_KEYSTORE_PATH: upload-keystore.jks
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+
+      - name: rename apk
+        id: rename
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          APK_PATH="client/build/app/outputs/flutter-apk/app-release.apk"
+          NEW_NAME="ego-android-test-${SHORT_SHA}.apk"
+          mv "$APK_PATH" "$NEW_NAME"
+          echo "apk_path=$NEW_NAME" >> $GITHUB_OUTPUT
+          echo "apk_name=$NEW_NAME" >> $GITHUB_OUTPUT
+
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.rename.outputs.apk_name }}
+          path: ${{ steps.rename.outputs.apk_path }}
+          retention-days: 30

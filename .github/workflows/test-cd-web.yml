@@ -1,0 +1,36 @@
+name: Test CD Web
+
+# 测试环境 Web 部署：push test 或手动触发时，构建 Flutter Web → SCP 到阿里云测试服务器
+on:
+  push:
+    branches: [test]
+    paths:
+      - 'client/**'
+      - '.github/workflows/test-cd-web.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy Web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          channel: 'stable'
+          cache: true
+
+      - name: build web
+        run: cd client && flutter build web --release -O4 --no-source-maps --base-href / --dart-define=SERVER_HOST=${{ secrets.TEST_SERVER_HOST }}
+
+      - name: scp web
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.TEST_SERVER_HOST }}
+          username: ${{ secrets.TEST_SERVER_USER }}
+          key: ${{ secrets.TEST_SERVER_SSH_KEY }}
+          source: client/build/web
+          target: ${{ secrets.TEST_SERVER_DEPLOY_PATH }}
+          strip_components: 2
