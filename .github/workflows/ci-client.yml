@@ -3,13 +3,13 @@ name: CI Client
 # 前端 CI：PR 或 push 到 main 时触发，仅 client/ 或 proto/ 有变更时运行
 on:
   pull_request:
-    branches: [main]
+    branches: [main, test]
     paths:
       - 'client/**'
       - 'proto/**'
       - '.github/workflows/ci-client.yml'
   push:
-    branches: [main]
+    branches: [main, test]
     paths:
       - 'client/**'
       - 'proto/**'

@@ -1,0 +1,129 @@
+name: CD Backend Test
+
+# 测试环境后端 CD：PR 时编译验证，push test 时编译 + 部署到阿里云测试服务器
+on:
+  pull_request:
+    branches: [test]
+    paths:
+      - 'server/**'
+      - '.github/workflows/test-cd-backend.yml'
+  push:
+    branches: [test]
+    paths:
+      - 'server/**'
+      - '.github/workflows/test-cd-backend.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'server/go.mod'
+
+      - name: build
+        run: cd server && GOOS=linux GOARCH=amd64 go build -o ego-server ./cmd/ego/
+
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ego-server-test
+          path: server/ego-server
+          retention-days: 1
+
+  deploy:
+    name: Deploy
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ego-server-test
+          path: server/
+
+      - name: restore exec permission
+        run: chmod +x server/ego-server
+
+      # SCP 上传 Go 二进制
+      - name: scp binary
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.TEST_SERVER_HOST }}
+          username: ${{ secrets.TEST_SERVER_USER }}
+          key: ${{ secrets.TEST_SERVER_SSH_KEY }}
+          source: server/ego-server
+          target: ${{ secrets.TEST_SERVER_DEPLOY_PATH }}
+
+      # SCP 上传 docker-compose.yml
+      - name: scp docker-compose
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.TEST_SERVER_HOST }}
+          username: ${{ secrets.TEST_SERVER_USER }}
+          key: ${{ secrets.TEST_SERVER_SSH_KEY }}
+          source: docker-compose.yml
+          target: ${{ secrets.TEST_SERVER_DEPLOY_PATH }}
+
+      # SCP 上传数据库迁移文件
+      - name: scp migrations
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.TEST_SERVER_HOST }}
+          username: ${{ secrets.TEST_SERVER_USER }}
+          key: ${{ secrets.TEST_SERVER_SSH_KEY }}
+          source: server/internal/platform/postgres/migrations
+          target: ${{ secrets.TEST_SERVER_DEPLOY_PATH }}
+
+      # SCP 上传 monitoring 配置
+      - name: scp monitoring configs
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.TEST_SERVER_HOST }}
+          username: ${{ secrets.TEST_SERVER_USER }}
+          key: ${{ secrets.TEST_SERVER_SSH_KEY }}
+          source: monitoring/
+          target: ${{ secrets.TEST_SERVER_DEPLOY_PATH }}
+
+      # SSH：启动服务 → 等待 PG → 运行迁移 → 重启 ego-server
+      # 注意：测试环境不删除数据库数据，只执行新增的 migration
+      - name: post-deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.TEST_SERVER_HOST }}
+          username: ${{ secrets.TEST_SERVER_USER }}
+          key: ${{ secrets.TEST_SERVER_SSH_KEY }}
+          script: |
+            DEPLOY=${{ secrets.TEST_SERVER_DEPLOY_PATH }}
+
+            # 停止旧容器
+            docker compose -f "$DEPLOY/docker-compose.yml" down 2>/dev/null || true
+
+            # 创建必要目录（首次部署）
+            mkdir -p "$DEPLOY/data"
+            mkdir -p "$DEPLOY/server/.tmp/logs/server"
+
+            # 启动所有服务（PostgreSQL + Adminer + Monitoring stack）
+            docker compose -f "$DEPLOY/docker-compose.yml" up -d
+
+            # 等待 PostgreSQL 就绪
+            until docker compose -f "$DEPLOY/docker-compose.yml" exec -T postgres psql -U ego -d ego -c 'SELECT 1' > /dev/null 2>&1; do
+              echo "waiting for postgres..."
+              sleep 1
+            done
+
+            # 按编号顺序执行数据库迁移文件
+            for f in $(ls "$DEPLOY/server/internal/platform/postgres/migrations"/*.sql | sort); do
+              echo "running migration: $(basename $f)"
+              docker compose -f "$DEPLOY/docker-compose.yml" exec -T postgres psql -U ego -d ego < "$f"
+            done
+
+            # 重启 ego 服务
+            sudo systemctl restart ego-server
