@@ -71,8 +71,9 @@ func (DefaultEchoMatcher) Match(ctx context.Context, current *domain.Moment, his
 		scoreLogs = appendEchoCandidateScoreLog(scoreLogs, scoreLog)
 
 		match := rankedEchoMatch{
-			matched: domain.MatchedMoment{MomentID: h.ID, Similarity: sim},
-			score:   score,
+			matched:       domain.MatchedMoment{MomentID: h.ID, Similarity: score},
+			score:         score,
+			rawSimilarity: sim,
 		}
 		if h.TraceID == "" {
 			ungrouped = append(ungrouped, match)
@@ -91,7 +92,7 @@ func (DefaultEchoMatcher) Match(ctx context.Context, current *domain.Moment, his
 	}
 	sort.Slice(ranked, func(i, j int) bool {
 		if ranked[i].score == ranked[j].score {
-			return ranked[i].matched.Similarity > ranked[j].matched.Similarity
+			return ranked[i].rawSimilarity > ranked[j].rawSimilarity
 		}
 		return ranked[i].score > ranked[j].score
 	})
@@ -115,10 +116,10 @@ func (DefaultEchoMatcher) Match(ctx context.Context, current *domain.Moment, his
 	)
 
 	topScore := 0.0
-	topSimilarity := 0.0
+	topRawSimilarity := 0.0
 	if len(ranked) > 0 {
 		topScore = ranked[0].score
-		topSimilarity = ranked[0].matched.Similarity
+		topRawSimilarity = ranked[0].rawSimilarity
 	}
 	logger.DebugContext(ctx, "echo match done",
 		"history_size", len(history),
@@ -128,7 +129,7 @@ func (DefaultEchoMatcher) Match(ctx context.Context, current *domain.Moment, his
 		"threshold", echoSimilarityThreshold,
 		"max_matches", echoMaxMatches,
 		"top_score", topScore,
-		"top_similarity", topSimilarity,
+		"top_raw_similarity", topRawSimilarity,
 	)
 
 	if len(matches) == 0 {
@@ -161,8 +162,9 @@ func echoCandidateScoreLog(rank int, current *domain.Moment, candidate domain.Mo
 }
 
 type rankedEchoMatch struct {
-	matched domain.MatchedMoment
-	score   float64
+	matched       domain.MatchedMoment
+	score         float64
+	rawSimilarity float64
 }
 
 func echoTimeAdjustment(currentCreatedAt, candidateCreatedAt time.Time) float64 {

@@ -81,7 +81,7 @@
 - 增加时间距离轻量加权。
 - 同 Trace 候选只保留内部分最高的一条。
 - 最多返回 3 条 Echo matched moments。
-- `similarities` 保持原始 cosine similarity；内部排序使用 `echo_score`。
+- 不改 proto，`similarities` 字段直接承载最终 `echo_score`。
 - 更新 Echo 相关测试与评估样本。
 
 ### P2.5. Elasticsearch sparse search
@@ -112,8 +112,8 @@
 - 在不改或少改 proto 的前提下，让 Echo 返回结果对前端保持稳定。
 
 任务：
-- 明确 `similarities` 字段是否继续表示 cosine similarity，或升级为 echo score。
-- 如果字段语义变化，更新契约说明与前端展示说明。
+- 已确认不修改 proto，`similarities` 字段升级为最终 `echo_score`，前端沿用原字段展示。
+- 更新契约说明与前端展示说明。
 - 讨论是否需要内部强/弱/无 Echo 分档。
 - 若分档不进入 proto，则明确其只作为后端过滤策略。
 

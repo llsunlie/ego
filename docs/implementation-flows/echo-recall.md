@@ -216,7 +216,7 @@ Echo{
   MomentID: 当前 Moment ID,
   UserID: 当前用户 ID,
   MatchedMomentIDs: 按内部 echo_score 排序的历史 Moment IDs,
-  Similarities: 与 MatchedMomentIDs 一一对应的原始 cosine similarity
+  Similarities: 与 MatchedMomentIDs 一一对应的最终 echo_score
 }
 ```
 
@@ -231,9 +231,9 @@ Echo 召回日志聚焦算法效果，而不是记录每个基础设施动作。
 | 日志 | 目的 | 关键字段 |
 |---|---|---|
 | `CreateMoment: echo recall candidates` | 查看 dense、ES、RRF 三阶段分别召回了什么 | `current_preview`, `dense_candidates`, `es_candidates`, `fused_candidates`, `*_candidate_count`, `dense_top_k`, `sparse_top_k`, `rrf_k` |
-| `CreateMoment: echo final matches` | 查看 EchoMatcher 最终选中了什么 | `matches[].moment_id`, `matches[].trace_id`, `matches[].content_preview`, `matches[].similarity` |
-| `echo match candidate scores` | 查看 EchoMatcher 对每个融合候选的计算明细 | `candidates[].similarity`, `candidates[].time_adjustment`, `candidates[].echo_score`, `candidates[].passed_threshold`, `candidates[].skip_reason` |
-| `echo match done` | 查看规则过滤后的统计结果 | `history_size`, `skipped_no_embedding`, `filtered_same_trace`, `matched`, `top_score`, `top_similarity` |
+| `CreateMoment: echo final matches` | 查看 EchoMatcher 最终选中了什么 | `matches[].moment_id`, `matches[].trace_id`, `matches[].content_preview`, `matches[].similarity`；这里的 `similarity` 是最终 `echo_score` |
+| `echo match candidate scores` | 查看 EchoMatcher 对每个融合候选的计算明细 | `candidates[].similarity`, `candidates[].time_adjustment`, `candidates[].echo_score`, `candidates[].passed_threshold`, `candidates[].skip_reason`；这里的候选 `similarity` 是 raw cosine |
+| `echo match done` | 查看规则过滤后的统计结果 | `history_size`, `skipped_no_embedding`, `filtered_same_trace`, `matched`, `top_score`, `top_raw_similarity` |
 
 候选内容只记录 `content_preview`，当前最多 48 个 rune。gRPC composite 层不再记录完整 req/res，避免重复输出用户原文；ES HTTP 成功请求、ES 写入成功、sparse ids loaded、sparse moments loaded、hybrid merged 等中间碎片日志也不记录。
 

@@ -91,14 +91,15 @@ CreateMoment: echo recall candidates
 
 echo match candidate scores
   -> 记录 EchoMatcher 对融合候选的逐条计算明细
-  -> 每条候选包含 similarity、time_adjustment、echo_score、passed_threshold、skip_reason
+  -> 每条候选包含 raw cosine similarity、time_adjustment、echo_score、passed_threshold、skip_reason
 
 CreateMoment: echo final matches
   -> 记录 EchoMatcher 最终命中的历史 Moment
   -> 每条命中包含 rank、moment_id、trace_id、content_preview、similarity
+  -> 这里的 similarity 是最终 echo_score，与前端展示字段一致
 
 echo match done
-  -> 记录 history_size、filtered_same_trace、matched、top_score、top_similarity 等统计值
+  -> 记录 history_size、filtered_same_trace、matched、top_score、top_raw_similarity 等统计值
 ```
 
 降噪约定：

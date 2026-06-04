@@ -11,7 +11,7 @@ P2 不改变 P1 的 pgvector/HNSW topK 召回路径，也不引入 Elasticsearch
 1. Echo 必须实时返回。
 2. 不使用 insight embedding。
 3. 不修改 proto。
-4. 前端继续显示 `similarities`，其语义保持为原始 cosine similarity。
+4. 不修改 proto，前端继续显示 `similarities`，其语义升级为最终 `echo_score`。
 5. P2 不使用手写关键词表。
 6. Elasticsearch sparse search 进入 P2.5 单独设计。
 
@@ -40,7 +40,7 @@ candidate.trace_id == current.trace_id -> 排除
 
 ### 时间距离轻量加权
 
-P2 使用内部 `echo_score` 排序，但不改变前端看到的 similarity。
+P2 使用 `echo_score` 排序，并通过既有 `similarities` 字段返回给前端。
 
 第一版时间加权：
 
@@ -81,13 +81,13 @@ P2 内部使用：
 echo_score = cosine_similarity + time_adjustment
 ```
 
-但 Echo 持久化的 `similarities` 仍然保存：
+Echo 持久化的 `similarities` 保存：
 
 ```text
-cosine_similarity
+echo_score
 ```
 
-这样 proto 和前端展示暂不变化。
+raw cosine similarity 不再作为 Echo 返回值保存，只保留在候选 score 调试日志中用于排查。
 
 ## 不在 P2 中处理
 
@@ -103,5 +103,5 @@ cosine_similarity
 1. 同 Trace 候选不会作为 Echo 返回。
 2. 同一历史 Trace 多个候选只保留一个。
 3. 最多返回 3 条 Echo matched moments。
-4. `similarities` 仍保存原始 cosine similarity。
+4. `similarities` 保存最终 `echo_score`。
 5. Writing app 测试通过。

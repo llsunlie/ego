@@ -316,7 +316,7 @@ func TestDefaultEchoMatcher_LimitsMatchesToThree(t *testing.T) {
 	}
 }
 
-func TestDefaultEchoMatcher_OrdersByEchoScoreButKeepsRawSimilarity(t *testing.T) {
+func TestDefaultEchoMatcher_OrdersByEchoScoreAndReturnsScoreAsSimilarity(t *testing.T) {
 	matcher := NewDefaultEchoMatcher()
 	now := time.Date(2026, 6, 4, 10, 0, 0, 0, time.UTC)
 	cur := &domain.Moment{
@@ -345,7 +345,7 @@ func TestDefaultEchoMatcher_OrdersByEchoScoreButKeepsRawSimilarity(t *testing.T)
 	if matches[0].MomentID != "old" {
 		t.Fatalf("expected old candidate first by echo_score, got %+v", matches)
 	}
-	if matches[0].Similarity < 0.67 || matches[0].Similarity > 0.69 {
-		t.Fatalf("expected raw cosine similarity around 0.68, got %f", matches[0].Similarity)
+	if matches[0].Similarity < 0.68 || matches[0].Similarity > 0.69 {
+		t.Fatalf("expected returned similarity to be final echo_score around 0.685, got %f", matches[0].Similarity)
 	}
 }
