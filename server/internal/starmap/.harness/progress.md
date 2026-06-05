@@ -8,6 +8,8 @@ P4 TraceProfile sidecar persistence is implemented. `StashTrace` still returns i
 
 P5 TraceProfile quality baseline is established. Fixed review cases now live under `docs/matching-optimization/test-data/trace_profile_cases.json`, and adapter-level regression tests cover prompt construction, JSON parsing, field normalization, fallback behavior, and profile text construction without calling live AI services.
 
+P6 ConstellationProfile target design is documented. The planned model keeps `Trace -> Star` one-to-one, introduces `Star <-> Constellation` many-to-many membership through a future `constellation_stars` relation, keeps `TraceProfile` as the content profile name, and adds `ConstellationProfile` as the long-term theme profile. This is design-only; current runtime still uses topic-based async clustering.
+
 ### Test summary
 
 | Layer | Tests | Status |
@@ -52,6 +54,7 @@ P5 TraceProfile quality baseline is established. Fixed review cases now live und
 8. **Mapper in adapter/grpc**: Proto conversion kept in `mapper.go`.
 9. **TraceProfile as sidecar**: TraceProfile is generated asynchronously after `StashTrace` and persisted for future aggregation work. It does not replace the current topic-based constellation clustering in P4.
 10. **TraceProfile quality before replacement**: P5 validates generation quality before ConstellationProfile or matching replacement work. Quality samples and generator helper tests are the baseline for prompt tuning.
+11. **P6 target membership model**: Future matching should use TraceProfile to compare against ConstellationProfile. A Star can join multiple Constellations as primary/secondary memberships, while `constellations` remains the proto-compatible display entity.
 
 ### Known Issues
 

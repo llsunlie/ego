@@ -137,11 +137,33 @@ last_error
 
 `central_pattern` 表示 trace 中的核心模式、关注点或处境结构，允许为空；它不是强制的“冲突”。如果 embedding 失败，会持久化 `status=failed` 的 profile，但不会写入 `trace_profile_vectors`。
 
+### P6/P7 目标归属模型
+
+当前代码仍使用 Star topic 匹配和 `Constellation.StarIDs` 聚合。P6 设计后的目标方向是：
+
+```text
+Trace -> Star
+Trace -> TraceProfile
+TraceProfile -> match ConstellationProfile
+Star <-> Constellation
+```
+
+关键变化：
+
+- `Trace -> Star` 是一对一。Star 是 Trace 被收进星图后的展示节点。
+- `Star <-> Constellation` 是多对多。同一个 Star 可以从不同视角加入多个星座。
+- 多对多关系由未来的 `constellation_stars` 表表达，不再只依赖 `constellations.star_ids`。
+- `TraceProfile` 保持内容画像命名，不改成 `StarProfile`。
+- `ConstellationProfile` 表示星座长期主题画像，匹配依据从短 topic 升级为画像匹配。
+- `constellations` 继续作为 proto / 前端兼容的星座主表。
+
+更完整的目标设计见 `docs/matching-optimization/constellation-profile-design.md`。
+
 ### Trace.stashed 写入说明
 
 项目设计上 Writing 拥有 `traces` 表，但当前实现中 `starmap/adapter/postgres.TraceStasher` 会直接更新 `traces.stashed=true`。这是当前代码里的跨模块写入例外，文档和后续重构应将它视为需要特别留意的边界点。
 
-## 异步聚类
+## 当前异步聚类
 
 `clusterAsync(userID, starID, moments)` 使用 `context.Background()` 新建后台上下文，不继承原 RPC 的取消信号。执行顺序固定：
 

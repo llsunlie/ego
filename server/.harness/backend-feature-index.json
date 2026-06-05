@@ -57,6 +57,17 @@
         "server/internal/starmap/adapter/ai/trace_profile_generator_test.go",
         "go test ./internal/starmap/..."
       ]
+    },
+    {
+      "id": "backend.constellation_profile_design_p6",
+      "title": "P6 ConstellationProfile and multi-constellation Star membership design",
+      "status": "designed",
+      "modules": ["starmap"],
+      "evidence": [
+        "docs/matching-optimization/constellation-profile-design.md",
+        "docs/matching-optimization/optimization-plan.md",
+        "docs/implementation-flows/star-constellation-aggregation.md"
+      ]
     }
   ],
   "notes": [

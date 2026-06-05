@@ -60,6 +60,16 @@
         "docs/matching-optimization/trace-profile-quality-plan.md",
         "go test ./internal/starmap/..."
       ]
+    },
+    {
+      "id": "starmap.constellation_profile_design_p6",
+      "title": "P6 ConstellationProfile design with Trace -> Star and multi-constellation Star membership",
+      "status": "designed",
+      "evidence": [
+        "docs/matching-optimization/constellation-profile-design.md",
+        "docs/matching-optimization/optimization-plan.md",
+        "docs/implementation-flows/star-constellation-aggregation.md"
+      ]
     }
   ]
 }

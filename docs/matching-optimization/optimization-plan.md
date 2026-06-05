@@ -38,8 +38,8 @@
 | P3 | Echo 结果语义与前端兼容 | 保持 proto 基本兼容，同时让 similarity/score 含义清晰 | Echo score 口径文档、前端展示兼容说明 | 已完成 |
 | P4 | TraceProfile 旁路持久化 | 为星座聚合提供稳定的 Trace 级画像 | TraceProfile 异步生成、存储、profile embedding | 已完成 |
 | P5 | TraceProfile 质量验证与调优 | 确认 TraceProfile 稳定、具体、不过度推断 | 质量样本、复核流程、生成器回归测试 | 已建立基线 |
-| P6 | ConstellationProfile 改造 | 让星座从短 topic 聚合升级为长期主题画像聚合 | 星座画像结构、兼容旧展示字段 | 待设计 |
-| P7 | 星座匹配流程升级 | 用 TraceProfile 匹配 ConstellationProfile | 候选召回、评分、加入/新建/暂存流程 | 待设计 |
+| P6 | ConstellationProfile 改造 | 让星座从短 topic 聚合升级为长期主题画像聚合 | 星座画像结构、兼容旧展示字段、Star 多对多归属模型 | 已完成设计 |
+| P7 | 星座匹配流程升级 | 用 TraceProfile 匹配 ConstellationProfile | 候选召回、评分、primary/secondary 多归属流程 | 待设计 |
 | P8 | lonely / forming / active 状态落地 | 表达星座从孤星到稳定主题的形成过程 | 状态规则、列表/详情返回兼容 | 待讨论 |
 | P9 | 星座画像持续演化 | 避免星座被第一次 topic 固化 | 加入 Trace 后的同步统计更新与异步画像更新 | 待设计 |
 | P10 | 观测、回归与调参 | 可观察优化效果并持续校准 | 日志、指标、离线评估脚本、回归用例 | 待设计 |
@@ -148,22 +148,29 @@
 
 目标：
 - 将星座从短 topic 驱动改为长期主题画像驱动。
+- 保持 proto / 前端返回兼容，同时为后续多视角归属提供内部数据结构。
 
 任务：
-- 讨论 ConstellationProfile 字段范围。
-- 讨论展示字段与算法字段的兼容关系。
-- 设计 profile embedding 与 centroid embedding 的职责边界。
-- 设计从现有 Constellation 数据迁移到新画像结构的路径。
+- 保留 `constellations` 作为星座主表和 proto 兼容输出来源。
+- 设计 `constellation_profiles` 作为星座长期主题画像。
+- 设计 `constellation_profile_vectors` 保存 profile embedding 与 centroid embedding。
+- 设计 `constellation_stars` 表达 Star 与 Constellation 的多对多归属。
+- 明确 `Trace -> Star` 是一对一，`Star <-> Constellation` 是多对多。
+- 明确画像命名保留 `TraceProfile`，不改成 `StarProfile`。
+- 不做历史星座迁移；正式启用前会清空数据库。
+- 不在 P6 替换当前 topic-based matching。
 
 ### P7. 星座匹配流程升级
 
 目标：
 - 用 TraceProfile 匹配 ConstellationProfile，替代当前 topic embedding 直接匹配。
+- 支持一个 Star 从多个视角加入多个星座。
 
 任务：
 - 讨论候选星座召回方式。
 - 讨论匹配评分信号，但不在本任务表中固定具体公式。
 - 讨论 LLM judgement 是否进入最终匹配流程。
+- 设计 primary / secondary 归属、候选去重和最多归属数量。
 - 设计加入已有星座、新建星座、保留孤星的决策边界。
 - 更新 StashTrace、ListConstellations、GetConstellation 相关测试。
 
