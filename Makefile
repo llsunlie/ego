@@ -1,4 +1,4 @@
-.PHONY: proto proto-go proto-dart
+.PHONY: proto proto-go proto-dart sqlc
 
 proto: proto-go proto-dart
 
@@ -13,13 +13,14 @@ proto-go:
 	@echo "proto (Go) generated"
 
 proto-dart:
-	@PATH="$$PATH:$$(go env GOPATH)/bin:$$HOME/.pub-cache/bin" protoc \
+	@PATH="$$PATH:$$HOME/.pub-cache/bin" protoc \
 		--proto_path=proto \
-		--dart_out=client/lib/data/generated \
-		ego/api.proto
+		--dart_out=grpc:client/lib/data/generated \
+		proto/ego/api.proto
+	@mv client/lib/data/generated/ego/*.dart client/lib/data/generated/
+	@rm -rf client/lib/data/generated/ego/
 	@echo "proto (Dart) generated"
 
-.PHONY: sqlc
 sqlc:
 	@PATH="$$PATH:$$(go env GOPATH)/bin" sqlc generate
 	@echo "sqlc generated"
