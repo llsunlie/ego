@@ -7,12 +7,12 @@ import (
 
 type User struct {
 	ID           string
-	Account      string
+	Phone        string
 	PasswordHash string
 	CreatedAt    time.Time
 }
 
 type UserRepository interface {
-	FindByAccount(ctx context.Context, account string) (*User, error)
+	FindByPhone(ctx context.Context, phone string) (*User, error)
 	Create(ctx context.Context, user *User) error
 }
