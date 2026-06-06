@@ -12,12 +12,12 @@ import (
 )
 
 const createUser = `-- name: CreateUser :exec
-INSERT INTO users (id, account, password_hash, created_at) VALUES ($1, $2, $3, $4)
+INSERT INTO users (id, phone, password_hash, created_at) VALUES ($1, $2, $3, $4)
 `
 
 type CreateUserParams struct {
 	ID           pgtype.UUID
-	Account      string
+	Phone        string
 	PasswordHash string
 	CreatedAt    pgtype.Timestamptz
 }
@@ -25,25 +25,25 @@ type CreateUserParams struct {
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 	_, err := q.db.Exec(ctx, createUser,
 		arg.ID,
-		arg.Account,
+		arg.Phone,
 		arg.PasswordHash,
 		arg.CreatedAt,
 	)
 	return err
 }
 
-const getUserByAccount = `-- name: GetUserByAccount :one
-SELECT id, password_hash FROM users WHERE account = $1
+const getUserByPhone = `-- name: GetUserByPhone :one
+SELECT id, password_hash FROM users WHERE phone = $1
 `
 
-type GetUserByAccountRow struct {
+type GetUserByPhoneRow struct {
 	ID           pgtype.UUID
 	PasswordHash string
 }
 
-func (q *Queries) GetUserByAccount(ctx context.Context, account string) (GetUserByAccountRow, error) {
-	row := q.db.QueryRow(ctx, getUserByAccount, account)
-	var i GetUserByAccountRow
+func (q *Queries) GetUserByPhone(ctx context.Context, phone string) (GetUserByPhoneRow, error) {
+	row := q.db.QueryRow(ctx, getUserByPhone, phone)
+	var i GetUserByPhoneRow
 	err := row.Scan(&i.ID, &i.PasswordHash)
 	return i, err
 }

@@ -8,8 +8,9 @@ import (
 
 func NewIdentityHandler(p *Platform) pb.EgoServer {
 	return identity.NewHandler(identity.Deps{
-		DB:     p.Pool,
-		Hasher: p.Hasher,
-		Tokens: p.Tokens,
+		DB:        p.Pool,
+		Hasher:    p.Hasher,
+		Tokens:    p.Tokens,
+		SmsSender: p.SmsService,
 	})
 }
