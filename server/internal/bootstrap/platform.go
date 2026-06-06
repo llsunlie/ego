@@ -67,8 +67,25 @@ func InitPlatform(cfg *config.Config) (*Platform, error) {
 		Tokens:     auth.JWTIssuer{Secret: jwtKey, Exp: jwtExp},
 		Logger:     logger,
 		AIClient:   aiClient,
-		SmsService: sms.NewAliyunSmsService(),
+		SmsService: newSmsService(cfg, pool),
 	}, nil
+}
+
+func newSmsService(cfg *config.Config, pool *pgxpool.Pool) *sms.AliyunSmsService {
+	s, err := sms.NewAliyunSmsService(
+		cfg.AliyunAccessKeyID,
+		cfg.AliyunAccessKeySecret,
+		cfg.AliyunSmsSignName,
+		cfg.AliyunSmsTemplateCode,
+		cfg.AliyunSmsCodeLength,
+		cfg.AliyunSmsValidTime,
+		cfg.AliyunSmsInterval,
+	)
+	if err != nil {
+		pool.Close()
+		panic("init sms service: " + err.Error())
+	}
+	return s
 }
 
 func (p *Platform) Close() {
