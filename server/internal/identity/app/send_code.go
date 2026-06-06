@@ -30,18 +30,17 @@ func (uc *SendCodeUseCase) SendCode(ctx context.Context, phone string) (*SendCod
 		return nil, domain.ErrInvalidPhone
 	}
 
-	registered := true
 	_, err := uc.users.FindByPhone(ctx, phone)
-	if err != nil {
-		if errors.Is(err, domain.ErrUserNotFound) {
-			registered = false
-		} else {
+	if err != nil && !errors.Is(err, domain.ErrUserNotFound) {
+		return nil, err
+	}
+	registered := err == nil
+
+	// Only send SMS for new phones (registration). Registered users use password login.
+	if !registered {
+		if err := uc.smsSender.Send(ctx, phone); err != nil {
 			return nil, err
 		}
-	}
-
-	if err := uc.smsSender.Send(ctx, phone); err != nil {
-		return nil, err
 	}
 
 	return &SendCodeResult{Registered: registered}, nil
