@@ -26,12 +26,12 @@ func NewTraceProfileRepository(db sqlc.DBTX, embeddingDim int) *TraceProfileRepo
 const upsertTraceProfileSQL = `
 INSERT INTO trace_profiles (
   trace_id, user_id, topic, summary, keywords, emotions, scenes,
-  central_pattern, representative_moment_id, profile_text, status,
-  retry_count, last_error, created_at, updated_at
+  central_pattern, pattern_tags, representative_moment_id, profile_text,
+  status, retry_count, last_error, created_at, updated_at
 ) VALUES (
   $1, $2, $3, $4, $5, $6, $7,
   $8, $9, $10, $11,
-  $12, $13, $14, $15
+  $12, $13, $14, $15, $16
 )
 ON CONFLICT (trace_id) DO UPDATE SET
   user_id = EXCLUDED.user_id,
@@ -41,6 +41,7 @@ ON CONFLICT (trace_id) DO UPDATE SET
   emotions = EXCLUDED.emotions,
   scenes = EXCLUDED.scenes,
   central_pattern = EXCLUDED.central_pattern,
+  pattern_tags = EXCLUDED.pattern_tags,
   representative_moment_id = EXCLUDED.representative_moment_id,
   profile_text = EXCLUDED.profile_text,
   status = EXCLUDED.status,
@@ -95,6 +96,10 @@ func (r *TraceProfileRepository) Upsert(ctx context.Context, profile *domain.Tra
 	if err != nil {
 		return fmt.Errorf("marshal scenes: %w", err)
 	}
+	patternTags, err := json.Marshal(profile.PatternTags)
+	if err != nil {
+		return fmt.Errorf("marshal pattern tags: %w", err)
+	}
 
 	if _, err := r.db.Exec(ctx, upsertTraceProfileSQL,
 		pgtype.UUID{Bytes: [16]byte(traceID), Valid: true},
@@ -105,6 +110,7 @@ func (r *TraceProfileRepository) Upsert(ctx context.Context, profile *domain.Tra
 		emotions,
 		scenes,
 		profile.CentralPattern,
+		patternTags,
 		representativeMomentID,
 		profile.ProfileText,
 		profile.Status,

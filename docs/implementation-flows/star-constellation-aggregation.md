@@ -50,21 +50,18 @@ gRPC: StashTrace
         -> 读取 Trace 下所有 Moment
         -> stars.Create(Star{topic:"聚合中"})
         -> traceStasher.MarkStashed(traceID)
-        -> go clusterAsync(userID, starID, moments)
-        -> go generateTraceProfileAsync(trace, moments)
+        -> go clusterWithProfileAsync(trace, star, moments)
         -> 同步返回 Star
 
-后台 clusterAsync:
-  -> topicGen.Generate(moments)
-  -> stars.UpdateTopic(starID, topic)
-  -> constellations.FindAllByUserID(userID)
-  -> constellationMat.FindMatch(topic, existing)
-  -> 若匹配：聚合新旧全部 Moment，重生成星座资产并 Update
-  -> 若未匹配：基于当前 Moment 生成资产并 Create Constellation
-
-后台 generateTraceProfileAsync:
+后台 clusterWithProfileAsync:
   -> TraceProfileGenerator.Generate(trace, moments)
-  -> TraceProfileRepository.Upsert(profile, vector)
+  -> TraceProfileRepository.Upsert(trace_profile, trace_vector)
+  -> stars.UpdateTopic(trace_profile.topic)
+  -> ConstellationProfileRepository.FindCandidates(trace_vector.embedding)
+  -> 综合评分并选择 primary / secondary 星座
+  -> 若没有 strong primary：创建新 Constellation / ConstellationProfile
+  -> 写入 constellation_stars membership
+  -> 更新 ConstellationProfile 统计和 centroid embedding
 ```
 
 模块装配在 `server/internal/starmap/module.go`：
@@ -73,11 +70,10 @@ gRPC: StashTrace
 sqlc.Queries
   -> StarRepository / ConstellationRepository / TraceStasher
   -> writing/adapter/postgres.Reader 作为 TraceReader
-  -> adapter/ai.TopicGenerator
-  -> adapter/ai.ConstellationMatcher
   -> adapter/ai.ConstellationAssetGenerator
   -> adapter/ai.TraceProfileGenerator
   -> adapter/postgres.TraceProfileRepository
+  -> adapter/postgres.ConstellationProfileRepository
   -> StashTraceUseCase / ListConstellationsUseCase / GetConstellationUseCase
   -> starmap gRPC Handler
 ```
@@ -98,25 +94,27 @@ sqlc.Queries
      TraceID: req.trace_id
      Topic: "聚合中"
 7. traceStasher.MarkStashed(traceID)
-8. 启动 go clusterAsync(...)
-9. 启动 go generateTraceProfileAsync(...)
-10. 返回 StashTraceRes{star}
+8. 启动 go clusterWithProfileAsync(...)
+9. 返回 StashTraceRes{star}
 ```
 
 同步部分的失败会直接导致 `StashTrace` RPC 返回错误，Star 不一定创建成功。异步部分失败不会影响已返回的 RPC。
 
-### TraceProfile 旁路画像
+### TraceProfile 与 ConstellationProfile 聚类
 
-P4 新增 `generateTraceProfileAsync(trace, moments)` 作为旁路后台任务。它不替换当前 topic 聚类，也不影响 `StashTrace` 返回。
+P7 后当前模块装配默认走 `clusterWithProfileAsync(trace, star, moments)`。TraceProfile 不再只是旁路材料，而是星座归属的主要匹配依据。
 
 ```text
-generateTraceProfileAsync
+clusterWithProfileAsync
   -> adapter/ai.TraceProfileGenerator.Generate(trace, moments)
        -> LLM 生成结构化 TraceProfile
-       -> 失败最多重试 2 次
-       -> 仍失败则 fallback minimal profile
+       -> 生成失败时应用层最多尝试 3 次
+       -> 生成器内部仍保留 minimal profile 兜底
        -> embedding(profile_text)
   -> adapter/postgres.TraceProfileRepository.Upsert(profile, vector)
+  -> adapter/postgres.ConstellationProfileRepository.FindCandidates(...)
+  -> rankConstellationCandidates(...)
+  -> createConstellationFromTraceProfile(...) 或 attachStarToConstellation(...)
 ```
 
 当前 TraceProfile 字段：
@@ -128,18 +126,26 @@ keywords
 emotions
 scenes
 central_pattern
-representative_moment_id
+representative_moment_index
 profile_text
 status
 retry_count
 last_error
 ```
 
-`central_pattern` 表示 trace 中的核心模式、关注点或处境结构，允许为空；它不是强制的“冲突”。如果 embedding 失败，会持久化 `status=failed` 的 profile，但不会写入 `trace_profile_vectors`。
+`representative_moment_index` 是 LLM 输出的代表性 Moment 序号，后端会映射并校验成持久化字段 `representative_moment_id`；旧版 `representative_moment_id` 输出只作为兼容兜底。`central_pattern` 表示 trace 中的核心模式、关注点或处境结构，允许为空；它不是强制的“冲突”。如果 embedding 失败，会持久化 `status=failed` 的 profile，但不会写入 `trace_profile_vectors`。
 
-### P6/P7 目标归属模型
+P7.1 后新增 `pattern_tags`：
 
-当前代码仍使用 Star topic 匹配和 `Constellation.StarIDs` 聚合。P6 设计后的目标方向是：
+```text
+pattern_tags
+```
+
+`pattern_tags` 是算法匹配用的短标签集合，用于表达经历方式、处境结构或反复模式。它替代 `central_pattern_overlap` 成为模式维度的主要 overlap 信号；`central_pattern` 继续保留为可读描述和后续画像重写材料。
+
+### P7 当前归属模型
+
+当前运行路径：
 
 ```text
 Trace -> Star
@@ -152,92 +158,43 @@ Star <-> Constellation
 
 - `Trace -> Star` 是一对一。Star 是 Trace 被收进星图后的展示节点。
 - `Star <-> Constellation` 是多对多。同一个 Star 可以从不同视角加入多个星座。
-- 多对多关系由未来的 `constellation_stars` 表表达，不再只依赖 `constellations.star_ids`。
+- 多对多关系由 `constellation_stars` 表表达，同时为了 proto 兼容继续同步维护 `constellations.star_ids`。
 - `TraceProfile` 保持内容画像命名，不改成 `StarProfile`。
 - `ConstellationProfile` 表示星座长期主题画像，匹配依据从短 topic 升级为画像匹配。
 - `constellations` 继续作为 proto / 前端兼容的星座主表。
 
-更完整的目标设计见 `docs/matching-optimization/constellation-profile-design.md`。
+更完整的设计和实现记录见 `docs/matching-optimization/constellation-profile-design.md` 与 `docs/matching-optimization/constellation-matching-design.md`。
+
+### P7.1 / P7.2 下一步设计
+
+基于真实测试数据，P7 第一版存在偏向创建新星座的问题。后续拆为两步优化：
+
+```text
+P7.1:
+  -> 已实现 TraceProfile / ConstellationProfile pattern_tags
+  -> 已用 pattern_tags_overlap 替代 central_pattern_overlap
+  -> 已调整评分权重与阈值
+  -> 已让单 Trace 星座避免 profile_similarity 与 centroid_similarity 重复计权
+  -> 已增加解释性 middle 规则和候选级决策日志
+
+P7.2:
+  -> borderline top3 LLM 判断
+  -> 完善 secondary 多视角归属规则
+  -> 引入 ConstellationProfile Elasticsearch sparse 召回
+  -> dense + sparse RRF 融合后进入综合评分
+```
+
+P7.1 / P7.2 设计详见 `docs/matching-optimization/constellation-matching-design.md`。
 
 ### Trace.stashed 写入说明
 
 项目设计上 Writing 拥有 `traces` 表，但当前实现中 `starmap/adapter/postgres.TraceStasher` 会直接更新 `traces.stashed=true`。这是当前代码里的跨模块写入例外，文档和后续重构应将它视为需要特别留意的边界点。
 
-## 当前异步聚类
+## 旧 topic 异步聚类
 
-`clusterAsync(userID, starID, moments)` 使用 `context.Background()` 新建后台上下文，不继承原 RPC 的取消信号。执行顺序固定：
+P7 后旧 `topic -> ConstellationMatcher` 异步聚类路径已移除，不再作为 fallback。Star topic 会从 TraceProfile.topic 更新；星座归属由 TraceProfile 与 ConstellationProfile 匹配决定。
 
-### 1. 生成 Star Topic
-
-```text
-adapter/ai.TopicGenerator.Generate(moments)
-  -> platform/ai.Client.Chat(system prompt + moments prompt)
-  -> 返回短 topic
-  -> stars.UpdateTopic(starID, topic)
-```
-
-当前 AI 版 TopicGenerator 行为：
-
-- 若 Moment 为空，返回 `"未命名的星"`。
-- 若 Chat API 报错，记录日志并返回 `"未命名的星"`，错误为 `nil`，后续聚类继续执行。
-- prompt 要求主题日常、克制、不诗化；代码会把返回值裁剪到 20 个 rune。
-
-`starmap/app/topic_generator.go` 仍存在 MVP 默认实现，但当前模块装配使用的是 `starmap/adapter/ai.TopicGenerator`。
-
-### 2. 匹配已有星座
-
-```text
-constellationRepo.FindAllByUserID(userID)
-  -> adapter/ai.ConstellationMatcher.FindMatch(topic, existing)
-    -> platform/ai.Client.CreateEmbedding(topic)
-    -> 对 existing 并行取/算 constellation embedding
-    -> CosineSimilarity(topicEmbedding, constellationEmbedding)
-    -> bestScore >= 0.65 返回星座 ID，否则返回 ""
-```
-
-实现细节：
-
-- 优先使用 `Constellation.TopicEmbedding` 缓存。
-- 如果缓存为空，会实时对 `Constellation.Topic` 调 embedding。
-- 对每个已有星座用 goroutine 并行计算。
-- 新 topic embedding 失败时返回空 match，后续会创建新星座。
-- 单个已有星座 embedding 失败时跳过该星座。
-
-`starmap/app/constellation_matcher.go` 仍存在随机 MVP 默认实现，但当前 `starmap/module.go` 装配的是 `starmap/adapter/ai.ConstellationMatcher`。
-
-### 3. 匹配到已有星座
-
-匹配成功后：
-
-```text
-1. constellations.FindByID(matchID)
-2. allMoments 先加入当前 Star 的 moments
-3. 遍历已有 c.StarIDs:
-     stars.FindByIDs([sid])
-     traceReader.ListMomentsByTraceID(star.TraceID)
-     追加到 allMoments
-4. assetGen.Generate(allMoments)
-5. 更新 c.Topic / c.TopicEmbedding / c.Name / c.ConstellationInsight / c.TopicPrompts
-6. c.StarIDs append(starID)
-7. c.UpdatedAt = time.Now()
-8. constellations.Update(c)
-```
-
-这意味着星座每次增长都会用该星座关联的全部 Moment 重新生成资产。
-
-### 4. 未匹配到星座
-
-未匹配时：
-
-```text
-1. assetGen.Generate(currentStarMoments)
-2. 创建 Constellation:
-     ID: 新 UUID
-     UserID: 当前用户
-     Topic / TopicEmbedding / Name / Insight / Prompts: 来自 assetGen
-     StarIDs: [starID]
-3. constellations.Create(c)
-```
+当前异步聚合关键失败会记录 error 日志并带上 `recovery=pending_message_queue`。后续 P8 会设计消息队列或补偿任务，保证 TraceProfile、membership 与 ConstellationProfile 更新最终一致。
 
 ## 星座资产生成
 

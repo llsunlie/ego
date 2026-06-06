@@ -19,10 +19,10 @@
       "evidence": ["app/get_constellation.go", "app/get_constellation_test.go"]
     },
     {
-      "id": "starmap.app.default_policies",
-      "title": "Keep MVP business policies (TopicGenerator, ConstellationMatcher, ConstellationAssetGenerator) inside app/",
+      "id": "starmap.app.profile_clustering_policy",
+      "title": "Profile-based clustering orchestration and ConstellationAssetGenerator policy stay inside app/",
       "status": "passing",
-      "evidence": ["app/topic_generator.go", "app/constellation_matcher.go", "app/constellation_asset_generator.go", "go test ./internal/starmap/app"]
+      "evidence": ["app/stash_trace.go", "app/constellation_asset_generator.go", "go test ./internal/starmap/app"]
     },
     {
       "id": "starmap.module_wiring",
@@ -69,6 +69,58 @@
         "docs/matching-optimization/constellation-profile-design.md",
         "docs/matching-optimization/optimization-plan.md",
         "docs/implementation-flows/star-constellation-aggregation.md"
+      ]
+    },
+    {
+      "id": "starmap.constellation_profile_matching_p7",
+      "title": "P7 TraceProfile -> ConstellationProfile matching with primary/secondary Star memberships",
+      "status": "passing",
+      "evidence": [
+        "app/stash_trace.go",
+        "adapter/postgres/constellation_profile_repo.go",
+        "domain/types.go",
+        "domain/ports.go",
+        "app/stash_trace_test.go",
+        "app/list_constellations_test.go",
+        "go test ./internal/starmap/..."
+      ]
+    },
+    {
+      "id": "starmap.constellation_matching_split_fix_p7_1",
+      "title": "P7.1 Constellation matching split reduction with pattern_tags and explainable scoring",
+      "status": "passing",
+      "evidence": [
+        "domain/types.go",
+        "adapter/ai/trace_profile_generator.go",
+        "adapter/postgres/trace_profile_repo.go",
+        "adapter/postgres/constellation_profile_repo.go",
+        "app/stash_trace.go",
+        "app/stash_trace_test.go",
+        "adapter/ai/trace_profile_generator_test.go",
+        "internal/platform/postgres/migrations/013_profile_pattern_tags.sql",
+        "docs/matching-optimization/constellation-matching-design.md",
+        "docs/matching-optimization/optimization-plan.md",
+        "docs/implementation-flows/star-constellation-aggregation.md",
+        "go test ./internal/starmap/..."
+      ]
+    },
+    {
+      "id": "starmap.constellation_matching_borderline_hybrid_p7_2",
+      "title": "P7.2 Borderline LLM judgement and ConstellationProfile ES sparse recall",
+      "status": "designed",
+      "evidence": [
+        "docs/matching-optimization/constellation-matching-design.md",
+        "docs/matching-optimization/optimization-plan.md"
+      ]
+    },
+    {
+      "id": "starmap.constellation_profile_merge_consistency_p8",
+      "title": "P8 ConstellationProfile merge quality and async consistency optimization",
+      "status": "planned",
+      "evidence": [
+        "docs/matching-optimization/optimization-plan.md",
+        "docs/matching-optimization/constellation-matching-design.md",
+        "server/internal/starmap/.harness/progress.md"
       ]
     }
   ]

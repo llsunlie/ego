@@ -29,17 +29,16 @@ func NewHandler(deps Deps) *starmapgrpc.Handler {
 	traceStasher := starmappostgres.NewTraceStasher(queries)
 	traceReader := writingpostgres.NewReader(queries)
 
-	topicGen := starmapai.NewTopicGenerator(deps.AIClient)
-	constellationMat := starmapai.NewConstellationMatcher(deps.AIClient)
 	assetGen := starmapai.NewConstellationAssetGenerator(deps.AIClient)
 	profileGen := starmapai.NewTraceProfileGenerator(deps.AIClient)
 	profileRepo := starmappostgres.NewTraceProfileRepository(deps.DB, deps.AIEmbeddingDim)
+	constellationProfileRepo := starmappostgres.NewConstellationProfileRepository(deps.DB, deps.AIEmbeddingDim)
 	ids := starmapid.NewUUIDGenerator()
 
 	stashTrace := starmapapp.NewStashTraceUseCaseWithTraceProfile(
 		traceReader, traceStasher, starRepo, constellationRepo,
-		topicGen, constellationMat, assetGen,
-		profileGen, profileRepo,
+		assetGen,
+		profileGen, profileRepo, constellationProfileRepo,
 		ids,
 	)
 	listConstellations := starmapapp.NewListConstellationsUseCase(constellationRepo, starRepo)

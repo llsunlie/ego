@@ -64,6 +64,16 @@
       ]
     },
     {
+      "id": "platform.postgres.constellation_profiles",
+      "title": "Postgres storage for ConstellationProfile vectors and Star memberships",
+      "status": "passing",
+      "evidence": [
+        "server/internal/platform/postgres/migrations/012_constellation_profiles.sql",
+        "server/internal/platform/postgres/migrations/013_profile_pattern_tags.sql",
+        "go test ./internal/starmap/..."
+      ]
+    },
+    {
       "id": "platform.ai",
       "title": "AI client — OpenAI-compatible embedding + chat completion",
       "status": "passing",

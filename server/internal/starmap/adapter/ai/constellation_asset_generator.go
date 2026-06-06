@@ -78,7 +78,6 @@ type constellationAssetResponse struct {
 
 // ConstellationAssetGenerator implements domain.ConstellationAssetGenerator
 // by calling platform/ai.Client.Chat and parsing the JSON response.
-// It also caches the topic embedding for fast matching.
 type ConstellationAssetGenerator struct {
 	client *platformai.Client
 }
@@ -89,7 +88,7 @@ func NewConstellationAssetGenerator(client *platformai.Client) *ConstellationAss
 
 func (g *ConstellationAssetGenerator) Generate(ctx context.Context, moments []writingdomain.Moment) (string, []float32, string, string, []string, error) {
 	logger := logging.FromContext(ctx)
-	logger.DebugContext(ctx, "ConstellationAssetGenerator: start", "moment_count", len(moments))
+	logger.DebugContext(ctx, "starmap constellation asset generation started", "moment_count", len(moments))
 
 	messages := []platformai.ChatMessage{
 		{Role: "system", Content: assetSystemPrompt},
@@ -98,25 +97,25 @@ func (g *ConstellationAssetGenerator) Generate(ctx context.Context, moments []wr
 
 	text, err := g.client.Chat(ctx, messages)
 	if err != nil {
-		logger.ErrorContext(ctx, "ConstellationAssetGenerator: chat failed", "error", err)
+		logger.ErrorContext(ctx, "starmap constellation asset chat failed", "error", err)
 		return fallbackAssets()
 	}
 
 	topic, name, insight, prompts, err := parseAssetJSON(text)
 	if err != nil {
-		logger.WarnContext(ctx, "ConstellationAssetGenerator: JSON parse failed, using fallback", "error", err)
+		logger.WarnContext(ctx, "starmap constellation asset json parse failed", "error", err)
 		return fallbackAssets()
 	}
 
 	var topicEmb []float32
 	emb, err := g.client.CreateEmbedding(ctx, topic)
 	if err != nil {
-		logger.WarnContext(ctx, "ConstellationAssetGenerator: topic embedding failed, proceeding without cache", "error", err)
+		logger.WarnContext(ctx, "starmap constellation asset topic embedding failed", "error", err)
 	} else {
 		topicEmb = emb.Embedding
 	}
 
-	logger.InfoContext(ctx, "ConstellationAssetGenerator: done",
+	logger.InfoContext(ctx, "starmap constellation asset generation completed",
 		"topic", topic,
 		"name", name,
 		"insight_len", len([]rune(insight)),

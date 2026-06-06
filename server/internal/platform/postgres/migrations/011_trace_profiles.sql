@@ -7,6 +7,7 @@ CREATE TABLE trace_profiles (
   emotions                 JSONB NOT NULL DEFAULT '[]'::JSONB,
   scenes                   JSONB NOT NULL DEFAULT '[]'::JSONB,
   central_pattern          TEXT NOT NULL,
+  pattern_tags             JSONB NOT NULL DEFAULT '[]'::JSONB,
   representative_moment_id UUID,
   profile_text             TEXT NOT NULL,
   status                   TEXT NOT NULL,

@@ -68,6 +68,32 @@
         "docs/matching-optimization/optimization-plan.md",
         "docs/implementation-flows/star-constellation-aggregation.md"
       ]
+    },
+    {
+      "id": "backend.constellation_profile_matching_p7",
+      "title": "P7 TraceProfile to ConstellationProfile matching with multi-membership persistence",
+      "status": "passing",
+      "modules": ["platform", "starmap"],
+      "evidence": [
+        "server/internal/platform/postgres/migrations/012_constellation_profiles.sql",
+        "server/internal/starmap/app/stash_trace.go",
+        "server/internal/starmap/adapter/postgres/constellation_profile_repo.go",
+        "server/internal/starmap/module.go",
+        "server/internal/starmap/app/stash_trace_test.go",
+        "server/internal/starmap/app/list_constellations_test.go",
+        "go test ./internal/starmap/..."
+      ]
+    },
+    {
+      "id": "backend.constellation_profile_merge_consistency_p8",
+      "title": "P8 ConstellationProfile merge quality and async consistency design",
+      "status": "planned",
+      "modules": ["starmap"],
+      "evidence": [
+        "docs/matching-optimization/optimization-plan.md",
+        "docs/matching-optimization/constellation-matching-design.md",
+        "server/internal/starmap/.harness/progress.md"
+      ]
     }
   ],
   "notes": [

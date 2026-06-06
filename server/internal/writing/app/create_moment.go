@@ -140,7 +140,7 @@ type CreateMomentOutput struct {
 
 func (uc *CreateMomentUseCase) Execute(ctx context.Context, input CreateMomentInput) (*CreateMomentOutput, error) {
 	logger := logging.FromContext(ctx)
-	logger.DebugContext(ctx, "CreateMoment: start", "content_len", len([]rune(input.Content)), "trace_id", input.TraceID, "motivation", input.Motivation)
+	logger.DebugContext(ctx, "writing create moment started", "content_len", len([]rune(input.Content)), "trace_id", input.TraceID, "motivation", input.Motivation)
 
 	if input.Content == "" {
 		return nil, domain.ErrEmptyContent
@@ -160,45 +160,45 @@ func (uc *CreateMomentUseCase) Execute(ctx context.Context, input CreateMomentIn
 		}
 		trace, err := uc.createTrace(ctx, userID, motivation)
 		if err != nil {
-			logger.ErrorContext(ctx, "CreateMoment: create trace failed", "error", err)
+			logger.ErrorContext(ctx, "writing create moment trace create failed", "error", err)
 			return nil, fmt.Errorf("create trace: %w", err)
 		}
 		traceID = trace.ID
 		newTrace = true
-		logger.DebugContext(ctx, "CreateMoment: new trace created", "trace_id", traceID, "motivation", motivation)
+		logger.DebugContext(ctx, "writing create moment trace created", "trace_id", traceID, "motivation", motivation)
 	} else {
 		existing, err := uc.traces.GetByID(ctx, traceID)
 		if err != nil {
-			logger.ErrorContext(ctx, "CreateMoment: get trace failed", "trace_id", traceID, "error", err)
+			logger.ErrorContext(ctx, "writing create moment trace load failed", "trace_id", traceID, "error", err)
 			return nil, fmt.Errorf("get trace: %w", err)
 		}
 		if existing.UserID != userID {
-			logger.WarnContext(ctx, "CreateMoment: trace ownership mismatch", "trace_id", traceID, "trace_user", existing.UserID, "caller_user", userID)
+			logger.WarnContext(ctx, "writing create moment trace ownership mismatch", "trace_id", traceID, "trace_user", existing.UserID, "caller_user", userID)
 			return nil, fmt.Errorf("trace does not belong to user")
 		}
-		logger.DebugContext(ctx, "CreateMoment: appending to existing trace", "trace_id", traceID)
+		logger.DebugContext(ctx, "writing create moment appending to trace", "trace_id", traceID)
 	}
 
 	moment, err := uc.createMoment(ctx, userID, traceID, input.Content)
 	if err != nil {
 		if newTrace {
-			logger.WarnContext(ctx, "CreateMoment: rolling back new trace", "trace_id", traceID, "error", err)
+			logger.WarnContext(ctx, "writing create moment rolling back trace", "trace_id", traceID, "error", err)
 			_ = uc.traces.Delete(ctx, traceID)
 		}
 		return nil, fmt.Errorf("create moment: %w", err)
 	}
-	logger.DebugContext(ctx, "CreateMoment: moment created", "moment_id", moment.ID, "embedding_count", len(moment.Embeddings))
+	logger.DebugContext(ctx, "writing create moment created", "moment_id", moment.ID, "embedding_count", len(moment.Embeddings))
 
 	echo, err := uc.matchEcho(ctx, moment, userID)
 	if err != nil {
-		logger.ErrorContext(ctx, "CreateMoment: echo matching failed", "moment_id", moment.ID, "error", err)
+		logger.ErrorContext(ctx, "writing create moment echo matching failed", "moment_id", moment.ID, "error", err)
 		return nil, fmt.Errorf("match echo: %w", err)
 	}
 
 	if echo != nil {
-		logger.InfoContext(ctx, "CreateMoment: echo found", "moment_id", moment.ID, "echo_id", echo.ID, "matched_count", len(echo.MatchedMomentIDs))
+		logger.InfoContext(ctx, "writing create moment echo found", "moment_id", moment.ID, "echo_id", echo.ID, "matched_count", len(echo.MatchedMomentIDs))
 	} else {
-		logger.DebugContext(ctx, "CreateMoment: no echo (no matching history or first moment)", "moment_id", moment.ID)
+		logger.DebugContext(ctx, "writing create moment no echo", "moment_id", moment.ID)
 	}
 
 	return &CreateMomentOutput{
@@ -223,10 +223,10 @@ func (uc *CreateMomentUseCase) createTrace(ctx context.Context, userID, motivati
 
 func (uc *CreateMomentUseCase) createMoment(ctx context.Context, userID, traceID, content string) (*domain.Moment, error) {
 	logger := logging.FromContext(ctx)
-	logger.DebugContext(ctx, "CreateMoment: generating embedding", "content_len", len([]rune(content)))
+	logger.DebugContext(ctx, "writing create moment embedding started", "content_len", len([]rune(content)))
 	embeddings, err := uc.embedding.Generate(ctx, content)
 	if err != nil {
-		logger.ErrorContext(ctx, "CreateMoment: embedding failed", "error", err)
+		logger.ErrorContext(ctx, "writing create moment embedding failed", "error", err)
 		return nil, fmt.Errorf("generate embedding: %w", err)
 	}
 
@@ -244,7 +244,7 @@ func (uc *CreateMomentUseCase) createMoment(ctx context.Context, userID, traceID
 	}
 	if uc.searchIndexer != nil {
 		if err := uc.searchIndexer.IndexMoment(ctx, *moment); err != nil {
-			logger.WarnContext(ctx, "CreateMoment: index moment search failed", "moment_id", moment.ID, "error", err)
+			logger.WarnContext(ctx, "writing create moment search index failed", "moment_id", moment.ID, "error", err)
 		}
 	}
 	return moment, nil
@@ -253,7 +253,7 @@ func (uc *CreateMomentUseCase) createMoment(ctx context.Context, userID, traceID
 func (uc *CreateMomentUseCase) matchEcho(ctx context.Context, moment *domain.Moment, userID string) (*domain.Echo, error) {
 	logger := logging.FromContext(ctx)
 	if len(moment.Embeddings) == 0 {
-		logger.DebugContext(ctx, "CreateMoment: no embedding for echo matching", "moment_id", moment.ID)
+		logger.DebugContext(ctx, "writing echo matching skipped no embedding", "moment_id", moment.ID)
 		return nil, nil
 	}
 
@@ -279,7 +279,7 @@ func (uc *CreateMomentUseCase) matchEcho(ctx context.Context, moment *domain.Mom
 	denseResult := <-denseCandidates
 	sparseHistory := <-sparseCandidates
 	if denseResult.err != nil {
-		logger.ErrorContext(ctx, "CreateMoment: nearest echo candidates failed", "user_id", userID, "moment_id", moment.ID, "error", denseResult.err)
+		logger.ErrorContext(ctx, "writing echo dense candidates failed", "user_id", userID, "moment_id", moment.ID, "error", denseResult.err)
 		return nil, fmt.Errorf("nearest echo candidates: %w", denseResult.err)
 	}
 
@@ -288,7 +288,7 @@ func (uc *CreateMomentUseCase) matchEcho(ctx context.Context, moment *domain.Mom
 	if len(sparseHistory) > 0 {
 		history = mergeEchoCandidatesRRF(denseHistory, sparseHistory, uc.echoHybridRRFK, maxInt(len(denseHistory), int(uc.echoSparseTopK)))
 	}
-	logger.DebugContext(ctx, "CreateMoment: echo recall candidates",
+	logger.DebugContext(ctx, "writing echo recall candidates",
 		"user_id", userID,
 		"moment_id", moment.ID,
 		"current_preview", echoLogPreview(moment.Content),
@@ -304,7 +304,7 @@ func (uc *CreateMomentUseCase) matchEcho(ctx context.Context, moment *domain.Mom
 	)
 
 	if len(history) == 0 {
-		logger.DebugContext(ctx, "CreateMoment: no history to match (first moment)")
+		logger.DebugContext(ctx, "writing echo matching skipped no history")
 		return nil, nil
 	}
 
@@ -322,7 +322,7 @@ func (uc *CreateMomentUseCase) matchEcho(ctx context.Context, moment *domain.Mom
 		matchedIDs[i] = m.MomentID
 		similarities[i] = m.Similarity
 	}
-	logger.DebugContext(ctx, "CreateMoment: echo final matches",
+	logger.DebugContext(ctx, "writing echo final matches",
 		"moment_id", moment.ID,
 		"match_count", len(matches),
 		"matches", echoLogMatches(matches, history),
@@ -360,22 +360,34 @@ func (uc *CreateMomentUseCase) loadSparseEchoCandidates(ctx context.Context, mom
 	}
 	ids, err := uc.sparseCandidates.SearchMomentIDs(ctx, moment, uc.echoSparseTopK)
 	if err != nil {
-		logger.WarnContext(ctx, "CreateMoment: sparse echo candidates failed", "moment_id", moment.ID, "error", err)
+		logger.WarnContext(ctx, "writing echo sparse candidates failed", "moment_id", moment.ID, "error", err)
 		return nil
 	}
 	if len(ids) == 0 {
+		logger.DebugContext(ctx, "writing echo sparse candidates empty",
+			"moment_id", moment.ID,
+			"sparse_top_k", uc.echoSparseTopK,
+		)
 		return nil
 	}
 	reader, ok := uc.moments.(momentByIDsReader)
 	if !ok {
-		logger.WarnContext(ctx, "CreateMoment: sparse echo candidates skipped, moment repository cannot load by ids", "moment_id", moment.ID)
+		logger.WarnContext(ctx, "writing echo sparse candidates skipped no id reader", "moment_id", moment.ID)
 		return nil
 	}
 	moments, err := reader.GetByIDs(ctx, ids)
 	if err != nil {
-		logger.WarnContext(ctx, "CreateMoment: load sparse moments failed", "moment_id", moment.ID, "error", err)
+		logger.WarnContext(ctx, "writing echo sparse candidates load failed", "moment_id", moment.ID, "error", err)
 		return nil
 	}
+	missing := maxInt(len(ids)-len(moments), 0)
+	logger.DebugContext(ctx, "writing echo sparse candidates loaded",
+		"moment_id", moment.ID,
+		"raw_id_count", len(ids),
+		"loaded_count", len(moments),
+		"missing_count", missing,
+		"raw_ids", logStringList(ids, echoLogCandidateLimit),
+	)
 	return orderMomentsByIDs(ids, moments)
 }
 
@@ -438,4 +450,11 @@ func echoLogPreview(content string) string {
 		return content
 	}
 	return string(runes[:echoLogPreviewRunes]) + "..."
+}
+
+func logStringList(values []string, limit int) []string {
+	if limit > 0 && len(values) > limit {
+		values = values[:limit]
+	}
+	return append([]string(nil), values...)
 }

@@ -105,6 +105,7 @@ keywords jsonb
 emotions jsonb
 scenes jsonb
 central_pattern
+pattern_tags jsonb
 profile_text
 trace_count
 moment_count
@@ -122,6 +123,7 @@ updated_at
 - `emotions`：长期常见情绪。
 - `scenes`：长期场景。
 - `central_pattern`：长期反复出现的经历方式，可为空。
+- `pattern_tags`：P7.1 目标字段。用于算法比较的长期模式标签，表达反复出现的经历方式、处境结构或心理动作，避免直接比较中文长句导致 overlap 失效。
 - `profile_text`：用于 embedding 和排查。
 - `trace_count` / `moment_count`：画像规模统计。
 - `status`：画像状态，例如 `ready / refreshing / fallback / failed`。
@@ -175,7 +177,7 @@ created_at
 字段职责：
 
 - `match_type`：`primary / secondary`。
-- `match_dimensions`：相似维度，例如 `["scene", "keyword"]`、`["emotion", "central_pattern"]`。
+- `match_dimensions`：相似维度，例如 `["scene", "keyword"]`、`["emotion", "pattern_tags"]`。
 - `match_reason`：可解释原因，供日志和后续审核使用。
 - `weight`：画像更新权重，建议 primary 为 `1.0`，secondary 为 `0.5`。
 
@@ -226,10 +228,12 @@ profile_similarity
 + keyword_overlap
 + scene_overlap
 + emotion_overlap
-+ central_pattern_similarity
++ pattern_tags_overlap
 ```
 
 这些信号不在 P6 文档中固定具体权重，后续 P7 实现前再结合样本和日志确定。
+
+P7 第一版使用了 `central_pattern_overlap`，真实中文样本中容易因为长句无法有效分词而长期为 0。P7.1 设计改为引入 `pattern_tags`，用短标签集合 overlap 承担这部分算法信号，`central_pattern` 保留为可读描述。
 
 ### 多星座归属
 

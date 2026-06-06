@@ -23,7 +23,7 @@ const traceProfileSystemPrompt = `
 你不是心理咨询师、诊断者、文案作者或星座命名器。你要做的是“基于证据的压缩”：只整理输入中已经出现或有明确证据支撑的信息，不补全背景，不推测人格，不制造深层矛盾。
 
 返回格式必须是严格 JSON，不要包含 markdown 代码块：
-{"topic":"稳定主题","summary":"整体摘要","keywords":["关键词"],"emotions":["情绪"],"scenes":["场景"],"central_pattern":"核心模式或关注点","representative_moment_id":"代表性 moment id"}
+{"topic":"稳定主题","summary":"整体摘要","keywords":["关键词"],"emotions":["情绪"],"scenes":["场景"],"central_pattern":"核心模式或关注点","pattern_tags":["模式标签"],"representative_moment_index":1}
 
 全局要求：
 - 只输出 JSON。
@@ -70,16 +70,24 @@ const traceProfileSystemPrompt = `
 - 不要用“核心矛盾”口吻，不要写成心理诊断。
 - 可以是中性模式，例如：计划被推迟后重新安排当下、通过生活细节确认自己正在安顿下来。
 
-7. representative_moment_id
-- 必须从输入的 moment id 中选择一个。
-- 选择最能代表这次 trace 的原话。
+7. pattern_tags
+- 1 到 5 个短标签。
+- 用来描述这次 trace 的经历方式、处境结构、反复模式或心理动作。
+- 不要重复 keywords；keywords 偏具体内容词，pattern_tags 偏模式词。
+- 不要医学化、诊断化、性格定性。
+- 如果只是日常记录，也可以输出轻量标签，例如：生活安顿、新开始、计划变化。
+
+8. representative_moment_index
+- 选择最能代表这次 trace 的原话序号。
+- 必须输出数字，范围是 1 到输入 moments 的数量。
+- 不要输出 moment id，不要复制 id。
 
 禁止：
 - 不要诊断用户。
 - 不要给建议。
 - 不要编造用户没写到的人、事、原因。
 - 不要把普通事件强行解释成深层矛盾。
-- 不要输出输入中不存在的 moment id。
+- 不要输出 moment id。
 `
 
 type TraceProfileGenerator struct {
@@ -93,6 +101,8 @@ type traceProfileResponse struct {
 	Emotions               []string `json:"emotions"`
 	Scenes                 []string `json:"scenes"`
 	CentralPattern         string   `json:"central_pattern"`
+	PatternTags            []string `json:"pattern_tags"`
+	RepresentativeIndex    int      `json:"representative_moment_index"`
 	RepresentativeMomentID string   `json:"representative_moment_id"`
 }
 
@@ -102,7 +112,7 @@ func NewTraceProfileGenerator(client *platformai.Client) *TraceProfileGenerator 
 
 func (g *TraceProfileGenerator) Generate(ctx context.Context, trace writingdomain.Trace, moments []writingdomain.Moment) (*domain.TraceProfile, *domain.TraceProfileVector, error) {
 	logger := logging.FromContext(ctx)
-	logger.DebugContext(ctx, "TraceProfileGenerator: start", "trace_id", trace.ID, "moment_count", len(moments))
+	logger.DebugContext(ctx, "starmap trace profile generation started", "trace_id", trace.ID, "moment_count", len(moments))
 
 	var (
 		resp    traceProfileResponse
@@ -114,7 +124,7 @@ func (g *TraceProfileGenerator) Generate(ctx context.Context, trace writingdomai
 		if err == nil {
 			break
 		}
-		logger.WarnContext(ctx, "TraceProfileGenerator: attempt failed",
+		logger.WarnContext(ctx, "starmap trace profile generation attempt failed",
 			"trace_id", trace.ID,
 			"attempt", attempt+1,
 			"error", err,
@@ -130,7 +140,7 @@ func (g *TraceProfileGenerator) Generate(ctx context.Context, trace writingdomai
 		resp = fallbackTraceProfileResponse(moments)
 	}
 
-	representativeMomentID := normalizeRepresentativeMomentID(resp.RepresentativeMomentID, moments)
+	representativeMomentID, representativeFallback := normalizeRepresentativeMomentID(resp.RepresentativeIndex, resp.RepresentativeMomentID, moments)
 	profile := &domain.TraceProfile{
 		TraceID:                trace.ID,
 		UserID:                 trace.UserID,
@@ -140,6 +150,7 @@ func (g *TraceProfileGenerator) Generate(ctx context.Context, trace writingdomai
 		Emotions:               normalizeList(resp.Emotions, 6),
 		Scenes:                 normalizeList(resp.Scenes, 6),
 		CentralPattern:         truncateRunes(strings.TrimSpace(resp.CentralPattern), 180),
+		PatternTags:            normalizeList(resp.PatternTags, 5),
 		RepresentativeMomentID: representativeMomentID,
 		Status:                 status,
 		RetryCount:             traceProfileRetryCount(attempt, err),
@@ -155,7 +166,7 @@ func (g *TraceProfileGenerator) Generate(ctx context.Context, trace writingdomai
 	}
 	profile.ProfileText = buildTraceProfileText(profile, moments)
 
-	logger.InfoContext(ctx, "TraceProfileGenerator: generated profile",
+	logger.InfoContext(ctx, "starmap trace profile generated",
 		"trace_id", trace.ID,
 		"status", profile.Status,
 		"retry_count", profile.RetryCount,
@@ -165,14 +176,17 @@ func (g *TraceProfileGenerator) Generate(ctx context.Context, trace writingdomai
 		"emotions", profile.Emotions,
 		"scenes", profile.Scenes,
 		"central_pattern", profile.CentralPattern,
+		"pattern_tags", profile.PatternTags,
 		"representative_moment_id", profile.RepresentativeMomentID,
+		"representative_moment_index", resp.RepresentativeIndex,
+		"representative_fallback", representativeFallback,
 	)
 
 	embedding, err := g.client.CreateEmbedding(ctx, profile.ProfileText)
 	if err != nil {
 		profile.Status = domain.TraceProfileStatusFailed
 		profile.LastError = fmt.Sprintf("embedding: %v", err)
-		logger.WarnContext(ctx, "TraceProfileGenerator: embedding failed",
+		logger.WarnContext(ctx, "starmap trace profile embedding failed",
 			"trace_id", trace.ID,
 			"status", profile.Status,
 			"error", err,
@@ -190,7 +204,7 @@ func (g *TraceProfileGenerator) Generate(ctx context.Context, trace writingdomai
 		UpdatedAt: now,
 	}
 
-	logger.InfoContext(ctx, "TraceProfileGenerator: done",
+	logger.InfoContext(ctx, "starmap trace profile generation completed",
 		"trace_id", trace.ID,
 		"status", profile.Status,
 		"topic", profile.Topic,
@@ -228,7 +242,7 @@ func (g *TraceProfileGenerator) generateOnce(ctx context.Context, trace writingd
 func buildTraceProfileUserPrompt(trace writingdomain.Trace, moments []writingdomain.Moment) string {
 	var b strings.Builder
 	b.WriteString("请根据以下 trace 输入生成 TraceProfile。\n")
-	b.WriteString("注意：representative_moment_id 必须从 moments 中已有的 id 里选择。\n\n")
+	b.WriteString("注意：representative_moment_index 必须是 moments 的序号数字，从 1 开始；不要输出 moment id。\n\n")
 	fmt.Fprintf(&b, "trace_id: %s\n", trace.ID)
 	if strings.TrimSpace(trace.Motivation) != "" {
 		fmt.Fprintf(&b, "motivation: %s\n", trace.Motivation)
@@ -239,7 +253,7 @@ func buildTraceProfileUserPrompt(trace writingdomain.Trace, moments []writingdom
 			b.WriteString("...\n")
 			break
 		}
-		fmt.Fprintf(&b, "%d. id=%s\ncontent:\n%s\n\n", i+1, moment.ID, moment.Content)
+		fmt.Fprintf(&b, "Moment %d:\ncontent:\n%s\n\n", i+1, moment.Content)
 	}
 	return b.String()
 }
@@ -260,8 +274,10 @@ func parseTraceProfileJSON(text string) (traceProfileResponse, error) {
 
 func fallbackTraceProfileResponse(moments []writingdomain.Moment) traceProfileResponse {
 	representativeMomentID := ""
+	representativeIndex := 0
 	if len(moments) > 0 {
 		representativeMomentID = moments[0].ID
+		representativeIndex = 1
 	}
 	return traceProfileResponse{
 		Topic:                  fallbackTopic(moments),
@@ -270,6 +286,8 @@ func fallbackTraceProfileResponse(moments []writingdomain.Moment) traceProfileRe
 		Emotions:               []string{},
 		Scenes:                 []string{},
 		CentralPattern:         "",
+		PatternTags:            []string{},
+		RepresentativeIndex:    representativeIndex,
 		RepresentativeMomentID: representativeMomentID,
 	}
 }
@@ -298,17 +316,20 @@ func fallbackSummary(moments []writingdomain.Moment) string {
 	return truncateRunes(b.String(), 120)
 }
 
-func normalizeRepresentativeMomentID(id string, moments []writingdomain.Moment) string {
+func normalizeRepresentativeMomentID(index int, id string, moments []writingdomain.Moment) (string, bool) {
+	if index >= 1 && index <= len(moments) {
+		return moments[index-1].ID, false
+	}
 	id = strings.TrimSpace(id)
 	for _, moment := range moments {
 		if moment.ID == id {
-			return id
+			return id, true
 		}
 	}
 	if len(moments) == 0 {
-		return ""
+		return "", true
 	}
-	return moments[0].ID
+	return moments[0].ID, true
 }
 
 func normalizeList(values []string, limit int) []string {
@@ -346,6 +367,9 @@ func buildTraceProfileText(profile *domain.TraceProfile, moments []writingdomain
 	}
 	if profile.CentralPattern != "" {
 		fmt.Fprintf(&b, "核心模式：%s\n", profile.CentralPattern)
+	}
+	if len(profile.PatternTags) > 0 {
+		fmt.Fprintf(&b, "模式标签：%s\n", strings.Join(profile.PatternTags, "，"))
 	}
 	if representative := representativeMomentContent(profile.RepresentativeMomentID, moments); representative != "" {
 		fmt.Fprintf(&b, "代表原文：%s\n", representative)

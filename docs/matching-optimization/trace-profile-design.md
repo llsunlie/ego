@@ -6,6 +6,8 @@
 
 P4 的目标是为后续星座聚合升级准备 Trace 级算法画像。当前阶段只做旁路持久化，不替换现有星座 topic 聚合，不改变 `StashTrace` 返回，不改变 proto 和前端。
 
+> P7 后现状：TraceProfile 已从旁路材料升级为星座聚合主路径，旧 topic 聚合 fallback 已移除。本文保留 P4 设计记录，当前运行链路以 `constellation-matching-design.md` 为准。
+
 ## 当前链路
 
 ```text
@@ -13,10 +15,7 @@ StashTrace
   -> 同步创建 Star(topic="聚合中")
   -> 同步 MarkStashed
   -> 返回 Star
-  -> 后台原有 clusterAsync 照旧
-       -> topic generation
-       -> constellation match/create/update
-  -> 后台旁路 generateTraceProfileAsync
+  -> 后台旁路 TraceProfile 生成
        -> LLM 生成 TraceProfile JSON
        -> 拼接 profile_text
        -> embedding(profile_text)
@@ -24,7 +23,7 @@ StashTrace
        -> upsert trace_profile_vectors（如果 embedding 成功）
 ```
 
-TraceProfile 失败不会阻断现有星座聚合。
+P4 时 TraceProfile 失败不会阻断现有星座聚合。P7 后异步聚合依赖 TraceProfile，生成失败会在应用层重试，仍失败则记录可恢复错误，后续计划由消息队列或补偿任务保证一致性。
 
 ## 字段设计
 
@@ -39,6 +38,7 @@ keywords jsonb
 emotions jsonb
 scenes jsonb
 central_pattern
+pattern_tags jsonb
 representative_moment_id
 profile_text
 status
@@ -70,7 +70,8 @@ P4 只负责存储 profile embedding，不建立 ANN 索引。当前 active embe
 - `emotions`: 情绪词，可为空，不强行制造情绪。
 - `scenes`: 场景词，可为空。
 - `central_pattern`: 用户在这段 trace 中呈现的核心模式、关注点或处境结构。不是所有 trace 都有冲突，因此允许为空。
-- `representative_moment_id`: 从 trace moments 中选择的代表性 Moment。
+- `pattern_tags`: P7.1 目标字段。用于算法比较的短标签，描述 trace 中的经历方式、处境结构或反复模式。它不等同于 `keywords`，也不要求制造复杂心理解释。
+- `representative_moment_id`: 持久化字段。生成时 LLM 只输出 `representative_moment_index`，后端根据输入顺序映射成真实 Moment ID；旧版直接输出 ID 时只作为兼容兜底，并会校验是否属于当前 trace moments。
 - `profile_text`: 用于 embedding 的拼接文本，也用于排查画像质量。
 - `status`: `ready` / `fallback` / `failed`。
 
@@ -92,7 +93,12 @@ topic:
 
 central_pattern:
 计划被推迟后，尝试把被动等待转化成主动安排当下
+
+pattern_tags:
+["计划变化", "等待", "主动安排"]
 ```
+
+`central_pattern` 面向可读解释，保留完整句子；`pattern_tags` 面向匹配，保持短、稳定、可做集合 overlap。
 
 ## 生成输入
 
@@ -121,7 +127,8 @@ TraceProfile prompt 使用“基于证据的压缩”口径：
 - `keywords` 优先使用用户原话附近的具体词，避免“事情、感觉、生活、问题”这类过泛词。
 - `emotions`、`scenes` 没有明确依据时输出空数组。
 - `central_pattern` 没有明显模式时输出空字符串，不强行制造冲突。
-- `representative_moment_id` 必须来自输入 moment id。
+- `pattern_tags` 输出 1 到 5 个短标签，用来描述经历方式、处境结构或反复模式；不要重复 `keywords`，不要医学化、诊断化或性格定性。
+- `representative_moment_index` 必须是输入 moments 的序号，后端映射成 `representative_moment_id` 并校验。
 
 ## 重试与 fallback
 
@@ -139,7 +146,8 @@ topic = 第一条 moment 的短截断
 summary = trace moment content 的截断拼接
 keywords/emotions/scenes = []
 central_pattern = ""
-representative_moment_id = 第一条 moment id
+representative_moment_index = 1
+representative_moment_id = 后端映射出的第一条 moment id
 ```
 
 如果 embedding 失败：

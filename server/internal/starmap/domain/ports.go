@@ -40,19 +40,7 @@ type TraceStasher interface {
 	MarkStashed(ctx context.Context, traceID string) error
 }
 
-// TopicGenerator generates a Star.topic from moments.
-type TopicGenerator interface {
-	Generate(ctx context.Context, moments []writingdomain.Moment) (string, error)
-}
-
-// ConstellationMatcher finds a matching constellation for a topic.
-// Returns the constellation ID, or empty string if no match.
-type ConstellationMatcher interface {
-	FindMatch(ctx context.Context, topic string, existing []Constellation) (string, error)
-}
-
-// ConstellationAssetGenerator generates constellation-level assets including
-// a topic embedding for fast matching.
+// ConstellationAssetGenerator generates constellation-level display assets.
 type ConstellationAssetGenerator interface {
 	Generate(ctx context.Context, moments []writingdomain.Moment) (topic string, topicEmbedding []float32, name string, insight string, prompts []string, err error)
 }
@@ -65,4 +53,11 @@ type TraceProfileGenerator interface {
 // TraceProfileRepository persists TraceProfiles and their optional vectors.
 type TraceProfileRepository interface {
 	Upsert(ctx context.Context, profile *TraceProfile, vector *TraceProfileVector) error
+}
+
+// ConstellationProfileRepository persists long-term constellation algorithm profiles.
+type ConstellationProfileRepository interface {
+	FindCandidates(ctx context.Context, userID string, embedding []float32, limit int) ([]ConstellationProfileCandidate, error)
+	Upsert(ctx context.Context, profile *ConstellationProfile, vector *ConstellationProfileVector) error
+	AddMembership(ctx context.Context, membership ConstellationMembership) error
 }

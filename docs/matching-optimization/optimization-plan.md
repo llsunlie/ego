@@ -39,9 +39,11 @@
 | P4 | TraceProfile 旁路持久化 | 为星座聚合提供稳定的 Trace 级画像 | TraceProfile 异步生成、存储、profile embedding | 已完成 |
 | P5 | TraceProfile 质量验证与调优 | 确认 TraceProfile 稳定、具体、不过度推断 | 质量样本、复核流程、生成器回归测试 | 已建立基线 |
 | P6 | ConstellationProfile 改造 | 让星座从短 topic 聚合升级为长期主题画像聚合 | 星座画像结构、兼容旧展示字段、Star 多对多归属模型 | 已完成设计 |
-| P7 | 星座匹配流程升级 | 用 TraceProfile 匹配 ConstellationProfile | 候选召回、评分、primary/secondary 多归属流程 | 待设计 |
-| P8 | lonely / forming / active 状态落地 | 表达星座从孤星到稳定主题的形成过程 | 状态规则、列表/详情返回兼容 | 待讨论 |
-| P9 | 星座画像持续演化 | 避免星座被第一次 topic 固化 | 加入 Trace 后的同步统计更新与异步画像更新 | 待设计 |
+| P7 | 星座匹配流程升级 | 用 TraceProfile 匹配 ConstellationProfile | 候选召回、评分、primary/secondary 多归属流程 | 已完成第一版 |
+| P7.1 | 星座匹配过度拆分修正 | 用 pattern_tags 与更合理的评分/阈值减少误新建 | pattern_tags 字段、评分公式、解释性 middle 规则、核心日志 | 已完成 |
+| P7.2 | 星座边界判断与混合召回 | 处理边界候选与多视角归属，降低召回遗漏 | borderline LLM、secondary 规则、ES sparse 召回 | 已完成设计 |
+| P8 | 星座画像合并与一致性优化 | 避免画像简单合并后变长、变泛，并补齐异步一致性 | 标签权重/topN、异步画像刷新、消息队列/补偿任务设计 | 已标记待设计 |
+| P9 | lonely / forming / active 状态落地 | 表达星座从孤星到稳定主题的形成过程 | 状态规则、列表/详情返回兼容 | 待讨论 |
 | P10 | 观测、回归与调参 | 可观察优化效果并持续校准 | 日志、指标、离线评估脚本、回归用例 | 待设计 |
 
 ## 任务分解
@@ -127,7 +129,7 @@
 - 在 `StashTrace` 后台旁路异步生成 TraceProfile，不阻塞当前返回。
 - 当前星座 topic 聚合照旧，不在 P4 替换。
 - 设计并创建 `trace_profiles` 与 `trace_profile_vectors`。
-- 生成 `topic`、`summary`、`keywords`、`emotions`、`scenes`、`central_pattern`、`representative_moment_id` 与 `profile_text`。
+- 生成 `topic`、`summary`、`keywords`、`emotions`、`scenes`、`central_pattern`、`representative_moment_index` 与 `profile_text`，后端将 index 映射为持久化的 `representative_moment_id`。
 - 对 `profile_text` 生成 embedding 并写入独立 pgvector 表。
 - LLM 生成失败最多重试 2 次，仍失败则 fallback；embedding 失败写入 `failed` profile 但不写 vector。
 
@@ -139,7 +141,7 @@
 
 任务：
 - 建立 TraceProfile 固定质量样本。
-- 明确 topic、summary、keywords、emotions、scenes、central_pattern、representative_moment_id 的人工复核口径。
+- 明确 topic、summary、keywords、emotions、scenes、central_pattern、representative_moment_index / representative_moment_id 的人工复核口径。
 - 增加生成器纯函数回归测试。
 - 通过日志观察真实 TraceProfile 输出，继续调整 prompt 和规范化规则。
 - 保持当前 topic-based constellation clustering 不变。
@@ -167,14 +169,64 @@
 - 支持一个 Star 从多个视角加入多个星座。
 
 任务：
-- 讨论候选星座召回方式。
-- 讨论匹配评分信号，但不在本任务表中固定具体公式。
-- 讨论 LLM judgement 是否进入最终匹配流程。
-- 设计 primary / secondary 归属、候选去重和最多归属数量。
-- 设计加入已有星座、新建星座、保留孤星的决策边界。
-- 更新 StashTrace、ListConstellations、GetConstellation 相关测试。
+- 新增 ConstellationProfile 持久化与向量持久化。
+- 新增 `constellation_stars` 表达 Star 与 Constellation 的多对多归属。
+- `StashTrace` 后台聚类切换为 TraceProfile -> ConstellationProfile。
+- 移除旧 `topic -> ConstellationMatcher` 聚合路径，避免 profile 聚合失败时静默回到旧逻辑。
+- TraceProfile 生成增加应用层重试；关键异步错误记录 `recovery=pending_message_queue`，后续用消息队列或补偿任务保证一致性。
+- 召回 ConstellationProfile topK 候选并综合评分。
+- 支持 primary / secondary 归属。
+- 新建星座时以 TraceProfile 初始化 ConstellationProfile。
+- 加入已有星座时更新 membership、profile 统计和 centroid embedding。
+- `ListConstellations.TotalStarCount` 按唯一 Star 计数，兼容多归属。
+- 暂不扩展 proto，不展示 secondary membership。
 
-### P8. lonely / forming / active 状态落地
+### P7.1. 星座匹配过度拆分修正
+
+目标：
+- 修正 P7 第一版在短中文 Trace、单 Trace 星座和强结构化重合样本上偏向新建星座的问题。
+- 在不引入 LLM rerank 的情况下，先提升确定性评分的稳定性和可解释性。
+
+任务：
+- `TraceProfile` 与 `ConstellationProfile` 增加 `pattern_tags`，用于表达经历方式、处境结构或反复模式。
+- `central_pattern` 保持人可读描述，不再直接作为主要 overlap 信号。
+- 用 `pattern_tags_overlap` 替换当前 `central_pattern_overlap`。
+- 调整评分公式，提高 keywords / scenes / emotions / pattern_tags 等结构化证据权重。
+- 对单 Trace 星座避免 `profile_similarity` 与 `centroid_similarity` 重复计权。
+- 将目标阈值调整为 `strong=0.72`、`middle=0.60`。
+- 增加解释性 middle 规则：当 score 接近 middle 且结构化证据至少 3 类命中时，不直接新建星座。
+- 补充候选级和最终决策级 debug 日志，输出各维度分数、命中项、阈值差距和决策原因。
+
+### P7.2. 星座边界判断与混合召回
+
+目标：
+- 处理 “像但不完全确定” 的边界候选。
+- 支持一个 Star 更稳定地从多个视角进入多个星座。
+- 用 sparse recall 补足 dense embedding 对短语、标签和中文词面信号不敏感的问题。
+
+任务：
+- 对 `0.55 <= top_score < strong_threshold` 的 top3 候选触发 borderline LLM 判断。
+- LLM 只做边界重排和解释，不参与全量召回；失败时回到 P7.1 确定性决策。
+- 完善 secondary membership 规则：最多 2 个 secondary，且匹配维度不能与 primary 完全相同。
+- 新增 ConstellationProfile Elasticsearch index。
+- 使用 TraceProfile 构造 sparse 查询文本。
+- 将 pgvector dense topK 与 ES sparse topK 通过 RRF 融合，再进入 P7.1 综合评分。
+- ES 只作为候选召回，不直接决定星座归属。
+
+### P8. 星座画像合并与一致性优化
+
+目标：
+- 避免 `ConstellationProfile` 在持续吸收 Trace 后变长、变泛、失去辨识度。
+- 为异步聚类失败提供可恢复的一致性机制。
+
+任务：
+- 设计 keywords / emotions / scenes 的频次、权重、衰减和 topN 规则。
+- 设计过泛词过滤和代表性标签保留规则。
+- 设计加入 Trace 后的异步 LLM 画像刷新。
+- 设计代表性 Moment 的选择与更新规则。
+- 设计消息队列或补偿任务，保证 TraceProfile、membership、ConstellationProfile 更新最终一致。
+
+### P9. lonely / forming / active 状态落地
 
 目标：
 - 让算法状态表达“孤星等待同伴”“主题正在形成”“主题已经稳定”的过程。
@@ -184,17 +236,6 @@
 - 讨论状态变化规则。
 - 讨论前端是否需要感知该状态，或仅后端兼容为现有 constellation 输出。
 - 讨论 lonely star 是否参与后续匹配与合并。
-
-### P9. 星座画像持续演化
-
-目标：
-- 避免星座长期被第一次生成的 topic 或画像锁死。
-
-任务：
-- 讨论 Trace 加入星座后的同步更新内容。
-- 讨论异步画像更新任务。
-- 讨论更新失败、重试、幂等与补偿机制。
-- 讨论代表性 Moment 的选择与更新规则。
 
 ### P10. 观测、回归与调参
 
@@ -229,5 +270,6 @@
 - `trace-profile-design.md`
 - `trace-profile-quality-plan.md`
 - `constellation-profile-design.md`
+- `constellation-matching-design.md`
 - `constellation-state-design.md`
 - `matching-evaluation-plan.md`

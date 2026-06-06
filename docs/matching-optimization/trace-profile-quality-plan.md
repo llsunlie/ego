@@ -14,7 +14,7 @@ TraceProfile 质量复核重点：
 - `emotions` 是否有明确证据，不把普通事件强行情绪化。
 - `scenes` 是否贴近用户原文场景。
 - `central_pattern` 是否可为空，不强行制造“核心冲突”。
-- `representative_moment_id` 是否来自输入 moment。
+- `representative_moment_index` 是否能映射到输入 moment；持久化后的 `representative_moment_id` 是否来自输入 moment。
 - 输出中是否避免心理诊断、治疗化或人格推断词。
 
 ## 当前样本
@@ -41,7 +41,7 @@ TraceProfile 质量复核重点：
 覆盖内容：
 
 - JSON 解析允许模型返回 markdown fence 包裹的 JSON。
-- `representative_moment_id` 越界时回落到第一个 moment。
+- `representative_moment_index` 越界时回落到兼容 ID；仍不可用时回落到第一个 moment。
 - list 字段去空、去重、限长。
 - user prompt 保持 moment 顺序，并在 motivation 为空时不输出空字段。
 - `profile_text` 使用结构化字段和代表原文构造。
