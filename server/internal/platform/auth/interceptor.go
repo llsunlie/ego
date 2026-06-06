@@ -16,6 +16,7 @@ import (
 
 var preAuthMethods = map[string]bool{
 	"Login":                 true,
+	"CheckPhone":            true,
 	"SendVerificationCode":  true,
 	"Register":              true,
 }

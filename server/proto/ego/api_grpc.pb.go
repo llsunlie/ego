@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	Ego_Login_FullMethodName                = "/ego.Ego/Login"
+	Ego_CheckPhone_FullMethodName           = "/ego.Ego/CheckPhone"
 	Ego_SendVerificationCode_FullMethodName = "/ego.Ego/SendVerificationCode"
 	Ego_Register_FullMethodName             = "/ego.Ego/Register"
 	Ego_CreateMoment_FullMethodName         = "/ego.Ego/CreateMoment"
@@ -41,6 +42,7 @@ const (
 type EgoClient interface {
 	// ─── Auth（认证）─────────────────────────────────────
 	Login(ctx context.Context, in *LoginReq, opts ...grpc.CallOption) (*LoginRes, error)
+	CheckPhone(ctx context.Context, in *CheckPhoneReq, opts ...grpc.CallOption) (*CheckPhoneRes, error)
 	SendVerificationCode(ctx context.Context, in *SendVerificationCodeReq, opts ...grpc.CallOption) (*SendVerificationCodeRes, error)
 	Register(ctx context.Context, in *RegisterReq, opts ...grpc.CallOption) (*RegisterRes, error)
 	// ─── Moment（话语）─────────────────────────────────────
@@ -85,6 +87,16 @@ func (c *egoClient) Login(ctx context.Context, in *LoginReq, opts ...grpc.CallOp
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(LoginRes)
 	err := c.cc.Invoke(ctx, Ego_Login_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *egoClient) CheckPhone(ctx context.Context, in *CheckPhoneReq, opts ...grpc.CallOption) (*CheckPhoneRes, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CheckPhoneRes)
+	err := c.cc.Invoke(ctx, Ego_CheckPhone_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -227,6 +239,7 @@ func (c *egoClient) SendMessage(ctx context.Context, in *SendMessageReq, opts ..
 type EgoServer interface {
 	// ─── Auth（认证）─────────────────────────────────────
 	Login(context.Context, *LoginReq) (*LoginRes, error)
+	CheckPhone(context.Context, *CheckPhoneReq) (*CheckPhoneRes, error)
 	SendVerificationCode(context.Context, *SendVerificationCodeReq) (*SendVerificationCodeRes, error)
 	Register(context.Context, *RegisterReq) (*RegisterRes, error)
 	// ─── Moment（话语）─────────────────────────────────────
@@ -269,6 +282,9 @@ type UnimplementedEgoServer struct{}
 
 func (UnimplementedEgoServer) Login(context.Context, *LoginReq) (*LoginRes, error) {
 	return nil, status.Error(codes.Unimplemented, "method Login not implemented")
+}
+func (UnimplementedEgoServer) CheckPhone(context.Context, *CheckPhoneReq) (*CheckPhoneRes, error) {
+	return nil, status.Error(codes.Unimplemented, "method CheckPhone not implemented")
 }
 func (UnimplementedEgoServer) SendVerificationCode(context.Context, *SendVerificationCodeReq) (*SendVerificationCodeRes, error) {
 	return nil, status.Error(codes.Unimplemented, "method SendVerificationCode not implemented")
@@ -344,6 +360,24 @@ func _Ego_Login_Handler(srv interface{}, ctx context.Context, dec func(interface
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(EgoServer).Login(ctx, req.(*LoginReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Ego_CheckPhone_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CheckPhoneReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EgoServer).CheckPhone(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Ego_CheckPhone_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EgoServer).CheckPhone(ctx, req.(*CheckPhoneReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -592,6 +626,10 @@ var Ego_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Login",
 			Handler:    _Ego_Login_Handler,
+		},
+		{
+			MethodName: "CheckPhone",
+			Handler:    _Ego_CheckPhone_Handler,
 		},
 		{
 			MethodName: "SendVerificationCode",

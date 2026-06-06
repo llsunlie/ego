@@ -15,25 +15,34 @@ import (
 
 type Handler struct {
 	pb.UnimplementedEgoServer
-	login    *app.LoginUseCase
-	register *app.RegisterUseCase
-	sendCode *app.SendCodeUseCase
+	login      *app.LoginUseCase
+	register   *app.RegisterUseCase
+	sendCode   *app.SendCodeUseCase
+	checkPhone *app.CheckPhoneUseCase
 }
 
 func NewHandler(
 	login *app.LoginUseCase,
 	register *app.RegisterUseCase,
 	sendCode *app.SendCodeUseCase,
+	checkPhone *app.CheckPhoneUseCase,
 ) *Handler {
-	return &Handler{login: login, register: register, sendCode: sendCode}
+	return &Handler{login: login, register: register, sendCode: sendCode, checkPhone: checkPhone}
 }
 
-func (h *Handler) SendVerificationCode(ctx context.Context, req *pb.SendVerificationCodeReq) (*pb.SendVerificationCodeRes, error) {
-	result, err := h.sendCode.SendCode(ctx, req.Phone)
+func (h *Handler) CheckPhone(ctx context.Context, req *pb.CheckPhoneReq) (*pb.CheckPhoneRes, error) {
+	result, err := h.checkPhone.Check(ctx, req.Phone)
 	if err != nil {
 		return nil, mapError(err)
 	}
-	return &pb.SendVerificationCodeRes{Registered: result.Registered}, nil
+	return &pb.CheckPhoneRes{Registered: result.Registered}, nil
+}
+
+func (h *Handler) SendVerificationCode(ctx context.Context, req *pb.SendVerificationCodeReq) (*pb.SendVerificationCodeRes, error) {
+	if err := h.sendCode.SendCode(ctx, req.Phone); err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.SendVerificationCodeRes{}, nil
 }
 
 func (h *Handler) Register(ctx context.Context, req *pb.RegisterReq) (*pb.RegisterRes, error) {
