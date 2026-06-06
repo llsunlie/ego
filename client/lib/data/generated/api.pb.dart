@@ -139,6 +139,114 @@ class LoginRes extends $pb.GeneratedMessage {
   void clearToken() => $_clearField(1);
 }
 
+class CheckPhoneReq extends $pb.GeneratedMessage {
+  factory CheckPhoneReq({
+    $core.String? phone,
+  }) {
+    final result = create();
+    if (phone != null) result.phone = phone;
+    return result;
+  }
+
+  CheckPhoneReq._();
+
+  factory CheckPhoneReq.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory CheckPhoneReq.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'CheckPhoneReq',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'ego'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'phone')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CheckPhoneReq clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CheckPhoneReq copyWith(void Function(CheckPhoneReq) updates) =>
+      super.copyWith((message) => updates(message as CheckPhoneReq))
+          as CheckPhoneReq;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static CheckPhoneReq create() => CheckPhoneReq._();
+  @$core.override
+  CheckPhoneReq createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static CheckPhoneReq getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<CheckPhoneReq>(create);
+  static CheckPhoneReq? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get phone => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set phone($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasPhone() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPhone() => $_clearField(1);
+}
+
+class CheckPhoneRes extends $pb.GeneratedMessage {
+  factory CheckPhoneRes({
+    $core.bool? registered,
+  }) {
+    final result = create();
+    if (registered != null) result.registered = registered;
+    return result;
+  }
+
+  CheckPhoneRes._();
+
+  factory CheckPhoneRes.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory CheckPhoneRes.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'CheckPhoneRes',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'ego'),
+      createEmptyInstance: create)
+    ..aOB(1, _omitFieldNames ? '' : 'registered')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CheckPhoneRes clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CheckPhoneRes copyWith(void Function(CheckPhoneRes) updates) =>
+      super.copyWith((message) => updates(message as CheckPhoneRes))
+          as CheckPhoneRes;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static CheckPhoneRes create() => CheckPhoneRes._();
+  @$core.override
+  CheckPhoneRes createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static CheckPhoneRes getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<CheckPhoneRes>(create);
+  static CheckPhoneRes? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get registered => $_getBF(0);
+  @$pb.TagNumber(1)
+  set registered($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasRegistered() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRegistered() => $_clearField(1);
+}
+
 class SendVerificationCodeReq extends $pb.GeneratedMessage {
   factory SendVerificationCodeReq({
     $core.String? phone,
@@ -195,13 +303,7 @@ class SendVerificationCodeReq extends $pb.GeneratedMessage {
 }
 
 class SendVerificationCodeRes extends $pb.GeneratedMessage {
-  factory SendVerificationCodeRes({
-    $core.bool? registered,
-  }) {
-    final result = create();
-    if (registered != null) result.registered = registered;
-    return result;
-  }
+  factory SendVerificationCodeRes() => create();
 
   SendVerificationCodeRes._();
 
@@ -216,7 +318,6 @@ class SendVerificationCodeRes extends $pb.GeneratedMessage {
       _omitMessageNames ? '' : 'SendVerificationCodeRes',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'ego'),
       createEmptyInstance: create)
-    ..aOB(1, _omitFieldNames ? '' : 'registered')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -238,15 +339,6 @@ class SendVerificationCodeRes extends $pb.GeneratedMessage {
   static SendVerificationCodeRes getDefault() => _defaultInstance ??=
       $pb.GeneratedMessage.$_defaultFor<SendVerificationCodeRes>(create);
   static SendVerificationCodeRes? _defaultInstance;
-
-  @$pb.TagNumber(1)
-  $core.bool get registered => $_getBF(0);
-  @$pb.TagNumber(1)
-  set registered($core.bool value) => $_setBool(0, value);
-  @$pb.TagNumber(1)
-  $core.bool hasRegistered() => $_has(0);
-  @$pb.TagNumber(1)
-  void clearRegistered() => $_clearField(1);
 }
 
 class RegisterReq extends $pb.GeneratedMessage {
