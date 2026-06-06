@@ -40,6 +40,13 @@ class EgoClient extends $grpc.Client {
     return $createUnaryCall(_$login, request, options: options);
   }
 
+  $grpc.ResponseFuture<$0.CheckPhoneRes> checkPhone(
+    $0.CheckPhoneReq request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$checkPhone, request, options: options);
+  }
+
   $grpc.ResponseFuture<$0.SendVerificationCodeRes> sendVerificationCode(
     $0.SendVerificationCodeReq request, {
     $grpc.CallOptions? options,
@@ -154,6 +161,11 @@ class EgoClient extends $grpc.Client {
       '/ego.Ego/Login',
       ($0.LoginReq value) => value.writeToBuffer(),
       $0.LoginRes.fromBuffer);
+  static final _$checkPhone =
+      $grpc.ClientMethod<$0.CheckPhoneReq, $0.CheckPhoneRes>(
+          '/ego.Ego/CheckPhone',
+          ($0.CheckPhoneReq value) => value.writeToBuffer(),
+          $0.CheckPhoneRes.fromBuffer);
   static final _$sendVerificationCode = $grpc.ClientMethod<
           $0.SendVerificationCodeReq, $0.SendVerificationCodeRes>(
       '/ego.Ego/SendVerificationCode',
@@ -232,6 +244,13 @@ abstract class EgoServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) => $0.LoginReq.fromBuffer(value),
         ($0.LoginRes value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.CheckPhoneReq, $0.CheckPhoneRes>(
+        'CheckPhone',
+        checkPhone_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.CheckPhoneReq.fromBuffer(value),
+        ($0.CheckPhoneRes value) => value.writeToBuffer()));
     $addMethod($grpc.ServiceMethod<$0.SendVerificationCodeReq,
             $0.SendVerificationCodeRes>(
         'SendVerificationCode',
@@ -341,6 +360,14 @@ abstract class EgoServiceBase extends $grpc.Service {
   }
 
   $async.Future<$0.LoginRes> login($grpc.ServiceCall call, $0.LoginReq request);
+
+  $async.Future<$0.CheckPhoneRes> checkPhone_Pre(
+      $grpc.ServiceCall $call, $async.Future<$0.CheckPhoneReq> $request) async {
+    return checkPhone($call, await $request);
+  }
+
+  $async.Future<$0.CheckPhoneRes> checkPhone(
+      $grpc.ServiceCall call, $0.CheckPhoneReq request);
 
   $async.Future<$0.SendVerificationCodeRes> sendVerificationCode_Pre(
       $grpc.ServiceCall $call,

@@ -14,6 +14,7 @@ option go_package = "ego-server/proto/ego";
 service Ego {
   // ─── Auth（认证）─────────────────────────────────────
   rpc Login(LoginReq) returns (LoginRes);
+  rpc CheckPhone(CheckPhoneReq) returns (CheckPhoneRes);
   rpc SendVerificationCode(SendVerificationCodeReq) returns (SendVerificationCodeRes);
   rpc Register(RegisterReq) returns (RegisterRes);
 
@@ -70,13 +71,19 @@ message LoginRes {
   string token = 1;  // JWT token，后续请求通过 metadata 传递
 }
 
+message CheckPhoneReq {
+  string phone = 1;
+}
+
+message CheckPhoneRes {
+  bool registered = 1;
+}
+
 message SendVerificationCodeReq {
   string phone = 1;
 }
 
-message SendVerificationCodeRes {
-  bool registered = 1;  // true = 已注册，前端展示密码登录；false = 未注册，展示验证码注册
-}
+message SendVerificationCodeRes {}
 
 message RegisterReq {
   string phone    = 1;
