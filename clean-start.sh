@@ -50,12 +50,13 @@ until docker exec ego-postgres-1 pg_isready -U ego >/dev/null 2>&1; do
     sleep 0.5
 done
 log "postgres ready"
+sleep 1
 
 # ---------- run migrations ----------
 log "running migrations..."
 for f in "$MIGRATIONS_DIR"/*.sql; do
     name=$(basename "$f")
-    docker exec -i ego-postgres-1 psql -U ego -d ego < "$f" >/dev/null 2>&1
+    docker exec -i ego-postgres-1 psql -h localhost -U ego -d ego < "$f" >/dev/null 2>&1
     log "  applied $name"
 done
 log "all migrations applied"
