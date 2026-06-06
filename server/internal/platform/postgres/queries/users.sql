@@ -1,5 +1,5 @@
--- name: GetUserByAccount :one
-SELECT id, password_hash FROM users WHERE account = $1;
+-- name: GetUserByPhone :one
+SELECT id, password_hash FROM users WHERE phone = $1;
 
 -- name: CreateUser :exec
-INSERT INTO users (id, account, password_hash, created_at) VALUES ($1, $2, $3, $4);
+INSERT INTO users (id, phone, password_hash, created_at) VALUES ($1, $2, $3, $4);

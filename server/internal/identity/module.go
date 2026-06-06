@@ -11,9 +11,10 @@ import (
 // Deps contains process-level resources and external capabilities needed to
 // assemble the identity bounded context.
 type Deps struct {
-	DB     sqlc.DBTX
-	Hasher identityapp.PasswordHasher
-	Tokens identityapp.TokenIssuer
+	DB        sqlc.DBTX
+	Hasher    identityapp.PasswordHasher
+	Tokens    identityapp.TokenIssuer
+	SmsSender identityapp.SmsService
 }
 
 // NewHandler wires the identity module's adapters, application use cases, and
@@ -24,7 +25,9 @@ func NewHandler(deps Deps) *identitygrpc.Handler {
 	userRepo := identitypostgres.NewUserRepository(queries)
 	ids := identityid.NewUUIDGenerator()
 
-	loginUseCase := identityapp.NewLoginUseCase(userRepo, deps.Hasher, deps.Tokens, ids)
+	loginUseCase := identityapp.NewLoginUseCase(userRepo, deps.Hasher, deps.Tokens)
+	registerUseCase := identityapp.NewRegisterUseCase(userRepo, deps.Hasher, deps.Tokens, ids, deps.SmsSender)
+	sendCodeUseCase := identityapp.NewSendCodeUseCase(userRepo, deps.SmsSender)
 
-	return identitygrpc.NewHandler(loginUseCase)
+	return identitygrpc.NewHandler(loginUseCase, registerUseCase, sendCodeUseCase)
 }

@@ -22,9 +22,13 @@ type Config struct {
 	AIEmbeddingModel     string
 	AIEmbeddingAPIKey    string
 	AIEmbeddingBaseURL   string
-	AIChatModel          string
-	AIChatAPIKey         string
-	AIChatBaseURL        string
+	AIChatModel           string
+	AIChatAPIKey          string
+	AIChatBaseURL         string
+	AliyunAccessKeyID     string
+	AliyunAccessKeySecret string
+	AliyunSmsSignName     string
+	AliyunSmsTemplateCode string
 }
 
 // getEnvWithFallback returns os.Getenv(key), or os.Getenv(fallback) if empty.
@@ -59,7 +63,11 @@ func Load() *Config {
 		AIChatModel:        os.Getenv("AI_CHAT_MODEL"),
 		AIChatAPIKey:       getEnvWithFallback("AI_CHAT_API_KEY", "AI_API_KEY"),
 		AIChatBaseURL:      getEnvWithFallback("AI_CHAT_BASE_URL", "AI_BASE_URL"),
-	}
+	AliyunAccessKeyID:     os.Getenv("ALIYUN_ACCESS_KEY_ID"),
+	AliyunAccessKeySecret: os.Getenv("ALIYUN_ACCESS_KEY_SECRET"),
+	AliyunSmsSignName:     os.Getenv("ALIYUN_SMS_SIGN_NAME"),
+	AliyunSmsTemplateCode: os.Getenv("ALIYUN_SMS_TEMPLATE_CODE"),
+}
 }
 
 // loadEnvFile searches upward from the current working directory for a
