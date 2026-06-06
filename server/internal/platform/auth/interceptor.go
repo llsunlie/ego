@@ -14,6 +14,21 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+var preAuthMethods = map[string]bool{
+	"Login":                 true,
+	"SendVerificationCode":  true,
+	"Register":              true,
+}
+
+func isPreAuthMethod(fullMethod string) bool {
+	for m := range preAuthMethods {
+		if strings.Contains(fullMethod, m) {
+			return true
+		}
+	}
+	return false
+}
+
 func UnaryServerInterceptor(jwtSecret []byte, baseLogger *slog.Logger) grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
@@ -21,7 +36,7 @@ func UnaryServerInterceptor(jwtSecret []byte, baseLogger *slog.Logger) grpc.Unar
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (interface{}, error) {
-		if strings.Contains(info.FullMethod, "Login") {
+		if isPreAuthMethod(info.FullMethod) {
 			logger := baseLogger.With("request_id", uuid.NewString(), "method", info.FullMethod)
 			ctx = logging.WithLogger(ctx, logger)
 			return handler(ctx, req)
