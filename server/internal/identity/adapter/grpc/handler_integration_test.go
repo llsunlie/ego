@@ -42,9 +42,10 @@ func newTestHandlerRealDB(t *testing.T) (*Handler, *pgxpool.Pool) {
 
 	loginUseCase := identityapp.NewLoginUseCase(userRepo, hasher, tokens)
 	registerUseCase := identityapp.NewRegisterUseCase(userRepo, hasher, tokens, ids, sms)
-	sendCodeUseCase := identityapp.NewSendCodeUseCase(userRepo, sms)
+	sendCodeUseCase := identityapp.NewSendCodeUseCase(sms)
+	checkPhoneUseCase := identityapp.NewCheckPhoneUseCase(userRepo)
 
-	return NewHandler(loginUseCase, registerUseCase, sendCodeUseCase), pool
+	return NewHandler(loginUseCase, registerUseCase, sendCodeUseCase, checkPhoneUseCase), pool
 }
 
 func cleanupUser(t *testing.T, pool *pgxpool.Pool, phone string) {
@@ -57,7 +58,7 @@ func TestIntegration_Register(t *testing.T) {
 	phone := "13800010001"
 	t.Cleanup(func() { cleanupUser(t, pool, phone) })
 
-	res, err := h.Register(context.Background(), &pb.RegisterReq{Phone: phone, Code: "123456", Password: "pass1"})
+	res, err := h.Register(context.Background(), &pb.RegisterReq{Phone: phone, Code: "123456", Password: "pass123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -71,12 +72,12 @@ func TestIntegration_LoginAfterRegister(t *testing.T) {
 	phone := "13800010002"
 	t.Cleanup(func() { cleanupUser(t, pool, phone) })
 
-	_, err := h.Register(context.Background(), &pb.RegisterReq{Phone: phone, Code: "123456", Password: "pass1"})
+	_, err := h.Register(context.Background(), &pb.RegisterReq{Phone: phone, Code: "123456", Password: "pass123"})
 	if err != nil {
 		t.Fatalf("register: %v", err)
 	}
 
-	res, err := h.Login(context.Background(), &pb.LoginReq{Phone: phone, Password: "pass1"})
+	res, err := h.Login(context.Background(), &pb.LoginReq{Phone: phone, Password: "pass123"})
 	if err != nil {
 		t.Fatalf("login: %v", err)
 	}
@@ -106,12 +107,12 @@ func TestIntegration_TokenContainsUserID(t *testing.T) {
 	phone := "13800010004"
 	t.Cleanup(func() { cleanupUser(t, pool, phone) })
 
-	_, err := h.Register(context.Background(), &pb.RegisterReq{Phone: phone, Code: "123456", Password: "pass"})
+	_, err := h.Register(context.Background(), &pb.RegisterReq{Phone: phone, Code: "123456", Password: "pass123"})
 	if err != nil {
 		t.Fatalf("register: %v", err)
 	}
 
-	res, err := h.Login(context.Background(), &pb.LoginReq{Phone: phone, Password: "pass"})
+	res, err := h.Login(context.Background(), &pb.LoginReq{Phone: phone, Password: "pass123"})
 	if err != nil {
 		t.Fatalf("login: %v", err)
 	}
@@ -130,22 +131,22 @@ func TestIntegration_DuplicatePhone(t *testing.T) {
 	phone := "13800010005"
 	t.Cleanup(func() { cleanupUser(t, pool, phone) })
 
-	_, err := h.Register(context.Background(), &pb.RegisterReq{Phone: phone, Code: "123456", Password: "pass1"})
+	_, err := h.Register(context.Background(), &pb.RegisterReq{Phone: phone, Code: "123456", Password: "pass123"})
 	if err != nil {
 		t.Fatalf("register: %v", err)
 	}
 
-	_, err = h.Register(context.Background(), &pb.RegisterReq{Phone: phone, Code: "123456", Password: "pass2"})
+	_, err = h.Register(context.Background(), &pb.RegisterReq{Phone: phone, Code: "123456", Password: "pass456"})
 	if err == nil {
 		t.Fatal("expected error for duplicate phone")
 	}
 }
 
-func TestIntegration_SendVerificationCode_NewPhone(t *testing.T) {
+func TestIntegration_CheckPhone_NewPhone(t *testing.T) {
 	h, _ := newTestHandlerRealDB(t)
 	phone := "13800010006"
 
-	res, err := h.SendVerificationCode(context.Background(), &pb.SendVerificationCodeReq{Phone: phone})
+	res, err := h.CheckPhone(context.Background(), &pb.CheckPhoneReq{Phone: phone})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -154,17 +155,17 @@ func TestIntegration_SendVerificationCode_NewPhone(t *testing.T) {
 	}
 }
 
-func TestIntegration_SendVerificationCode_RegisteredPhone(t *testing.T) {
+func TestIntegration_CheckPhone_RegisteredPhone(t *testing.T) {
 	h, pool := newTestHandlerRealDB(t)
 	phone := "13800010007"
 	t.Cleanup(func() { cleanupUser(t, pool, phone) })
 
-	_, err := h.Register(context.Background(), &pb.RegisterReq{Phone: phone, Code: "123456", Password: "pass1"})
+	_, err := h.Register(context.Background(), &pb.RegisterReq{Phone: phone, Code: "123456", Password: "pass123"})
 	if err != nil {
 		t.Fatalf("register: %v", err)
 	}
 
-	res, err := h.SendVerificationCode(context.Background(), &pb.SendVerificationCodeReq{Phone: phone})
+	res, err := h.CheckPhone(context.Background(), &pb.CheckPhoneReq{Phone: phone})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

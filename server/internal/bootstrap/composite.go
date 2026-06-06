@@ -40,6 +40,14 @@ func (h *EgoHandler) Login(ctx context.Context, req *pb.LoginReq) (*pb.LoginRes,
 	return res, err
 }
 
+func (h *EgoHandler) CheckPhone(ctx context.Context, req *pb.CheckPhoneReq) (*pb.CheckPhoneRes, error) {
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "CheckPhone: request", "req", fmt.Sprintf("%+v", req))
+	res, err := h.identity.CheckPhone(ctx, req)
+	logger.InfoContext(ctx, "CheckPhone: response", "res", fmt.Sprintf("%+v", res), "error", err)
+	return res, err
+}
+
 func (h *EgoHandler) SendVerificationCode(ctx context.Context, req *pb.SendVerificationCodeReq) (*pb.SendVerificationCodeRes, error) {
 	logger := logging.FromContext(ctx)
 	logger.InfoContext(ctx, "SendVerificationCode: request", "req", fmt.Sprintf("%+v", req))

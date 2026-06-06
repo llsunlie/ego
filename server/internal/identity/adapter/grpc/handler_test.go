@@ -55,9 +55,10 @@ func newTestHandler(repo *mockUserRepo) *Handler {
 
 	login := app.NewLoginUseCase(repo, hasher, tokens)
 	register := app.NewRegisterUseCase(repo, hasher, tokens, ids, sms)
-	sendCode := app.NewSendCodeUseCase(repo, sms)
+	sendCode := app.NewSendCodeUseCase(sms)
+	checkPhone := app.NewCheckPhoneUseCase(repo)
 
-	return NewHandler(login, register, sendCode)
+	return NewHandler(login, register, sendCode, checkPhone)
 }
 
 func TestRegister_Success(t *testing.T) {
@@ -172,11 +173,11 @@ func TestLogin_TokenContainsUserID(t *testing.T) {
 	}
 }
 
-func TestSendVerificationCode_NewPhone(t *testing.T) {
+func TestCheckPhone_NewPhone(t *testing.T) {
 	repo := newMockUserRepo()
 	h := newTestHandler(repo)
 
-	res, err := h.SendVerificationCode(context.Background(), &pb.SendVerificationCodeReq{Phone: "13800000008"})
+	res, err := h.CheckPhone(context.Background(), &pb.CheckPhoneReq{Phone: "13800000008"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -185,7 +186,7 @@ func TestSendVerificationCode_NewPhone(t *testing.T) {
 	}
 }
 
-func TestSendVerificationCode_RegisteredPhone(t *testing.T) {
+func TestCheckPhone_RegisteredPhone(t *testing.T) {
 	repo := newMockUserRepo()
 	h := newTestHandler(repo)
 
@@ -194,7 +195,7 @@ func TestSendVerificationCode_RegisteredPhone(t *testing.T) {
 		t.Fatalf("register: %v", err)
 	}
 
-	res, err := h.SendVerificationCode(context.Background(), &pb.SendVerificationCodeReq{Phone: "13800000009"})
+	res, err := h.CheckPhone(context.Background(), &pb.CheckPhoneReq{Phone: "13800000009"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -203,11 +204,21 @@ func TestSendVerificationCode_RegisteredPhone(t *testing.T) {
 	}
 }
 
+func TestCheckPhone_InvalidPhone(t *testing.T) {
+	repo := newMockUserRepo()
+	h := newTestHandler(repo)
+
+	_, err := h.CheckPhone(context.Background(), &pb.CheckPhoneReq{Phone: "12345"})
+	if err == nil {
+		t.Fatal("expected error for invalid phone")
+	}
+}
+
 func TestSendVerificationCode_InvalidPhone(t *testing.T) {
 	repo := newMockUserRepo()
 	h := newTestHandler(repo)
 
-	_, err := h.SendVerificationCode(context.Background(), &pb.SendVerificationCodeReq{Phone: "12345"})
+	err := h.sendCode.SendCode(context.Background(), "12345")
 	if err == nil {
 		t.Fatal("expected error for invalid phone")
 	}
