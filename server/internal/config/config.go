@@ -8,20 +8,20 @@ import (
 )
 
 type Config struct {
-	DatabaseURL          string
-	JWTSecret            string
-	Port                 string
-	WebPort              string
-	WebDir               string
-	JWTExpHours          string
-	LogLevel             string
-	LogFormat            string
-	LogOutput            string
-	AIAPIKey             string
-	AIBaseURL            string
-	AIEmbeddingModel     string
-	AIEmbeddingAPIKey    string
-	AIEmbeddingBaseURL   string
+	DatabaseURL           string
+	JWTSecret             string
+	Port                  string
+	WebPort               string
+	WebDir                string
+	JWTExpHours           string
+	LogLevel              string
+	LogFormat             string
+	LogOutput             string
+	AIAPIKey              string
+	AIBaseURL             string
+	AIEmbeddingModel      string
+	AIEmbeddingAPIKey     string
+	AIEmbeddingBaseURL    string
 	AIChatModel           string
 	AIChatAPIKey          string
 	AIChatBaseURL         string
@@ -29,6 +29,9 @@ type Config struct {
 	AliyunAccessKeySecret string
 	AliyunSmsSignName     string
 	AliyunSmsTemplateCode string
+	AliyunSmsCodeLength   string
+	AliyunSmsValidTime    string
+	AliyunSmsInterval     string
 }
 
 // getEnvWithFallback returns os.Getenv(key), or os.Getenv(fallback) if empty.
@@ -46,28 +49,31 @@ func Load() *Config {
 	loadEnvFile()
 
 	return &Config{
-		DatabaseURL:      os.Getenv("DATABASE_URL"),
-		JWTSecret:        os.Getenv("JWT_SECRET"),
-		Port:             os.Getenv("PORT"),
-		WebPort:          os.Getenv("WEB_PORT"),
-		WebDir:           os.Getenv("WEB_DIR"),
-		JWTExpHours:      os.Getenv("JWT_EXP_HOURS"),
-		LogLevel:         os.Getenv("LOG_LEVEL"),
-		LogFormat:        os.Getenv("LOG_FORMAT"),
-		LogOutput:        os.Getenv("LOG_OUTPUT"),
-		AIAPIKey:           os.Getenv("AI_API_KEY"),
-		AIBaseURL:          os.Getenv("AI_BASE_URL"),
-		AIEmbeddingModel:   os.Getenv("AI_EMBEDDING_MODEL"),
-		AIEmbeddingAPIKey:  getEnvWithFallback("AI_EMBEDDING_API_KEY", "AI_API_KEY"),
-		AIEmbeddingBaseURL: getEnvWithFallback("AI_EMBEDDING_BASE_URL", "AI_BASE_URL"),
-		AIChatModel:        os.Getenv("AI_CHAT_MODEL"),
-		AIChatAPIKey:       getEnvWithFallback("AI_CHAT_API_KEY", "AI_API_KEY"),
-		AIChatBaseURL:      getEnvWithFallback("AI_CHAT_BASE_URL", "AI_BASE_URL"),
-	AliyunAccessKeyID:     os.Getenv("ALIYUN_ACCESS_KEY_ID"),
-	AliyunAccessKeySecret: os.Getenv("ALIYUN_ACCESS_KEY_SECRET"),
-	AliyunSmsSignName:     os.Getenv("ALIYUN_SMS_SIGN_NAME"),
-	AliyunSmsTemplateCode: os.Getenv("ALIYUN_SMS_TEMPLATE_CODE"),
-}
+		DatabaseURL:           os.Getenv("DATABASE_URL"),
+		JWTSecret:             os.Getenv("JWT_SECRET"),
+		Port:                  os.Getenv("PORT"),
+		WebPort:               os.Getenv("WEB_PORT"),
+		WebDir:                os.Getenv("WEB_DIR"),
+		JWTExpHours:           os.Getenv("JWT_EXP_HOURS"),
+		LogLevel:              os.Getenv("LOG_LEVEL"),
+		LogFormat:             os.Getenv("LOG_FORMAT"),
+		LogOutput:             os.Getenv("LOG_OUTPUT"),
+		AIAPIKey:              os.Getenv("AI_API_KEY"),
+		AIBaseURL:             os.Getenv("AI_BASE_URL"),
+		AIEmbeddingModel:      os.Getenv("AI_EMBEDDING_MODEL"),
+		AIEmbeddingAPIKey:     getEnvWithFallback("AI_EMBEDDING_API_KEY", "AI_API_KEY"),
+		AIEmbeddingBaseURL:    getEnvWithFallback("AI_EMBEDDING_BASE_URL", "AI_BASE_URL"),
+		AIChatModel:           os.Getenv("AI_CHAT_MODEL"),
+		AIChatAPIKey:          getEnvWithFallback("AI_CHAT_API_KEY", "AI_API_KEY"),
+		AIChatBaseURL:         getEnvWithFallback("AI_CHAT_BASE_URL", "AI_BASE_URL"),
+		AliyunAccessKeyID:     os.Getenv("ALIYUN_ACCESS_KEY_ID"),
+		AliyunAccessKeySecret: os.Getenv("ALIYUN_ACCESS_KEY_SECRET"),
+		AliyunSmsSignName:     os.Getenv("ALIYUN_SMS_SIGN_NAME"),
+		AliyunSmsTemplateCode: os.Getenv("ALIYUN_SMS_TEMPLATE_CODE"),
+		AliyunSmsCodeLength:   os.Getenv("ALIYUN_SMS_CODE_LENGTH"),
+		AliyunSmsValidTime:    os.Getenv("ALIYUN_SMS_VALID_TIME"),
+		AliyunSmsInterval:     os.Getenv("ALIYUN_SMS_INTERVAL"),
+	}
 }
 
 // loadEnvFile searches upward from the current working directory for a
