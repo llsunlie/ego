@@ -18,3 +18,8 @@ proto-dart:
 		--dart_out=client/lib/data/generated \
 		ego/api.proto
 	@echo "proto (Dart) generated"
+
+.PHONY: sqlc
+sqlc:
+	@PATH="$$PATH:$$(go env GOPATH)/bin" sqlc generate
+	@echo "sqlc generated"

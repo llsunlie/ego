@@ -21,8 +21,8 @@ func NewUserRepository(queries *sqlc.Queries) *UserRepository {
 	return &UserRepository{queries: queries}
 }
 
-func (r *UserRepository) FindByAccount(ctx context.Context, account string) (*domain.User, error) {
-	row, err := r.queries.GetUserByAccount(ctx, account)
+func (r *UserRepository) FindByPhone(ctx context.Context, phone string) (*domain.User, error) {
+	row, err := r.queries.GetUserByPhone(ctx, phone)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, domain.ErrUserNotFound
@@ -37,7 +37,7 @@ func (r *UserRepository) FindByAccount(ctx context.Context, account string) (*do
 
 	return &domain.User{
 		ID:           id.String(),
-		Account:      account,
+		Phone:        phone,
 		PasswordHash: row.PasswordHash,
 	}, nil
 }
@@ -53,7 +53,7 @@ func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
 
 	return r.queries.CreateUser(ctx, sqlc.CreateUserParams{
 		ID:           pgtype.UUID{Bytes: [16]byte(uid), Valid: true},
-		Account:      user.Account,
+		Phone:        user.Phone,
 		PasswordHash: user.PasswordHash,
 		CreatedAt:    pgtype.Timestamptz{Time: now, Valid: true},
 	})
