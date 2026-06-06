@@ -37,48 +37,48 @@ func newTestHandlerRealDB(t *testing.T) (*Handler, *pgxpool.Pool) {
 	userRepo := identitypostgres.NewUserRepository(queries)
 	hasher := auth.BcryptHasher{}
 	tokens := auth.JWTIssuer{Secret: []byte("secret"), Exp: 24 * time.Hour}
-	loginUseCase := identityapp.NewLoginUseCase(userRepo, hasher, tokens, mockIDGen{})
-	return NewHandler(loginUseCase), pool
+	ids := mockIDGen{}
+	sms := mockSmsService{}
+
+	loginUseCase := identityapp.NewLoginUseCase(userRepo, hasher, tokens)
+	registerUseCase := identityapp.NewRegisterUseCase(userRepo, hasher, tokens, ids, sms)
+	sendCodeUseCase := identityapp.NewSendCodeUseCase(userRepo, sms)
+
+	return NewHandler(loginUseCase, registerUseCase, sendCodeUseCase), pool
 }
 
-func cleanupUser(t *testing.T, pool *pgxpool.Pool, account string) {
+func cleanupUser(t *testing.T, pool *pgxpool.Pool, phone string) {
 	t.Helper()
-	pool.Exec(context.Background(), "DELETE FROM users WHERE account = $1", account)
+	pool.Exec(context.Background(), "DELETE FROM users WHERE phone = $1", phone)
 }
 
-func TestIntegration_AutoRegister(t *testing.T) {
+func TestIntegration_Register(t *testing.T) {
 	h, pool := newTestHandlerRealDB(t)
-	account := "intg-auto@test.com"
-	t.Cleanup(func() { cleanupUser(t, pool, account) })
+	phone := "13800010001"
+	t.Cleanup(func() { cleanupUser(t, pool, phone) })
 
-	res, err := h.Login(context.Background(), &pb.LoginReq{Account: account, Password: "pass1"})
+	res, err := h.Register(context.Background(), &pb.RegisterReq{Phone: phone, Code: "123456", Password: "pass1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
-	}
-	if !res.Created {
-		t.Fatal("expected created=true for new user")
 	}
 	if res.Token == "" {
 		t.Fatal("expected token")
 	}
 }
 
-func TestIntegration_ExistingUserLogin(t *testing.T) {
+func TestIntegration_LoginAfterRegister(t *testing.T) {
 	h, pool := newTestHandlerRealDB(t)
-	account := "intg-existing@test.com"
-	t.Cleanup(func() { cleanupUser(t, pool, account) })
+	phone := "13800010002"
+	t.Cleanup(func() { cleanupUser(t, pool, phone) })
 
-	_, err := h.Login(context.Background(), &pb.LoginReq{Account: account, Password: "pass1"})
+	_, err := h.Register(context.Background(), &pb.RegisterReq{Phone: phone, Code: "123456", Password: "pass1"})
 	if err != nil {
 		t.Fatalf("register: %v", err)
 	}
 
-	res, err := h.Login(context.Background(), &pb.LoginReq{Account: account, Password: "pass1"})
+	res, err := h.Login(context.Background(), &pb.LoginReq{Phone: phone, Password: "pass1"})
 	if err != nil {
 		t.Fatalf("login: %v", err)
-	}
-	if res.Created {
-		t.Fatal("expected created=false for existing user")
 	}
 	if res.Token == "" {
 		t.Fatal("expected token")
@@ -87,15 +87,15 @@ func TestIntegration_ExistingUserLogin(t *testing.T) {
 
 func TestIntegration_WrongPassword(t *testing.T) {
 	h, pool := newTestHandlerRealDB(t)
-	account := "intg-wrong@test.com"
-	t.Cleanup(func() { cleanupUser(t, pool, account) })
+	phone := "13800010003"
+	t.Cleanup(func() { cleanupUser(t, pool, phone) })
 
-	_, err := h.Login(context.Background(), &pb.LoginReq{Account: account, Password: "correct"})
+	_, err := h.Register(context.Background(), &pb.RegisterReq{Phone: phone, Code: "123456", Password: "correct"})
 	if err != nil {
 		t.Fatalf("register: %v", err)
 	}
 
-	_, err = h.Login(context.Background(), &pb.LoginReq{Account: account, Password: "wrong"})
+	_, err = h.Login(context.Background(), &pb.LoginReq{Phone: phone, Password: "wrong"})
 	if err == nil {
 		t.Fatal("expected error for wrong password")
 	}
@@ -103,12 +103,17 @@ func TestIntegration_WrongPassword(t *testing.T) {
 
 func TestIntegration_TokenContainsUserID(t *testing.T) {
 	h, pool := newTestHandlerRealDB(t)
-	account := "intg-token@test.com"
-	t.Cleanup(func() { cleanupUser(t, pool, account) })
+	phone := "13800010004"
+	t.Cleanup(func() { cleanupUser(t, pool, phone) })
 
-	res, err := h.Login(context.Background(), &pb.LoginReq{Account: account, Password: "pass"})
+	_, err := h.Register(context.Background(), &pb.RegisterReq{Phone: phone, Code: "123456", Password: "pass"})
 	if err != nil {
 		t.Fatalf("register: %v", err)
+	}
+
+	res, err := h.Login(context.Background(), &pb.LoginReq{Phone: phone, Password: "pass"})
+	if err != nil {
+		t.Fatalf("login: %v", err)
 	}
 
 	userID, err := auth.ParseJWT(res.Token, []byte("secret"))
@@ -117,5 +122,53 @@ func TestIntegration_TokenContainsUserID(t *testing.T) {
 	}
 	if userID == "" {
 		t.Fatal("token should contain user_id")
+	}
+}
+
+func TestIntegration_DuplicatePhone(t *testing.T) {
+	h, pool := newTestHandlerRealDB(t)
+	phone := "13800010005"
+	t.Cleanup(func() { cleanupUser(t, pool, phone) })
+
+	_, err := h.Register(context.Background(), &pb.RegisterReq{Phone: phone, Code: "123456", Password: "pass1"})
+	if err != nil {
+		t.Fatalf("register: %v", err)
+	}
+
+	_, err = h.Register(context.Background(), &pb.RegisterReq{Phone: phone, Code: "123456", Password: "pass2"})
+	if err == nil {
+		t.Fatal("expected error for duplicate phone")
+	}
+}
+
+func TestIntegration_SendVerificationCode_NewPhone(t *testing.T) {
+	h, _ := newTestHandlerRealDB(t)
+	phone := "13800010006"
+
+	res, err := h.SendVerificationCode(context.Background(), &pb.SendVerificationCodeReq{Phone: phone})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.Registered {
+		t.Fatal("expected registered=false for new phone")
+	}
+}
+
+func TestIntegration_SendVerificationCode_RegisteredPhone(t *testing.T) {
+	h, pool := newTestHandlerRealDB(t)
+	phone := "13800010007"
+	t.Cleanup(func() { cleanupUser(t, pool, phone) })
+
+	_, err := h.Register(context.Background(), &pb.RegisterReq{Phone: phone, Code: "123456", Password: "pass1"})
+	if err != nil {
+		t.Fatalf("register: %v", err)
+	}
+
+	res, err := h.SendVerificationCode(context.Background(), &pb.SendVerificationCodeReq{Phone: phone})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !res.Registered {
+		t.Fatal("expected registered=true for existing phone")
 	}
 }
