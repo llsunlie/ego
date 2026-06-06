@@ -56,6 +56,30 @@ const LoginRes$json = {
 final $typed_data.Uint8List loginResDescriptor =
     $convert.base64Decode('CghMb2dpblJlcxIUCgV0b2tlbhgBIAEoCVIFdG9rZW4=');
 
+@$core.Deprecated('Use checkPhoneReqDescriptor instead')
+const CheckPhoneReq$json = {
+  '1': 'CheckPhoneReq',
+  '2': [
+    {'1': 'phone', '3': 1, '4': 1, '5': 9, '10': 'phone'},
+  ],
+};
+
+/// Descriptor for `CheckPhoneReq`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List checkPhoneReqDescriptor = $convert
+    .base64Decode('Cg1DaGVja1Bob25lUmVxEhQKBXBob25lGAEgASgJUgVwaG9uZQ==');
+
+@$core.Deprecated('Use checkPhoneResDescriptor instead')
+const CheckPhoneRes$json = {
+  '1': 'CheckPhoneRes',
+  '2': [
+    {'1': 'registered', '3': 1, '4': 1, '5': 8, '10': 'registered'},
+  ],
+};
+
+/// Descriptor for `CheckPhoneRes`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List checkPhoneResDescriptor = $convert.base64Decode(
+    'Cg1DaGVja1Bob25lUmVzEh4KCnJlZ2lzdGVyZWQYASABKAhSCnJlZ2lzdGVyZWQ=');
+
 @$core.Deprecated('Use sendVerificationCodeReqDescriptor instead')
 const SendVerificationCodeReq$json = {
   '1': 'SendVerificationCodeReq',
@@ -72,16 +96,11 @@ final $typed_data.Uint8List sendVerificationCodeReqDescriptor =
 @$core.Deprecated('Use sendVerificationCodeResDescriptor instead')
 const SendVerificationCodeRes$json = {
   '1': 'SendVerificationCodeRes',
-  '2': [
-    {'1': 'registered', '3': 1, '4': 1, '5': 8, '10': 'registered'},
-  ],
 };
 
 /// Descriptor for `SendVerificationCodeRes`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List sendVerificationCodeResDescriptor =
-    $convert.base64Decode(
-        'ChdTZW5kVmVyaWZpY2F0aW9uQ29kZVJlcxIeCgpyZWdpc3RlcmVkGAEgASgIUgpyZWdpc3Rlcm'
-        'Vk');
+    $convert.base64Decode('ChdTZW5kVmVyaWZpY2F0aW9uQ29kZVJlcw==');
 
 @$core.Deprecated('Use registerReqDescriptor instead')
 const RegisterReq$json = {

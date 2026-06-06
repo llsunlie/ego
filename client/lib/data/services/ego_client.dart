@@ -30,6 +30,11 @@ class EgoClient {
 
   // ─── Auth ─────────────────────────────────────
 
+  Future<grpc.CheckPhoneRes> checkPhone(String phone) async {
+    final req = grpc.CheckPhoneReq(phone: phone);
+    return _stub.checkPhone(req);
+  }
+
   Future<grpc.SendVerificationCodeRes> sendVerificationCode(String phone) async {
     final req = grpc.SendVerificationCodeReq(phone: phone);
     return _stub.sendVerificationCode(req);
