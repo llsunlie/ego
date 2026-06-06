@@ -34,29 +34,81 @@ final $typed_data.Uint8List chatRoleDescriptor = $convert.base64Decode(
 const LoginReq$json = {
   '1': 'LoginReq',
   '2': [
-    {'1': 'account', '3': 1, '4': 1, '5': 9, '10': 'account'},
+    {'1': 'phone', '3': 1, '4': 1, '5': 9, '10': 'phone'},
     {'1': 'password', '3': 2, '4': 1, '5': 9, '10': 'password'},
   ],
 };
 
 /// Descriptor for `LoginReq`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List loginReqDescriptor = $convert.base64Decode(
-    'CghMb2dpblJlcRIYCgdhY2NvdW50GAEgASgJUgdhY2NvdW50EhoKCHBhc3N3b3JkGAIgASgJUg'
-    'hwYXNzd29yZA==');
+    'CghMb2dpblJlcRIUCgVwaG9uZRgBIAEoCVIFcGhvbmUSGgoIcGFzc3dvcmQYAiABKAlSCHBhc3'
+    'N3b3Jk');
 
 @$core.Deprecated('Use loginResDescriptor instead')
 const LoginRes$json = {
   '1': 'LoginRes',
   '2': [
     {'1': 'token', '3': 1, '4': 1, '5': 9, '10': 'token'},
-    {'1': 'created', '3': 2, '4': 1, '5': 8, '10': 'created'},
   ],
 };
 
 /// Descriptor for `LoginRes`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List loginResDescriptor = $convert.base64Decode(
-    'CghMb2dpblJlcxIUCgV0b2tlbhgBIAEoCVIFdG9rZW4SGAoHY3JlYXRlZBgCIAEoCFIHY3JlYX'
-    'RlZA==');
+final $typed_data.Uint8List loginResDescriptor =
+    $convert.base64Decode('CghMb2dpblJlcxIUCgV0b2tlbhgBIAEoCVIFdG9rZW4=');
+
+@$core.Deprecated('Use sendVerificationCodeReqDescriptor instead')
+const SendVerificationCodeReq$json = {
+  '1': 'SendVerificationCodeReq',
+  '2': [
+    {'1': 'phone', '3': 1, '4': 1, '5': 9, '10': 'phone'},
+  ],
+};
+
+/// Descriptor for `SendVerificationCodeReq`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List sendVerificationCodeReqDescriptor =
+    $convert.base64Decode(
+        'ChdTZW5kVmVyaWZpY2F0aW9uQ29kZVJlcRIUCgVwaG9uZRgBIAEoCVIFcGhvbmU=');
+
+@$core.Deprecated('Use sendVerificationCodeResDescriptor instead')
+const SendVerificationCodeRes$json = {
+  '1': 'SendVerificationCodeRes',
+  '2': [
+    {'1': 'registered', '3': 1, '4': 1, '5': 8, '10': 'registered'},
+  ],
+};
+
+/// Descriptor for `SendVerificationCodeRes`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List sendVerificationCodeResDescriptor =
+    $convert.base64Decode(
+        'ChdTZW5kVmVyaWZpY2F0aW9uQ29kZVJlcxIeCgpyZWdpc3RlcmVkGAEgASgIUgpyZWdpc3Rlcm'
+        'Vk');
+
+@$core.Deprecated('Use registerReqDescriptor instead')
+const RegisterReq$json = {
+  '1': 'RegisterReq',
+  '2': [
+    {'1': 'phone', '3': 1, '4': 1, '5': 9, '10': 'phone'},
+    {'1': 'code', '3': 2, '4': 1, '5': 9, '10': 'code'},
+    {'1': 'password', '3': 3, '4': 1, '5': 9, '10': 'password'},
+  ],
+};
+
+/// Descriptor for `RegisterReq`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List registerReqDescriptor = $convert.base64Decode(
+    'CgtSZWdpc3RlclJlcRIUCgVwaG9uZRgBIAEoCVIFcGhvbmUSEgoEY29kZRgCIAEoCVIEY29kZR'
+    'IaCghwYXNzd29yZBgDIAEoCVIIcGFzc3dvcmQ=');
+
+@$core.Deprecated('Use registerResDescriptor instead')
+const RegisterRes$json = {
+  '1': 'RegisterRes',
+  '2': [
+    {'1': 'token', '3': 1, '4': 1, '5': 9, '10': 'token'},
+  ],
+};
+
+/// Descriptor for `RegisterRes`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List registerResDescriptor =
+    $convert.base64Decode('CgtSZWdpc3RlclJlcxIUCgV0b2tlbhgBIAEoCVIFdG9rZW4=');
 
 @$core.Deprecated('Use momentDescriptor instead')
 const Moment$json = {
@@ -154,6 +206,7 @@ const Constellation$json = {
     {'1': 'star_count', '3': 6, '4': 1, '5': 5, '10': 'starCount'},
     {'1': 'created_at', '3': 7, '4': 1, '5': 3, '10': 'createdAt'},
     {'1': 'updated_at', '3': 8, '4': 1, '5': 3, '10': 'updatedAt'},
+    {'1': 'topic', '3': 9, '4': 1, '5': 9, '10': 'topic'},
   ],
 };
 
@@ -163,7 +216,8 @@ final $typed_data.Uint8List constellationDescriptor = $convert.base64Decode(
     'NvbnN0ZWxsYXRpb25faW5zaWdodBgDIAEoCVIUY29uc3RlbGxhdGlvbkluc2lnaHQSGQoIc3Rh'
     'cl9pZHMYBCADKAlSB3N0YXJJZHMSIwoNdG9waWNfcHJvbXB0cxgFIAMoCVIMdG9waWNQcm9tcH'
     'RzEh0KCnN0YXJfY291bnQYBiABKAVSCXN0YXJDb3VudBIdCgpjcmVhdGVkX2F0GAcgASgDUglj'
-    'cmVhdGVkQXQSHQoKdXBkYXRlZF9hdBgIIAEoA1IJdXBkYXRlZEF0');
+    'cmVhdGVkQXQSHQoKdXBkYXRlZF9hdBgIIAEoA1IJdXBkYXRlZEF0EhQKBXRvcGljGAkgASgJUg'
+    'V0b3BpYw==');
 
 @$core.Deprecated('Use chatMessageDescriptor instead')
 const ChatMessage$json = {
