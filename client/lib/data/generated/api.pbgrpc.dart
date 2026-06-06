@@ -40,6 +40,20 @@ class EgoClient extends $grpc.Client {
     return $createUnaryCall(_$login, request, options: options);
   }
 
+  $grpc.ResponseFuture<$0.SendVerificationCodeRes> sendVerificationCode(
+    $0.SendVerificationCodeReq request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$sendVerificationCode, request, options: options);
+  }
+
+  $grpc.ResponseFuture<$0.RegisterRes> register(
+    $0.RegisterReq request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$register, request, options: options);
+  }
+
   /// ─── Moment（话语）─────────────────────────────────────
   /// 写下一句话，保存 Moment + Echo，返回回声
   $grpc.ResponseFuture<$0.CreateMomentRes> createMoment(
@@ -140,6 +154,15 @@ class EgoClient extends $grpc.Client {
       '/ego.Ego/Login',
       ($0.LoginReq value) => value.writeToBuffer(),
       $0.LoginRes.fromBuffer);
+  static final _$sendVerificationCode = $grpc.ClientMethod<
+          $0.SendVerificationCodeReq, $0.SendVerificationCodeRes>(
+      '/ego.Ego/SendVerificationCode',
+      ($0.SendVerificationCodeReq value) => value.writeToBuffer(),
+      $0.SendVerificationCodeRes.fromBuffer);
+  static final _$register = $grpc.ClientMethod<$0.RegisterReq, $0.RegisterRes>(
+      '/ego.Ego/Register',
+      ($0.RegisterReq value) => value.writeToBuffer(),
+      $0.RegisterRes.fromBuffer);
   static final _$createMoment =
       $grpc.ClientMethod<$0.CreateMomentReq, $0.CreateMomentRes>(
           '/ego.Ego/CreateMoment',
@@ -209,6 +232,22 @@ abstract class EgoServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) => $0.LoginReq.fromBuffer(value),
         ($0.LoginRes value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.SendVerificationCodeReq,
+            $0.SendVerificationCodeRes>(
+        'SendVerificationCode',
+        sendVerificationCode_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.SendVerificationCodeReq.fromBuffer(value),
+        ($0.SendVerificationCodeRes value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.RegisterReq, $0.RegisterRes>(
+        'Register',
+        register_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.RegisterReq.fromBuffer(value),
+        ($0.RegisterRes value) => value.writeToBuffer()));
     $addMethod($grpc.ServiceMethod<$0.CreateMomentReq, $0.CreateMomentRes>(
         'CreateMoment',
         createMoment_Pre,
@@ -302,6 +341,23 @@ abstract class EgoServiceBase extends $grpc.Service {
   }
 
   $async.Future<$0.LoginRes> login($grpc.ServiceCall call, $0.LoginReq request);
+
+  $async.Future<$0.SendVerificationCodeRes> sendVerificationCode_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.SendVerificationCodeReq> $request) async {
+    return sendVerificationCode($call, await $request);
+  }
+
+  $async.Future<$0.SendVerificationCodeRes> sendVerificationCode(
+      $grpc.ServiceCall call, $0.SendVerificationCodeReq request);
+
+  $async.Future<$0.RegisterRes> register_Pre(
+      $grpc.ServiceCall $call, $async.Future<$0.RegisterReq> $request) async {
+    return register($call, await $request);
+  }
+
+  $async.Future<$0.RegisterRes> register(
+      $grpc.ServiceCall call, $0.RegisterReq request);
 
   $async.Future<$0.CreateMomentRes> createMoment_Pre($grpc.ServiceCall $call,
       $async.Future<$0.CreateMomentReq> $request) async {

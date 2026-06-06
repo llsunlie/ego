@@ -23,11 +23,11 @@ export 'api.pbenum.dart';
 
 class LoginReq extends $pb.GeneratedMessage {
   factory LoginReq({
-    $core.String? account,
+    $core.String? phone,
     $core.String? password,
   }) {
     final result = create();
-    if (account != null) result.account = account;
+    if (phone != null) result.phone = phone;
     if (password != null) result.password = password;
     return result;
   }
@@ -45,7 +45,7 @@ class LoginReq extends $pb.GeneratedMessage {
       _omitMessageNames ? '' : 'LoginReq',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'ego'),
       createEmptyInstance: create)
-    ..aOS(1, _omitFieldNames ? '' : 'account')
+    ..aOS(1, _omitFieldNames ? '' : 'phone')
     ..aOS(2, _omitFieldNames ? '' : 'password')
     ..hasRequiredFields = false;
 
@@ -68,13 +68,13 @@ class LoginReq extends $pb.GeneratedMessage {
   static LoginReq? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $core.String get account => $_getSZ(0);
+  $core.String get phone => $_getSZ(0);
   @$pb.TagNumber(1)
-  set account($core.String value) => $_setString(0, value);
+  set phone($core.String value) => $_setString(0, value);
   @$pb.TagNumber(1)
-  $core.bool hasAccount() => $_has(0);
+  $core.bool hasPhone() => $_has(0);
   @$pb.TagNumber(1)
-  void clearAccount() => $_clearField(1);
+  void clearPhone() => $_clearField(1);
 
   @$pb.TagNumber(2)
   $core.String get password => $_getSZ(1);
@@ -89,11 +89,9 @@ class LoginReq extends $pb.GeneratedMessage {
 class LoginRes extends $pb.GeneratedMessage {
   factory LoginRes({
     $core.String? token,
-    $core.bool? created,
   }) {
     final result = create();
     if (token != null) result.token = token;
-    if (created != null) result.created = created;
     return result;
   }
 
@@ -111,7 +109,6 @@ class LoginRes extends $pb.GeneratedMessage {
       package: const $pb.PackageName(_omitMessageNames ? '' : 'ego'),
       createEmptyInstance: create)
     ..aOS(1, _omitFieldNames ? '' : 'token')
-    ..aOB(2, _omitFieldNames ? '' : 'created')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -140,15 +137,248 @@ class LoginRes extends $pb.GeneratedMessage {
   $core.bool hasToken() => $_has(0);
   @$pb.TagNumber(1)
   void clearToken() => $_clearField(1);
+}
+
+class SendVerificationCodeReq extends $pb.GeneratedMessage {
+  factory SendVerificationCodeReq({
+    $core.String? phone,
+  }) {
+    final result = create();
+    if (phone != null) result.phone = phone;
+    return result;
+  }
+
+  SendVerificationCodeReq._();
+
+  factory SendVerificationCodeReq.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory SendVerificationCodeReq.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SendVerificationCodeReq',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'ego'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'phone')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SendVerificationCodeReq clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SendVerificationCodeReq copyWith(
+          void Function(SendVerificationCodeReq) updates) =>
+      super.copyWith((message) => updates(message as SendVerificationCodeReq))
+          as SendVerificationCodeReq;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static SendVerificationCodeReq create() => SendVerificationCodeReq._();
+  @$core.override
+  SendVerificationCodeReq createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static SendVerificationCodeReq getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SendVerificationCodeReq>(create);
+  static SendVerificationCodeReq? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get phone => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set phone($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasPhone() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPhone() => $_clearField(1);
+}
+
+class SendVerificationCodeRes extends $pb.GeneratedMessage {
+  factory SendVerificationCodeRes({
+    $core.bool? registered,
+  }) {
+    final result = create();
+    if (registered != null) result.registered = registered;
+    return result;
+  }
+
+  SendVerificationCodeRes._();
+
+  factory SendVerificationCodeRes.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory SendVerificationCodeRes.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SendVerificationCodeRes',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'ego'),
+      createEmptyInstance: create)
+    ..aOB(1, _omitFieldNames ? '' : 'registered')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SendVerificationCodeRes clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SendVerificationCodeRes copyWith(
+          void Function(SendVerificationCodeRes) updates) =>
+      super.copyWith((message) => updates(message as SendVerificationCodeRes))
+          as SendVerificationCodeRes;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static SendVerificationCodeRes create() => SendVerificationCodeRes._();
+  @$core.override
+  SendVerificationCodeRes createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static SendVerificationCodeRes getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SendVerificationCodeRes>(create);
+  static SendVerificationCodeRes? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get registered => $_getBF(0);
+  @$pb.TagNumber(1)
+  set registered($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasRegistered() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRegistered() => $_clearField(1);
+}
+
+class RegisterReq extends $pb.GeneratedMessage {
+  factory RegisterReq({
+    $core.String? phone,
+    $core.String? code,
+    $core.String? password,
+  }) {
+    final result = create();
+    if (phone != null) result.phone = phone;
+    if (code != null) result.code = code;
+    if (password != null) result.password = password;
+    return result;
+  }
+
+  RegisterReq._();
+
+  factory RegisterReq.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory RegisterReq.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RegisterReq',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'ego'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'phone')
+    ..aOS(2, _omitFieldNames ? '' : 'code')
+    ..aOS(3, _omitFieldNames ? '' : 'password')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RegisterReq clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RegisterReq copyWith(void Function(RegisterReq) updates) =>
+      super.copyWith((message) => updates(message as RegisterReq))
+          as RegisterReq;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static RegisterReq create() => RegisterReq._();
+  @$core.override
+  RegisterReq createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static RegisterReq getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RegisterReq>(create);
+  static RegisterReq? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get phone => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set phone($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasPhone() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPhone() => $_clearField(1);
 
   @$pb.TagNumber(2)
-  $core.bool get created => $_getBF(1);
+  $core.String get code => $_getSZ(1);
   @$pb.TagNumber(2)
-  set created($core.bool value) => $_setBool(1, value);
+  set code($core.String value) => $_setString(1, value);
   @$pb.TagNumber(2)
-  $core.bool hasCreated() => $_has(1);
+  $core.bool hasCode() => $_has(1);
   @$pb.TagNumber(2)
-  void clearCreated() => $_clearField(2);
+  void clearCode() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get password => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set password($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasPassword() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearPassword() => $_clearField(3);
+}
+
+class RegisterRes extends $pb.GeneratedMessage {
+  factory RegisterRes({
+    $core.String? token,
+  }) {
+    final result = create();
+    if (token != null) result.token = token;
+    return result;
+  }
+
+  RegisterRes._();
+
+  factory RegisterRes.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory RegisterRes.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RegisterRes',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'ego'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'token')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RegisterRes clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RegisterRes copyWith(void Function(RegisterRes) updates) =>
+      super.copyWith((message) => updates(message as RegisterRes))
+          as RegisterRes;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static RegisterRes create() => RegisterRes._();
+  @$core.override
+  RegisterRes createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static RegisterRes getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RegisterRes>(create);
+  static RegisterRes? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get token => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set token($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasToken() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearToken() => $_clearField(1);
 }
 
 class Moment extends $pb.GeneratedMessage {
@@ -502,6 +732,7 @@ class Constellation extends $pb.GeneratedMessage {
     $core.int? starCount,
     $fixnum.Int64? createdAt,
     $fixnum.Int64? updatedAt,
+    $core.String? topic,
   }) {
     final result = create();
     if (id != null) result.id = id;
@@ -513,6 +744,7 @@ class Constellation extends $pb.GeneratedMessage {
     if (starCount != null) result.starCount = starCount;
     if (createdAt != null) result.createdAt = createdAt;
     if (updatedAt != null) result.updatedAt = updatedAt;
+    if (topic != null) result.topic = topic;
     return result;
   }
 
@@ -537,6 +769,7 @@ class Constellation extends $pb.GeneratedMessage {
     ..aI(6, _omitFieldNames ? '' : 'starCount')
     ..aInt64(7, _omitFieldNames ? '' : 'createdAt')
     ..aInt64(8, _omitFieldNames ? '' : 'updatedAt')
+    ..aOS(9, _omitFieldNames ? '' : 'topic')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -617,6 +850,15 @@ class Constellation extends $pb.GeneratedMessage {
   $core.bool hasUpdatedAt() => $_has(7);
   @$pb.TagNumber(8)
   void clearUpdatedAt() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.String get topic => $_getSZ(8);
+  @$pb.TagNumber(9)
+  set topic($core.String value) => $_setString(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasTopic() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearTopic() => $_clearField(9);
 }
 
 class ChatMessage extends $pb.GeneratedMessage {
