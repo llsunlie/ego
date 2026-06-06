@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"ego-server/internal/config"
+	"ego-server/internal/identity/adapter/sms"
 	"ego-server/internal/platform/ai"
 	"ego-server/internal/platform/auth"
 	"ego-server/internal/platform/logging"
@@ -16,13 +17,14 @@ import (
 )
 
 type Platform struct {
-	Pool     *pgxpool.Pool
-	JWTKey   []byte
-	JWTExp   time.Duration
-	Hasher   auth.BcryptHasher
-	Tokens   auth.JWTIssuer
-	Logger   *slog.Logger
-	AIClient *ai.Client
+	Pool       *pgxpool.Pool
+	JWTKey     []byte
+	JWTExp     time.Duration
+	Hasher     auth.BcryptHasher
+	Tokens     auth.JWTIssuer
+	Logger     *slog.Logger
+	AIClient   *ai.Client
+	SmsService *sms.AliyunSmsService
 }
 
 func InitPlatform(cfg *config.Config) (*Platform, error) {
@@ -58,13 +60,14 @@ func InitPlatform(cfg *config.Config) (*Platform, error) {
 	}, logger)
 
 	return &Platform{
-		Pool:     pool,
-		JWTKey:   jwtKey,
-		JWTExp:   jwtExp,
-		Hasher:   auth.BcryptHasher{},
-		Tokens:   auth.JWTIssuer{Secret: jwtKey, Exp: jwtExp},
-		Logger:   logger,
-		AIClient: aiClient,
+		Pool:       pool,
+		JWTKey:     jwtKey,
+		JWTExp:     jwtExp,
+		Hasher:     auth.BcryptHasher{},
+		Tokens:     auth.JWTIssuer{Secret: jwtKey, Exp: jwtExp},
+		Logger:     logger,
+		AIClient:   aiClient,
+		SmsService: sms.NewAliyunSmsService(),
 	}, nil
 }
 
