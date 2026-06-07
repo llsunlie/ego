@@ -94,12 +94,18 @@ func (g *ConstellationAssetGenerator) Generate(ctx context.Context, moments []wr
 		{Role: "system", Content: assetSystemPrompt},
 		{Role: "user", Content: buildAssetUserPrompt(moments)},
 	}
+	logger.DebugContext(ctx, "starmap constellation asset ai request",
+		"messages", chatMessagesForLog(messages),
+	)
 
 	text, err := g.client.Chat(ctx, messages)
 	if err != nil {
 		logger.ErrorContext(ctx, "starmap constellation asset chat failed", "error", err)
 		return fallbackAssets()
 	}
+	logger.DebugContext(ctx, "starmap constellation asset ai response",
+		"raw_response", text,
+	)
 
 	topic, name, insight, prompts, err := parseAssetJSON(text)
 	if err != nil {

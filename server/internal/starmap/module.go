@@ -31,6 +31,7 @@ func NewHandler(deps Deps) *starmapgrpc.Handler {
 
 	assetGen := starmapai.NewConstellationAssetGenerator(deps.AIClient)
 	profileGen := starmapai.NewTraceProfileGenerator(deps.AIClient)
+	borderlineJudge := starmapai.NewConstellationBorderlineJudge(deps.AIClient)
 	profileRepo := starmappostgres.NewTraceProfileRepository(deps.DB, deps.AIEmbeddingDim)
 	constellationProfileRepo := starmappostgres.NewConstellationProfileRepository(deps.DB, deps.AIEmbeddingDim)
 	ids := starmapid.NewUUIDGenerator()
@@ -38,7 +39,7 @@ func NewHandler(deps Deps) *starmapgrpc.Handler {
 	stashTrace := starmapapp.NewStashTraceUseCaseWithTraceProfile(
 		traceReader, traceStasher, starRepo, constellationRepo,
 		assetGen,
-		profileGen, profileRepo, constellationProfileRepo,
+		profileGen, borderlineJudge, profileRepo, constellationProfileRepo,
 		ids,
 	)
 	listConstellations := starmapapp.NewListConstellationsUseCase(constellationRepo, starRepo)

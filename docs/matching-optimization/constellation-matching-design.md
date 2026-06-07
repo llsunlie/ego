@@ -252,111 +252,416 @@ thresholds
 explainable_middle_rule_applied
 ```
 
-## P7.2 迭代设计：边界判断与混合召回
+## P7.2 迭代设计：Codebook 与边界 LLM 判断
 
-P7.2 的目标是处理“有点像，但不是完全同一个主题”的候选，并进一步减少候选召回遗漏。
+状态：已实现。
 
-### Borderline LLM 判断
+P7.2 的目标是处理“同一长期主题，但确定性 overlap 分数过低”的候选。
 
-只在边界区间触发：
+P7.1 后，确定性评分已经可以处理明显相似样本。但真实测试里仍会出现这类情况：
 
 ```text
-0.55 <= top_score < strong_threshold
+A: 入职申请被驳回，资料填写不正确，审核慢，很烦
+B: 可能不能入职，计划被打乱，心烦
 ```
 
-输入 top3 候选星座：
+P7.1 只能看到：
 
-- 当前 TraceProfile
-- 每个候选 ConstellationProfile
-- 每个候选的关键词、场景、情绪、pattern_tags 命中情况
-- 当前确定性 score
+```text
+scene_overlap = 工作
+profile_similarity = 0.408
+keyword_overlap = 0
+emotion_overlap = 0
+pattern_tags_overlap = 0
+score = 0.345
+```
 
-输出：
+确定性规则不合并是合理的，否则会把大量“工作”内容误合并。但从产品语义看，两者可能都属于同一个长期主题：
+
+```text
+入职流程受阻 / 工作开始受阻 / 计划受阻
+```
+
+P7.2 因此引入受约束的 LLM 边界判断。LLM 不是主流程，也不是每次调用；它只在确定性算法无法处理的边界候选上判断是否存在稳定的长期主题。
+
+LLM prompt 不使用某一组测试数据里的“行动受阻 / 计划被打断”作为核心模板。边界判断应回到产品语义：当前 Trace 和候选星座是否共享反复出现的处境、自我反应模式、关系位置、身份状态，或同一种内在需要与顾虑。
+
+### 不采用自由 normalized 字段
+
+P7.2 不新增自由文本式的 `normalized_topic` / `normalized_pattern_tags`。
+
+原因：
+
+```text
+normalized_topic: 入职流程受阻
+normalized_topic: 工作开始受阻
+normalized_topic: 报到受阻
+normalized_topic: 入职计划卡住
+```
+
+如果这些字段仍由 LLM 自由生成，本质上只是“更上位的 pattern_tags”，仍然存在同义不同词问题。
+
+P7.2 改用 codebook 思路：让模型优先从已有稳定 code 中选择，而不是每次自由发明标签。
+
+### Theme Codebook
+
+Codebook 是一组可复用的主题代码。每个 code 至少包含：
+
+```text
+theme_code
+theme_label
+theme_description
+theme_examples
+```
+
+示例：
 
 ```json
 {
-  "decision": "primary_match | secondary_match | create_new",
-  "primary_constellation_id": "optional",
-  "secondary_constellation_ids": ["optional"],
-  "reason": "简短说明"
+  "theme_code": "work_onboarding_blocked",
+  "theme_label": "入职流程受阻",
+  "theme_description": "入职、报到、申请、审核、资料、offer 等流程发生阻碍、延迟或不确定。",
+  "theme_examples": [
+    "入职申请被驳回了，说资料填写不正确，审核又慢",
+    "可能不能入职，计划被打乱",
+    "报到前资料又出问题"
+  ]
 }
 ```
 
-约束：
+字段定位：
 
-- LLM 不参与全量召回，只判断 top3 边界候选。
-- LLM 结果不能绕过强负例：如果候选无关键词、无场景、无情绪、无 pattern_tags 命中，不能被选为 primary。
-- LLM 失败时回到 P7.1 确定性决策。
+- `theme_code`：稳定英文 snake_case 标识，算法和日志使用。
+- `theme_label`：中文可读标签，便于调试和后续后台查看。
+- `theme_description`：边界定义，帮助 LLM 判断哪些 Trace 可以复用这个 code。
+- `theme_examples`：代表性样本，后续 P8 可持续更新。
 
-### Secondary 多视角归属
+### 最小数据结构
 
-P7.2 完善 secondary 选择：
+P7.2 先不引入独立 codebook 表，避免一次改动过大。
 
-```text
-primary: 最主要归属，weight=1.0
-secondary: 其他合理视角，weight=0.5
-```
-
-secondary 条件：
-
-- 分数达到 `middle_threshold`，或被 borderline LLM 判定为 secondary。
-- 与 primary 的 `match_dimensions` 不能完全相同。
-- 最多 2 个 secondary。
-
-例如同一条入职 Trace 可以：
+最小落点：
 
 ```text
-primary: 入职前的期待与担心
-secondary: 工作身份转变
+constellation_profiles.theme_code
+constellation_profiles.theme_label
+constellation_profiles.theme_description
+constellation_profiles.theme_examples jsonb
 ```
 
-### ConstellationProfile ES sparse 召回
-
-P7.2 可以引入星座级 sparse recall，类似 Echo 的 dense + sparse hybrid recall。
-
-索引对象是 `ConstellationProfile`，不是原始 Star 内容：
+新建星座时：
 
 ```text
-constellation_id
-user_id
-topic
-name
-summary
-keywords
-emotions
-scenes
-pattern_tags
-central_pattern
-profile_text
-trace_count
-updated_at
+theme_code / theme_label / theme_description
+默认由 TraceProfile.topic / summary / central_pattern 和代表 moments 生成 fallback codebook
+如果边界 LLM 返回有效 suggest_new，则使用 suggested_theme_code / label / description 覆盖 fallback
 ```
 
-查询文本来自当前 TraceProfile：
+加入已有星座时：
 
 ```text
-topic + summary + keywords + emotions + scenes + pattern_tags + central_pattern
+复用已有 ConstellationProfile.theme_code
+membership.match_reason 记录 LLM 判断理由
 ```
 
-召回流程：
+TraceProfile 暂不强制新增 theme 字段。若后续需要离线分析，可再讨论：
+
+```text
+trace_profiles.theme_code
+trace_profiles.theme_confidence
+```
+
+### 触发条件
+
+P7.2 不每次调用 LLM。调用前先走 P7.1 确定性评分：
+
+```text
+score >= strong_threshold:
+  直接加入已有星座，不调用 LLM
+
+candidate_count == 0:
+  直接新建星座，不调用 LLM
+
+score < weak_threshold 且没有边界证据:
+  直接新建星座，不调用 LLM
+
+weak_threshold <= score < strong_threshold:
+  进入边界判断
+```
+
+建议初始参数：
+
+```text
+strong_threshold = 0.72
+weak_threshold = 0.30
+borderline_profile_similarity = 0.38
+llm_top_k = 3
+```
+
+进入 LLM 的候选还需要至少满足一个边界证据：
+
+```text
+profile_similarity >= 0.38
+or keyword_overlap > 0
+or emotion_overlap > 0
+or pattern_tags_overlap > 0
+or scene_overlap >= 1 且该候选在 dense top3 内
+```
+
+这样可以避免只因为同属“工作”就调用 LLM。
+
+每次 `StashTrace` 最多调用一次边界 LLM，且只传 top3 候选。
+
+当前实现中，进入 LLM 的候选来自已召回并排序后的 top3 边界候选；每个候选都必须低于 middle 阈值且不低于 weak 阈值，并具备至少一类边界证据。
+
+### LLM 输入
+
+输入包含当前 TraceProfile 和 top3 候选星座的 codebook 信息：
+
+```json
+{
+  "trace_profile": {
+    "topic": "入职计划延迟",
+    "summary": "用户因可能无法入职而计划被打乱，感到心烦。",
+    "keywords": ["入职", "计划", "不确定"],
+    "emotions": ["心烦"],
+    "scenes": ["工作"],
+    "central_pattern": "当计划遭遇不确定性时的情绪反应",
+    "pattern_tags": ["计划受挫", "不确定性", "情绪波动"],
+    "representative_moment": "最后跟我说可能不能入职，打乱计划，心烦"
+  },
+  "candidates": [
+    {
+      "constellation_id": "...",
+      "topic": "入职申请被驳回",
+      "summary": "用户因入职申请资料填写不正确多次被驳回，审核过程缓慢，感到烦躁。",
+      "theme_code": "work_onboarding_blocked",
+      "theme_label": "入职流程受阻",
+      "theme_description": "入职、报到、申请、审核、资料、offer 等流程发生阻碍、延迟或不确定。",
+      "keywords": ["入职申请", "驳回", "资料填写", "审核慢"],
+      "emotions": ["烦躁"],
+      "scenes": ["工作", "入职"],
+      "pattern_tags": ["反复受阻", "流程拖延"],
+      "score": 0.345
+    }
+  ]
+}
+```
+
+### LLM 输出
+
+结构化 JSON：
+
+```json
+{
+  "decision": "use_existing",
+  "constellation_id": "...",
+  "theme_code": "work_onboarding_blocked",
+  "confidence": 0.74,
+  "shared_situation": "两者都围绕入职流程受阻，以及由流程不确定带来的计划打乱和烦躁。",
+  "match_dimensions": ["situation", "self_pattern"],
+  "reason": "虽然一个是资料被驳回，一个是可能无法入职，但共同处境都是入职流程被阻断。"
+}
+```
+
+如果没有合适候选：
+
+```json
+{
+  "decision": "suggest_new",
+  "suggested_theme_code": "plan_disrupted_by_work_uncertainty",
+  "suggested_theme_label": "工作不确定打乱计划",
+  "suggested_theme_description": "工作相关安排发生不确定变化，导致原计划被迫调整并引发烦躁或不安。",
+  "confidence": 0.68,
+  "reason": "这更关注计划被打乱，而不是已有候选的申请审核流程本身。"
+}
+```
+
+允许的 `decision`：
+
+```text
+use_existing
+suggest_new
+```
+
+P7.2 不让 LLM 直接决定多个 secondary。Secondary 规则先保持 P7.1 的确定性策略；更完整多视角归属可后续单独设计。
+
+### 接受门控
+
+LLM 判断不能无条件覆盖确定性算法。
+
+`use_existing` 必须满足：
+
+```text
+confidence >= 0.65
+constellation_id 属于输入 candidates
+theme_code 属于该 candidate 的 theme_code
+shared_situation 非空
+match_dimensions 至少包含 situation / self_pattern / relationship / identity / need_conflict 中的一类
+```
+
+`wording` 只能作为辅助证据，不作为独立接受门控。`process_blocked` / `plan` 不再作为 prompt 的核心维度，避免模型把一次性任务受阻或计划变化误判为长期主题。
+
+否则拒绝 LLM 结果，回退到 P7.1 确定性决策。
+
+`suggest_new` 必须满足：
+
+```text
+suggested_theme_code 非空
+suggested_theme_label 非空
+suggested_theme_description 非空
+confidence >= 0.55
+```
+
+如果 LLM 失败、JSON 解析失败、返回未知 `constellation_id`、低 confidence，均回退 P7.1。
+
+### 硬约束
+
+Prompt 必须强调：
+
+```text
+不能只因为同属“工作”就合并。
+不能只因为都有负面情绪就合并。
+不能只因为关键词相同就合并。
+必须能说出共同的长期主题。
+如果共同长期主题说不清楚，返回 suggest_new。
+优先避免污染已有星座。
+只能选择输入 candidates 里的 constellation_id。
+不要只因为一次性任务受阻、计划变化或具体事件相似就合并。
+```
+
+### 评分与落库
+
+P7.2 不改变 P7.1 的确定性 score 公式。
+
+如果 LLM `use_existing` 被接受：
+
+```text
+membership.match_score = deterministic_score
+membership.match_reason = LLM reason
+membership.match_dimensions = LLM match_dimensions
+```
+
+日志中同时记录：
+
+```text
+deterministic_score
+llm_confidence
+shared_situation
+accepted
+```
+
+是否新增数据库字段记录 `llm_confidence` 暂缓；P7.2 先通过日志观察。
+
+当前实现落点：
+
+```text
+domain:
+  ConstellationProfile 增加 theme codebook 字段
+  ConstellationBorderlineJudge 端口与结构化输入/输出
+
+adapter/ai:
+  ConstellationBorderlineJudge 调用 Chat，并解析严格 JSON
+
+adapter/postgres:
+  constellation_profiles 读写 theme_code / theme_label / theme_description / theme_examples
+  migration 014_constellation_theme_codebook.sql
+
+app:
+  P7.1 deterministic score 先执行
+  middle / explainable middle 直接加入
+  borderline top3 调用 LLM
+  use_existing 通过 gate 后写 primary membership
+  低置信度、未知候选、theme_code 不匹配、缺少 shared_situation 时创建新星座
+```
+
+### 日志要求
+
+新增日志：
+
+```text
+starmap borderline judgement started
+starmap borderline judgement completed
+starmap borderline judgement rejected
+```
+
+记录：
+
+```text
+trace_id
+star_id
+top_score
+candidate_count
+candidate_ids
+candidate_theme_codes
+llm_decision
+llm_confidence
+shared_situation
+match_dimensions
+accepted
+fallback_reason
+```
+
+### 测试样本
+
+应覆盖：
+
+1. 长期主题相同，确定性分数低，但 LLM 选择已有 code：
+
+```text
+已有：入职申请被驳回，审核慢，很烦
+新增：可能不能入职，计划被打乱，心烦
+期望：use_existing -> 入职流程受阻
+```
+
+2. 只有泛场景相同，不能合并：
+
+```text
+已有：入职申请被驳回
+新增：今天工作会议很多
+期望：suggest_new / create_new
+```
+
+3. 只有情绪相似，不能合并：
+
+```text
+已有：入职申请被驳回，很烦
+新增：朋友没回消息，很烦
+期望：suggest_new / create_new
+```
+
+4. LLM 返回未知 constellation_id，拒绝。
+
+5. LLM confidence 过低，拒绝。
+
+6. 强匹配候选不调用 LLM，直接加入。
+
+7. 无候选不调用 LLM，直接新建。
+
+### P7.3 预留：ConstellationProfile ES sparse 召回
+
+星座级 ES sparse 召回暂不放入 P7.2。
+
+原因：当前暴露的问题不是候选没召回，而是候选召回后确定性分数过低。ES sparse 更适合后续解决候选遗漏。
+
+预留 P7.3：
 
 ```text
 dense: pgvector profile_embedding topK
 sparse: ES ConstellationProfile topK
 fused: RRF(dense, sparse)
 score: P7.1 综合评分
-borderline: optional LLM
+borderline: P7.2 codebook LLM
 ```
-
-ES 的定位是扩大候选召回，不直接决定最终归属。最终归属仍由综合评分与边界判断决定。
 
 ## P8 衔接
 
-P7.1 会引入 `pattern_tags`，但仍只做轻量合并。P8 需要进一步解决：
+P7.1 引入 `pattern_tags`，P7.2 引入 theme codebook，但画像合并仍是轻量版本。P8 需要进一步解决：
 
 - `pattern_tags`、`keywords`、`emotions`、`scenes` 的频次与权重统计。
+- `theme_examples` 的代表性更新。
+- `theme_description` 的异步重写与收敛。
 - 低辨识度标签过滤。
-- 标签同义归一。
 - 加入新 Trace 后异步 LLM 重写 ConstellationProfile。
 - 使用消息队列或补偿任务保证 profile、membership、向量更新最终一致。
 

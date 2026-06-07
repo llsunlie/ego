@@ -221,14 +221,23 @@ func traceProfileRetryCount(attempt int, err error) int {
 }
 
 func (g *TraceProfileGenerator) generateOnce(ctx context.Context, trace writingdomain.Trace, moments []writingdomain.Moment) (traceProfileResponse, error) {
+	logger := logging.FromContext(ctx)
 	messages := []platformai.ChatMessage{
 		{Role: "system", Content: traceProfileSystemPrompt},
 		{Role: "user", Content: buildTraceProfileUserPrompt(trace, moments)},
 	}
+	logger.DebugContext(ctx, "starmap trace profile ai request",
+		"trace_id", trace.ID,
+		"messages", chatMessagesForLog(messages),
+	)
 	text, err := g.client.Chat(ctx, messages)
 	if err != nil {
 		return traceProfileResponse{}, fmt.Errorf("chat: %w", err)
 	}
+	logger.DebugContext(ctx, "starmap trace profile ai response",
+		"trace_id", trace.ID,
+		"raw_response", text,
+	)
 	resp, err := parseTraceProfileJSON(text)
 	if err != nil {
 		return traceProfileResponse{}, err

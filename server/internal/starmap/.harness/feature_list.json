@@ -106,8 +106,25 @@
     },
     {
       "id": "starmap.constellation_matching_borderline_hybrid_p7_2",
-      "title": "P7.2 Borderline LLM judgement and ConstellationProfile ES sparse recall",
-      "status": "designed",
+      "title": "P7.2 Theme codebook and gated borderline LLM judgement",
+      "status": "passing",
+      "evidence": [
+        "domain/types.go",
+        "domain/ports.go",
+        "adapter/ai/constellation_borderline_judge.go",
+        "adapter/postgres/constellation_profile_repo.go",
+        "app/stash_trace.go",
+        "app/stash_trace_test.go",
+        "internal/platform/postgres/migrations/014_constellation_theme_codebook.sql",
+        "docs/matching-optimization/constellation-matching-design.md",
+        "docs/matching-optimization/optimization-plan.md",
+        "go test ./internal/starmap/..."
+      ]
+    },
+    {
+      "id": "starmap.constellation_sparse_recall_p7_3",
+      "title": "P7.3 ConstellationProfile ES sparse recall",
+      "status": "planned",
       "evidence": [
         "docs/matching-optimization/constellation-matching-design.md",
         "docs/matching-optimization/optimization-plan.md"

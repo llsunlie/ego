@@ -6,6 +6,7 @@ GRPC_PORT="${PORT:-9443}"
 WEB_PORT="${WEB_PORT:-9080}"
 FLUTTER_PORT="${FLUTTER_PORT:-9081}"
 REACT_PORT="${REACT_PORT:-5173}"
+ES_URL="${ELASTICSEARCH_URL:-http://localhost:9200}"
 
 # Terminal colors
 RED='\033[0;31m'
@@ -34,14 +35,18 @@ port_pid() {
 }
 
 kill_port() {
+    local port="$1"
     local pid
-    pid="$(port_pid "$1")"
+    pid="$(port_pid "$port")"
     if [ -n "$pid" ]; then
+        log "killing process(es) on port $port: $pid"
         if [ "$IS_WINDOWS" = true ]; then
             for p in $pid; do taskkill //F //PID "$p" 2>/dev/null || true; done
         else
             kill -9 $pid 2>/dev/null || true
         fi
+    else
+        log "port $port is free"
     fi
 }
 
@@ -65,9 +70,9 @@ cleanup() {
     [ -n "${GO_PID:-}" ] && kill_process "$GO_PID"
     [ -n "${FLUTTER_PID:-}" ] && kill_process "$FLUTTER_PID"
     [ -n "${REACT_PID:-}" ] && kill_process "$REACT_PID"
-    wait $GO_PID 2>/dev/null || true
-    wait $FLUTTER_PID 2>/dev/null || true
-    wait $REACT_PID 2>/dev/null || true
+    [ -n "${GO_PID:-}" ] && wait "$GO_PID" 2>/dev/null || true
+    [ -n "${FLUTTER_PID:-}" ] && wait "$FLUTTER_PID" 2>/dev/null || true
+    [ -n "${REACT_PID:-}" ] && wait "$REACT_PID" 2>/dev/null || true
     log "done"
 }
 trap cleanup EXIT INT TERM
@@ -83,7 +88,19 @@ sleep 0.5
 cd "$ROOT"
 log "starting docker services..."
 docker compose up -d
-sleep 2
+
+log "waiting for postgres..."
+until docker compose exec -T postgres pg_isready -U ego -d ego >/dev/null 2>&1; do
+    sleep 0.5
+done
+log "postgres ready"
+
+log "waiting for elasticsearch..."
+until curl -fsS "$ES_URL/_cluster/health?wait_for_status=yellow&timeout=1s" >/dev/null 2>&1; do
+    sleep 0.5
+done
+log "elasticsearch ready"
+
 log "docker services ready"
 
 # ── go backend ──────────────────────────────────────────────────────
@@ -92,16 +109,29 @@ cd "$ROOT/server"
 go build -o /tmp/ego-server ./cmd/ego/
 
 log "starting backend..."
-/tmp/ego-server &
+mkdir -p "$ROOT/server/.tmp/logs/server"
+BACKEND_OUT="$ROOT/server/.tmp/logs/server/start-backend.out.log"
+BACKEND_ERR="$ROOT/server/.tmp/logs/server/start-backend.err.log"
+: > "$BACKEND_OUT"
+: > "$BACKEND_ERR"
+/tmp/ego-server >> "$BACKEND_OUT" 2>> "$BACKEND_ERR" &
 GO_PID=$!
 
 for i in $(seq 1 20); do
-    if port_listening "$GRPC_PORT"; then break; fi
+    if port_listening "$GRPC_PORT" && port_listening "$WEB_PORT"; then break; fi
     sleep 0.3
 done
 
-if ! port_listening "$GRPC_PORT"; then
-    err "backend failed to start on :$GRPC_PORT"
+if ! port_listening "$GRPC_PORT" || ! port_listening "$WEB_PORT"; then
+    err "backend failed to start on :$GRPC_PORT/:$WEB_PORT"
+    err "backend stderr:"
+    tail -n 80 "$BACKEND_ERR" || true
+    exit 1
+fi
+
+if ! curl -fsS "http://localhost:${WEB_PORT}/health" >/dev/null 2>&1; then
+    err "backend health check failed on http://localhost:${WEB_PORT}/health"
+    tail -n 80 "$BACKEND_ERR" || true
     exit 1
 fi
 log "backend ready  gRPC :${GRPC_PORT}  gRPC-web :${WEB_PORT}"

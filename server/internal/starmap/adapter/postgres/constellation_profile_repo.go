@@ -35,6 +35,10 @@ SELECT
   cp.scenes,
   cp.central_pattern,
   cp.pattern_tags,
+  cp.theme_code,
+  cp.theme_label,
+  cp.theme_description,
+  cp.theme_examples,
   cp.profile_text,
   cp.trace_count,
   cp.moment_count,
@@ -56,12 +60,14 @@ LIMIT $3
 const upsertConstellationProfileSQL = `
 INSERT INTO constellation_profiles (
   constellation_id, user_id, topic, summary, keywords, emotions, scenes,
-  central_pattern, pattern_tags, profile_text, trace_count, moment_count,
-  status, last_error, created_at, updated_at
+  central_pattern, pattern_tags, theme_code, theme_label, theme_description,
+  theme_examples, profile_text, trace_count, moment_count, status, last_error,
+  created_at, updated_at
 ) VALUES (
   $1, $2, $3, $4, $5, $6, $7,
-  $8, $9, $10, $11, $12, $13,
-  $14, $15, $16
+  $8, $9, $10, $11, $12,
+  $13, $14, $15, $16, $17,
+  $18, $19, $20
 )
 ON CONFLICT (constellation_id) DO UPDATE SET
   user_id = EXCLUDED.user_id,
@@ -72,6 +78,10 @@ ON CONFLICT (constellation_id) DO UPDATE SET
   scenes = EXCLUDED.scenes,
   central_pattern = EXCLUDED.central_pattern,
   pattern_tags = EXCLUDED.pattern_tags,
+  theme_code = EXCLUDED.theme_code,
+  theme_label = EXCLUDED.theme_label,
+  theme_description = EXCLUDED.theme_description,
+  theme_examples = EXCLUDED.theme_examples,
   profile_text = EXCLUDED.profile_text,
   trace_count = EXCLUDED.trace_count,
   moment_count = EXCLUDED.moment_count,
@@ -149,6 +159,7 @@ func (r *ConstellationProfileRepository) FindCandidates(ctx context.Context, use
 			emotions        []byte
 			scenes          []byte
 			patternTags     []byte
+			themeExamples   []byte
 			model           string
 			dim             int32
 			profileVector   string
@@ -166,6 +177,10 @@ func (r *ConstellationProfileRepository) FindCandidates(ctx context.Context, use
 			&scenes,
 			&profile.CentralPattern,
 			&patternTags,
+			&profile.ThemeCode,
+			&profile.ThemeLabel,
+			&profile.ThemeDescription,
+			&themeExamples,
 			&profile.ProfileText,
 			&profile.TraceCount,
 			&profile.MomentCount,
@@ -197,6 +212,9 @@ func (r *ConstellationProfileRepository) FindCandidates(ctx context.Context, use
 		}
 		if err := unmarshalStringList(patternTags, &profile.PatternTags); err != nil {
 			return nil, fmt.Errorf("unmarshal pattern tags: %w", err)
+		}
+		if err := unmarshalStringList(themeExamples, &profile.ThemeExamples); err != nil {
+			return nil, fmt.Errorf("unmarshal theme examples: %w", err)
 		}
 
 		pv, err := parseVectorText(profileVector)
@@ -258,6 +276,10 @@ func (r *ConstellationProfileRepository) Upsert(ctx context.Context, profile *do
 	if err != nil {
 		return fmt.Errorf("marshal pattern tags: %w", err)
 	}
+	themeExamples, err := json.Marshal(profile.ThemeExamples)
+	if err != nil {
+		return fmt.Errorf("marshal theme examples: %w", err)
+	}
 	createdAt := profile.CreatedAt
 	if createdAt.IsZero() {
 		createdAt = time.Now()
@@ -277,6 +299,10 @@ func (r *ConstellationProfileRepository) Upsert(ctx context.Context, profile *do
 		scenes,
 		profile.CentralPattern,
 		patternTags,
+		profile.ThemeCode,
+		profile.ThemeLabel,
+		profile.ThemeDescription,
+		themeExamples,
 		profile.ProfileText,
 		profile.TraceCount,
 		profile.MomentCount,

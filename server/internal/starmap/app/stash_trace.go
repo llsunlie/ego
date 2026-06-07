@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
 	"math"
 	"sort"
 	"strings"
@@ -20,6 +21,11 @@ const (
 	constellationExplainableThreshold = 0.58
 	maxSecondaryConstellationMatches  = 2
 	profileClusteringMaxAttempts      = 3
+	borderlineCandidateLimit          = 3
+	borderlineWeakThreshold           = 0.30
+	borderlineProfileSimilarityFloor  = 0.38
+	borderlineConfidenceThreshold     = 0.65
+	borderlineSuggestedConfidence     = 0.55
 
 	constellationProfileSimilarityWeight  = 0.45
 	constellationCentroidSimilarityWeight = 0.20
@@ -42,6 +48,7 @@ type StashTraceUseCase struct {
 	constellations    domain.ConstellationRepository
 	assetGen          domain.ConstellationAssetGenerator
 	profileGen        domain.TraceProfileGenerator
+	borderlineJudge   domain.ConstellationBorderlineJudge
 	profileRepo       domain.TraceProfileRepository
 	constellationProf domain.ConstellationProfileRepository
 	ids               IDGenerator
@@ -64,6 +71,7 @@ func NewStashTraceUseCase(
 		nil,
 		nil,
 		nil,
+		nil,
 		ids,
 	)
 }
@@ -75,6 +83,7 @@ func NewStashTraceUseCaseWithTraceProfile(
 	constellations domain.ConstellationRepository,
 	assetGen domain.ConstellationAssetGenerator,
 	profileGen domain.TraceProfileGenerator,
+	borderlineJudge domain.ConstellationBorderlineJudge,
 	profileRepo domain.TraceProfileRepository,
 	constellationProf domain.ConstellationProfileRepository,
 	ids IDGenerator,
@@ -86,6 +95,7 @@ func NewStashTraceUseCaseWithTraceProfile(
 		constellations:    constellations,
 		assetGen:          assetGen,
 		profileGen:        profileGen,
+		borderlineJudge:   borderlineJudge,
 		profileRepo:       profileRepo,
 		constellationProf: constellationProf,
 		ids:               ids,
@@ -321,18 +331,48 @@ func (uc *StashTraceUseCase) clusterWithProfileAsync(ctx context.Context, trace 
 			"candidate_count", len(ranked),
 			"top_candidate", topCandidate,
 		)
-		primaryID, err = uc.createConstellationFromTraceProfile(ctx, star, trace, moments, profile, vector)
-		if err != nil {
-			logger.ErrorContext(ctx, "starmap profile clustering create primary constellation failed",
+		borderlineJudgement := uc.runBorderlineJudgement(ctx, trace, star, profile, moments, ranked)
+		if accepted, selected := uc.acceptBorderlineJudgement(ctx, trace, star, borderlineJudgement, ranked); accepted {
+			primaryID = selected.candidate.Profile.ConstellationID
+			primaryDimensions = selected.dimensions
+			primaryScore = selected.score
+			primaryDecision = "attach_existing_borderline"
+			logger.DebugContext(ctx, "starmap profile clustering borderline primary decision",
 				"trace_id", trace.ID,
 				"star_id", star.ID,
-				"error", err,
-				"recovery", "pending_message_queue",
+				"decision", primaryDecision,
+				"constellation_id", primaryID,
+				"score", primaryScore,
+				"llm_confidence", borderlineJudgement.Confidence,
+				"llm_shared_situation", borderlineJudgement.SharedSituation,
+				"llm_match_dimensions", borderlineJudgement.MatchDimensions,
+				"reason", selected.reason,
+				"top_candidate", scoredConstellationCandidateSummary(selected, 1),
 			)
-			return
+			if err := uc.attachStarToConstellation(ctx, primaryID, star, trace, moments, profile, vector, selected, domain.ConstellationMatchTypePrimary, 1.0); err != nil {
+				logger.ErrorContext(ctx, "starmap profile clustering attach borderline primary failed",
+					"trace_id", trace.ID,
+					"star_id", star.ID,
+					"constellation_id", primaryID,
+					"error", err,
+					"recovery", "pending_message_queue",
+				)
+				return
+			}
+		} else {
+			primaryID, err = uc.createConstellationFromTraceProfile(ctx, star, trace, moments, profile, vector, borderlineJudgement)
+			if err != nil {
+				logger.ErrorContext(ctx, "starmap profile clustering create primary constellation failed",
+					"trace_id", trace.ID,
+					"star_id", star.ID,
+					"error", err,
+					"recovery", "pending_message_queue",
+				)
+				return
+			}
+			primaryDimensions = []string{"new_theme"}
+			primaryScore = 1.0
 		}
-		primaryDimensions = []string{"new_theme"}
-		primaryScore = 1.0
 	}
 
 	secondaryCount := 0
@@ -446,7 +486,138 @@ func (uc *StashTraceUseCase) generateTraceProfileWithRetry(ctx context.Context, 
 	return nil, nil, lastErr
 }
 
-func (uc *StashTraceUseCase) createConstellationFromTraceProfile(ctx context.Context, star domain.Star, trace writingdomain.Trace, moments []writingdomain.Moment, profile *domain.TraceProfile, vector *domain.TraceProfileVector) (string, error) {
+func (uc *StashTraceUseCase) runBorderlineJudgement(ctx context.Context, trace writingdomain.Trace, star domain.Star, profile *domain.TraceProfile, moments []writingdomain.Moment, ranked []scoredConstellationCandidate) *domain.ConstellationBorderlineJudgement {
+	logger := logging.FromContext(ctx)
+	if uc.borderlineJudge == nil {
+		return nil
+	}
+	candidates := borderlineCandidates(ranked)
+	if len(candidates) == 0 {
+		return nil
+	}
+	logger.DebugContext(ctx, "starmap borderline judgement started",
+		"trace_id", trace.ID,
+		"star_id", star.ID,
+		"candidate_count", len(candidates),
+		"top_score", ranked[0].score,
+		"candidates", borderlineCandidateLogSummaries(candidates),
+	)
+	judgement, err := uc.borderlineJudge.Judge(ctx, domain.ConstellationBorderlineJudgeInput{
+		TraceProfile:         *profile,
+		RepresentativeMoment: representativeMomentContent(profile.RepresentativeMomentID, moments),
+		Candidates:           candidates,
+	})
+	if err != nil {
+		logger.WarnContext(ctx, "starmap borderline judgement failed",
+			"trace_id", trace.ID,
+			"star_id", star.ID,
+			"error", err,
+			"fallback_reason", "judge_error",
+		)
+		return nil
+	}
+	logger.DebugContext(ctx, "starmap borderline judgement completed",
+		"trace_id", trace.ID,
+		"star_id", star.ID,
+		"decision", judgement.Decision,
+		"constellation_id", judgement.ConstellationID,
+		"theme_code", judgement.ThemeCode,
+		"confidence", judgement.Confidence,
+		"shared_situation", judgement.SharedSituation,
+		"match_dimensions", judgement.MatchDimensions,
+		"reason", judgement.Reason,
+		"suggested_theme_code", judgement.SuggestedThemeCode,
+		"suggested_theme_label", judgement.SuggestedThemeLabel,
+	)
+	return judgement
+}
+
+func (uc *StashTraceUseCase) acceptBorderlineJudgement(ctx context.Context, trace writingdomain.Trace, star domain.Star, judgement *domain.ConstellationBorderlineJudgement, ranked []scoredConstellationCandidate) (bool, scoredConstellationCandidate) {
+	logger := logging.FromContext(ctx)
+	if judgement == nil {
+		return false, scoredConstellationCandidate{}
+	}
+	if judgement.Decision != domain.ConstellationBorderlineDecisionUseExisting {
+		logger.DebugContext(ctx, "starmap borderline judgement rejected",
+			"trace_id", trace.ID,
+			"star_id", star.ID,
+			"reason", "decision_not_use_existing",
+			"decision", judgement.Decision,
+			"confidence", judgement.Confidence,
+		)
+		return false, scoredConstellationCandidate{}
+	}
+	if judgement.Confidence < borderlineConfidenceThreshold {
+		logger.DebugContext(ctx, "starmap borderline judgement rejected",
+			"trace_id", trace.ID,
+			"star_id", star.ID,
+			"reason", "low_confidence",
+			"confidence", judgement.Confidence,
+			"threshold", borderlineConfidenceThreshold,
+		)
+		return false, scoredConstellationCandidate{}
+	}
+	if strings.TrimSpace(judgement.SharedSituation) == "" {
+		logger.DebugContext(ctx, "starmap borderline judgement rejected",
+			"trace_id", trace.ID,
+			"star_id", star.ID,
+			"reason", "missing_shared_situation",
+		)
+		return false, scoredConstellationCandidate{}
+	}
+	if !hasAllowedBorderlineDimension(judgement.MatchDimensions) {
+		logger.DebugContext(ctx, "starmap borderline judgement rejected",
+			"trace_id", trace.ID,
+			"star_id", star.ID,
+			"reason", "missing_allowed_dimension",
+			"match_dimensions", judgement.MatchDimensions,
+		)
+		return false, scoredConstellationCandidate{}
+	}
+	for _, candidate := range ranked {
+		if candidate.candidate.Profile.ConstellationID != judgement.ConstellationID {
+			continue
+		}
+		if !isBorderlineCandidate(candidate) {
+			logger.DebugContext(ctx, "starmap borderline judgement rejected",
+				"trace_id", trace.ID,
+				"star_id", star.ID,
+				"reason", "candidate_not_in_borderline_range",
+				"constellation_id", judgement.ConstellationID,
+				"score", candidate.score,
+			)
+			return false, scoredConstellationCandidate{}
+		}
+		if strings.TrimSpace(candidate.candidate.Profile.ThemeCode) != "" && candidate.candidate.Profile.ThemeCode != strings.TrimSpace(judgement.ThemeCode) {
+			logger.DebugContext(ctx, "starmap borderline judgement rejected",
+				"trace_id", trace.ID,
+				"star_id", star.ID,
+				"reason", "theme_code_mismatch",
+				"constellation_id", judgement.ConstellationID,
+				"candidate_theme_code", candidate.candidate.Profile.ThemeCode,
+				"judgement_theme_code", judgement.ThemeCode,
+			)
+			return false, scoredConstellationCandidate{}
+		}
+		selected := candidate
+		if len(judgement.MatchDimensions) > 0 {
+			selected.dimensions = append([]string(nil), judgement.MatchDimensions...)
+		}
+		if strings.TrimSpace(judgement.Reason) != "" {
+			selected.reason = judgement.Reason
+		}
+		return true, selected
+	}
+	logger.DebugContext(ctx, "starmap borderline judgement rejected",
+		"trace_id", trace.ID,
+		"star_id", star.ID,
+		"reason", "constellation_id_not_in_candidates",
+		"constellation_id", judgement.ConstellationID,
+	)
+	return false, scoredConstellationCandidate{}
+}
+
+func (uc *StashTraceUseCase) createConstellationFromTraceProfile(ctx context.Context, star domain.Star, trace writingdomain.Trace, moments []writingdomain.Moment, profile *domain.TraceProfile, vector *domain.TraceProfileVector, suggested *domain.ConstellationBorderlineJudgement) (string, error) {
 	topic, _, name, insight, prompts, err := uc.assetGen.Generate(ctx, moments)
 	if err != nil {
 		return "", fmt.Errorf("generate constellation assets: %w", err)
@@ -478,7 +649,8 @@ func (uc *StashTraceUseCase) createConstellationFromTraceProfile(ctx context.Con
 		return "", fmt.Errorf("create constellation: %w", err)
 	}
 
-	cProfile := constellationProfileFromTraceProfile(constellationID, trace.UserID, profile, 1.0, float64(len(moments)), now)
+	cProfile := constellationProfileFromTraceProfile(constellationID, trace.UserID, profile, moments, 1.0, float64(len(moments)), now)
+	applySuggestedThemeCodebook(cProfile, suggested)
 	var cVector *domain.ConstellationProfileVector
 	if vector != nil {
 		cVector = &domain.ConstellationProfileVector{
@@ -632,6 +804,8 @@ func constellationCandidateSummaries(candidates []domain.ConstellationProfileCan
 			"emotions":         candidate.Profile.Emotions,
 			"scenes":           candidate.Profile.Scenes,
 			"pattern_tags":     candidate.Profile.PatternTags,
+			"theme_code":       candidate.Profile.ThemeCode,
+			"theme_label":      candidate.Profile.ThemeLabel,
 			"vector_dim":       len(candidate.Vector.ProfileEmbedding),
 			"centroid_dim":     len(candidate.Vector.CentroidEmbedding),
 		})
@@ -655,6 +829,8 @@ func scoredConstellationCandidateSummary(candidate scoredConstellationCandidate,
 		"rank":                 rank,
 		"constellation_id":     candidate.candidate.Profile.ConstellationID,
 		"topic":                candidate.candidate.Profile.Topic,
+		"theme_code":           candidate.candidate.Profile.ThemeCode,
+		"theme_label":          candidate.candidate.Profile.ThemeLabel,
 		"score":                candidate.score,
 		"strong_threshold":     constellationStrongMatchThreshold,
 		"strong_threshold_gap": candidate.score - constellationStrongMatchThreshold,
@@ -675,6 +851,116 @@ func scoredConstellationCandidateSummary(candidate scoredConstellationCandidate,
 		"dimensions":           candidate.dimensions,
 		"reason":               candidate.reason,
 	}
+}
+
+func borderlineCandidates(ranked []scoredConstellationCandidate) []domain.ConstellationBorderlineCandidate {
+	if len(ranked) == 0 {
+		return nil
+	}
+	limit := borderlineCandidateLimit
+	if len(ranked) < limit {
+		limit = len(ranked)
+	}
+	result := make([]domain.ConstellationBorderlineCandidate, 0, limit)
+	for i := 0; i < limit; i++ {
+		candidate := ranked[i]
+		if !isBorderlineCandidate(candidate) {
+			continue
+		}
+		profile := candidate.candidate.Profile
+		result = append(result, domain.ConstellationBorderlineCandidate{
+			ConstellationID:    profile.ConstellationID,
+			Topic:              profile.Topic,
+			Summary:            profile.Summary,
+			Keywords:           append([]string(nil), profile.Keywords...),
+			Emotions:           append([]string(nil), profile.Emotions...),
+			Scenes:             append([]string(nil), profile.Scenes...),
+			CentralPattern:     profile.CentralPattern,
+			PatternTags:        append([]string(nil), profile.PatternTags...),
+			ThemeCode:          profile.ThemeCode,
+			ThemeLabel:         profile.ThemeLabel,
+			ThemeDescription:   profile.ThemeDescription,
+			ThemeExamples:      append([]string(nil), profile.ThemeExamples...),
+			Score:              candidate.score,
+			ProfileSimilarity:  candidate.profileSimilarity,
+			CentroidSimilarity: candidate.centroidSimilarity,
+			KeywordOverlap:     candidate.keywordOverlap,
+			SceneOverlap:       candidate.sceneOverlap,
+			EmotionOverlap:     candidate.emotionOverlap,
+			PatternTagsOverlap: candidate.patternTagsOverlap,
+			MatchedKeywords:    append([]string(nil), candidate.matchedKeywords...),
+			MatchedScenes:      append([]string(nil), candidate.matchedScenes...),
+			MatchedEmotions:    append([]string(nil), candidate.matchedEmotions...),
+			MatchedPatternTags: append([]string(nil), candidate.matchedPatternTags...),
+			Dimensions:         append([]string(nil), candidate.dimensions...),
+			Reason:             candidate.reason,
+		})
+	}
+	return result
+}
+
+func borderlineCandidateLogSummaries(candidates []domain.ConstellationBorderlineCandidate) []map[string]any {
+	result := make([]map[string]any, 0, len(candidates))
+	for _, candidate := range candidates {
+		result = append(result, map[string]any{
+			"constellation_id":     candidate.ConstellationID,
+			"topic":                candidate.Topic,
+			"theme_code":           candidate.ThemeCode,
+			"theme_label":          candidate.ThemeLabel,
+			"score":                candidate.Score,
+			"profile_similarity":   candidate.ProfileSimilarity,
+			"keyword_overlap":      candidate.KeywordOverlap,
+			"scene_overlap":        candidate.SceneOverlap,
+			"emotion_overlap":      candidate.EmotionOverlap,
+			"pattern_tags_overlap": candidate.PatternTagsOverlap,
+			"matched_keywords":     candidate.MatchedKeywords,
+			"matched_scenes":       candidate.MatchedScenes,
+			"matched_emotions":     candidate.MatchedEmotions,
+			"matched_pattern_tags": candidate.MatchedPatternTags,
+		})
+	}
+	return result
+}
+
+func isBorderlineCandidate(candidate scoredConstellationCandidate) bool {
+	if candidate.score >= constellationMiddleMatchThreshold {
+		return false
+	}
+	if candidate.score < borderlineWeakThreshold {
+		return false
+	}
+	return candidate.profileSimilarity >= borderlineProfileSimilarityFloor ||
+		candidate.keywordOverlap > 0 ||
+		candidate.sceneOverlap > 0 ||
+		candidate.emotionOverlap > 0 ||
+		candidate.patternTagsOverlap > 0
+}
+
+func hasAllowedBorderlineDimension(values []string) bool {
+	allowed := map[string]struct{}{
+		"situation":     {},
+		"self_pattern":  {},
+		"relationship":  {},
+		"identity":      {},
+		"need_conflict": {},
+	}
+	for _, value := range values {
+		if _, ok := allowed[strings.TrimSpace(value)]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func representativeMomentContent(id string, moments []writingdomain.Moment) string {
+	id = strings.TrimSpace(id)
+	for _, moment := range moments {
+		if id != "" && moment.ID != id {
+			continue
+		}
+		return truncateText(moment.Content, 160)
+	}
+	return ""
 }
 
 func constellationScoreWeights() map[string]any {
@@ -698,22 +984,27 @@ func constellationScoreWeights() map[string]any {
 	}
 }
 
-func constellationProfileFromTraceProfile(constellationID string, userID string, profile *domain.TraceProfile, traceCount float64, momentCount float64, now time.Time) *domain.ConstellationProfile {
+func constellationProfileFromTraceProfile(constellationID string, userID string, profile *domain.TraceProfile, moments []writingdomain.Moment, traceCount float64, momentCount float64, now time.Time) *domain.ConstellationProfile {
+	themeCode, themeLabel, themeDescription, themeExamples := fallbackThemeCodebook(profile, moments)
 	result := &domain.ConstellationProfile{
-		ConstellationID: constellationID,
-		UserID:          userID,
-		Topic:           profile.Topic,
-		Summary:         profile.Summary,
-		Keywords:        append([]string(nil), profile.Keywords...),
-		Emotions:        append([]string(nil), profile.Emotions...),
-		Scenes:          append([]string(nil), profile.Scenes...),
-		CentralPattern:  profile.CentralPattern,
-		PatternTags:     append([]string(nil), profile.PatternTags...),
-		TraceCount:      traceCount,
-		MomentCount:     momentCount,
-		Status:          domain.ConstellationProfileStatusReady,
-		CreatedAt:       now,
-		UpdatedAt:       now,
+		ConstellationID:  constellationID,
+		UserID:           userID,
+		Topic:            profile.Topic,
+		Summary:          profile.Summary,
+		Keywords:         append([]string(nil), profile.Keywords...),
+		Emotions:         append([]string(nil), profile.Emotions...),
+		Scenes:           append([]string(nil), profile.Scenes...),
+		CentralPattern:   profile.CentralPattern,
+		PatternTags:      append([]string(nil), profile.PatternTags...),
+		ThemeCode:        themeCode,
+		ThemeLabel:       themeLabel,
+		ThemeDescription: themeDescription,
+		ThemeExamples:    themeExamples,
+		TraceCount:       traceCount,
+		MomentCount:      momentCount,
+		Status:           domain.ConstellationProfileStatusReady,
+		CreatedAt:        now,
+		UpdatedAt:        now,
 	}
 	result.ProfileText = buildConstellationProfileText(result)
 	return result
@@ -734,6 +1025,12 @@ func mergeConstellationProfile(existing domain.ConstellationProfile, incoming *d
 	if strings.TrimSpace(result.Topic) == "" {
 		result.Topic = incoming.Topic
 	}
+	if strings.TrimSpace(result.ThemeCode) == "" {
+		themeCode, themeLabel, themeDescription, _ := fallbackThemeCodebook(incoming, nil)
+		result.ThemeCode = themeCode
+		result.ThemeLabel = themeLabel
+		result.ThemeDescription = themeDescription
+	}
 	result.TraceCount += weight
 	result.MomentCount += momentCount * weight
 	result.Status = domain.ConstellationProfileStatusReady
@@ -745,6 +1042,18 @@ func mergeConstellationProfile(existing domain.ConstellationProfile, incoming *d
 
 func buildConstellationProfileText(profile *domain.ConstellationProfile) string {
 	var b strings.Builder
+	if profile.ThemeCode != "" {
+		fmt.Fprintf(&b, "主题码：%s\n", profile.ThemeCode)
+	}
+	if profile.ThemeLabel != "" {
+		fmt.Fprintf(&b, "主题标签：%s\n", profile.ThemeLabel)
+	}
+	if profile.ThemeDescription != "" {
+		fmt.Fprintf(&b, "主题边界：%s\n", profile.ThemeDescription)
+	}
+	if len(profile.ThemeExamples) > 0 {
+		fmt.Fprintf(&b, "代表例子：%s\n", strings.Join(profile.ThemeExamples, "；"))
+	}
 	if profile.Topic != "" {
 		fmt.Fprintf(&b, "主题：%s\n", profile.Topic)
 	}
@@ -767,6 +1076,114 @@ func buildConstellationProfileText(profile *domain.ConstellationProfile) string 
 		fmt.Fprintf(&b, "模式标签：%s\n", strings.Join(profile.PatternTags, "，"))
 	}
 	return strings.TrimSpace(b.String())
+}
+
+func fallbackThemeCodebook(profile *domain.TraceProfile, moments []writingdomain.Moment) (string, string, string, []string) {
+	label := firstNonEmpty(profile.Topic, "未命名主题")
+	description := firstNonEmpty(profile.Summary, profile.CentralPattern, profile.Topic, "暂时没有足够信息定义主题边界。")
+	code := fallbackThemeCode(firstNonEmpty(profile.CentralPattern, profile.Topic, profile.Summary))
+	examples := representativeThemeExamples(profile, moments)
+	return code, truncateText(label, 32), truncateText(description, 120), examples
+}
+
+func applySuggestedThemeCodebook(profile *domain.ConstellationProfile, judgement *domain.ConstellationBorderlineJudgement) {
+	if profile == nil || judgement == nil {
+		return
+	}
+	if judgement.Decision != domain.ConstellationBorderlineDecisionSuggestNew || judgement.Confidence < borderlineSuggestedConfidence {
+		return
+	}
+	code := fallbackThemeCode(judgement.SuggestedThemeCode)
+	label := strings.TrimSpace(judgement.SuggestedThemeLabel)
+	description := strings.TrimSpace(judgement.SuggestedThemeDescription)
+	if code == "" || label == "" || description == "" {
+		return
+	}
+	profile.ThemeCode = code
+	profile.ThemeLabel = truncateText(label, 32)
+	profile.ThemeDescription = truncateText(description, 120)
+	profile.ProfileText = buildConstellationProfileText(profile)
+}
+
+func fallbackThemeCode(seed string) string {
+	seed = strings.TrimSpace(strings.ToLower(seed))
+	var b strings.Builder
+	lastUnderscore := false
+	for _, r := range seed {
+		switch {
+		case r >= 'a' && r <= 'z':
+			b.WriteRune(r)
+			lastUnderscore = false
+		case r >= '0' && r <= '9':
+			b.WriteRune(r)
+			lastUnderscore = false
+		case r == '_' || r == '-' || r == ' ' || r == '\t' || r == '\n':
+			if b.Len() > 0 && !lastUnderscore {
+				b.WriteByte('_')
+				lastUnderscore = true
+			}
+		}
+		if b.Len() >= 40 {
+			break
+		}
+	}
+	code := strings.Trim(b.String(), "_")
+	if code != "" {
+		return code
+	}
+	hash := fnv.New32a()
+	_, _ = hash.Write([]byte(seed))
+	return fmt.Sprintf("theme_%08x", hash.Sum32())
+}
+
+func representativeThemeExamples(profile *domain.TraceProfile, moments []writingdomain.Moment) []string {
+	if len(moments) == 0 {
+		return nil
+	}
+	result := make([]string, 0, 3)
+	seen := map[string]struct{}{}
+	add := func(content string) {
+		content = truncateText(content, 80)
+		if content == "" {
+			return
+		}
+		if _, ok := seen[content]; ok {
+			return
+		}
+		seen[content] = struct{}{}
+		result = append(result, content)
+	}
+	if profile != nil && strings.TrimSpace(profile.RepresentativeMomentID) != "" {
+		add(representativeMomentContent(profile.RepresentativeMomentID, moments))
+	}
+	for _, moment := range moments {
+		if len(result) >= 3 {
+			break
+		}
+		add(moment.Content)
+	}
+	return result
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+func truncateText(value string, limit int) string {
+	value = strings.TrimSpace(value)
+	if limit <= 0 {
+		return value
+	}
+	runes := []rune(value)
+	if len(runes) <= limit {
+		return value
+	}
+	return string(runes[:limit])
 }
 
 func weightedCentroid(existing []float32, existingWeight float64, incoming []float32, incomingWeight float64) []float32 {

@@ -65,22 +65,26 @@ type TraceProfileVector struct {
 }
 
 type ConstellationProfile struct {
-	ConstellationID string
-	UserID          string
-	Topic           string
-	Summary         string
-	Keywords        []string
-	Emotions        []string
-	Scenes          []string
-	CentralPattern  string
-	PatternTags     []string
-	ProfileText     string
-	TraceCount      float64
-	MomentCount     float64
-	Status          string
-	LastError       string
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	ConstellationID  string
+	UserID           string
+	Topic            string
+	Summary          string
+	Keywords         []string
+	Emotions         []string
+	Scenes           []string
+	CentralPattern   string
+	PatternTags      []string
+	ThemeCode        string
+	ThemeLabel       string
+	ThemeDescription string
+	ThemeExamples    []string
+	ProfileText      string
+	TraceCount       float64
+	MomentCount      float64
+	Status           string
+	LastError        string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 type ConstellationProfileVector struct {
@@ -110,4 +114,56 @@ type ConstellationMembership struct {
 type ConstellationProfileCandidate struct {
 	Profile ConstellationProfile
 	Vector  ConstellationProfileVector
+}
+
+const (
+	ConstellationBorderlineDecisionUseExisting = "use_existing"
+	ConstellationBorderlineDecisionSuggestNew  = "suggest_new"
+)
+
+type ConstellationBorderlineCandidate struct {
+	ConstellationID    string
+	Topic              string
+	Summary            string
+	Keywords           []string
+	Emotions           []string
+	Scenes             []string
+	CentralPattern     string
+	PatternTags        []string
+	ThemeCode          string
+	ThemeLabel         string
+	ThemeDescription   string
+	ThemeExamples      []string
+	Score              float64
+	ProfileSimilarity  float64
+	CentroidSimilarity float64
+	KeywordOverlap     float64
+	SceneOverlap       float64
+	EmotionOverlap     float64
+	PatternTagsOverlap float64
+	MatchedKeywords    []string
+	MatchedScenes      []string
+	MatchedEmotions    []string
+	MatchedPatternTags []string
+	Dimensions         []string
+	Reason             string
+}
+
+type ConstellationBorderlineJudgeInput struct {
+	TraceProfile         TraceProfile
+	RepresentativeMoment string
+	Candidates           []ConstellationBorderlineCandidate
+}
+
+type ConstellationBorderlineJudgement struct {
+	Decision                  string
+	ConstellationID           string
+	ThemeCode                 string
+	Confidence                float64
+	SharedSituation           string
+	MatchDimensions           []string
+	Reason                    string
+	SuggestedThemeCode        string
+	SuggestedThemeLabel       string
+	SuggestedThemeDescription string
 }

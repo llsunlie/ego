@@ -16,15 +16,15 @@ P7 cleanup adds app-level TraceProfile generation retry around the async cluster
 
 P7.1 over-splitting reduction is implemented. TraceProfile/ConstellationProfile now carry `pattern_tags`, profile text includes them, repositories persist them through JSONB, and migration `013_profile_pattern_tags.sql` backfills the column for existing local tables. Matching now uses `pattern_tags_overlap` instead of `central_pattern_overlap`, lowers deterministic thresholds to strong=0.72 / middle=0.60, avoids duplicate centroid weighting for single-trace constellations, and allows explainable middle matches when score is in [0.58, 0.60) with at least three structured evidence dimensions. Candidate logs now include matched keywords, scenes, emotions, pattern tags, score components, and threshold gaps.
 
-P7.2 follow-up design is documented and remains pending. It is reserved for borderline top3 LLM judgement, more complete secondary memberships, and ConstellationProfile Elasticsearch sparse recall with dense/sparse RRF fusion.
+P7.2 theme codebook and gated borderline LLM judgement are implemented. `ConstellationProfile` now persists `theme_code`, `theme_label`, `theme_description`, and `theme_examples`; new constellations receive deterministic fallback codebook entries, and valid `suggest_new` LLM output can override them. Deterministic P7.1 scoring still runs first; middle/explainable-middle matches attach directly, while only weak-but-evidenced top3 borderline candidates call `ConstellationBorderlineJudge`. Accepted `use_existing` output must pass confidence, candidate id, theme_code, shared_situation, and match_dimensions gates before writing the primary membership. Rejected/failed judgements fall back to creating a new constellation. ConstellationProfile Elasticsearch sparse recall is split out as P7.3.
 
 ### Test summary
 
 | Layer | Tests | Status |
 |---|---|---|
-| `app/` | 11 (4 StashTrace + 3 ListConstellations + 4 GetConstellation) | All pass |
+| `app/` | StashTrace, borderline judgement, ListConstellations, and GetConstellation coverage | All pass |
 | `adapter/grpc/` | 5 (StashTrace, StashTrace_Error, ListConstellations, GetConstellation, GetConstellation_Error) | All pass |
-| `internal/starmap/...` | TraceProfile persistence, P7 profile-based constellation matching, P7.1 pattern_tags scoring, multi-membership unique list count, and existing starmap tests | All pass |
+| `internal/starmap/...` | TraceProfile persistence, P7 profile-based constellation matching, P7.1 pattern_tags scoring, P7.2 borderline judgement, multi-membership unique list count, and existing starmap tests | All pass |
 
 ### Completed layers
 
@@ -65,8 +65,9 @@ P7.2 follow-up design is documented and remains pending. It is reserved for bord
 11. **P6 target membership model**: Future matching should use TraceProfile to compare against ConstellationProfile. A Star can join multiple Constellations as primary/secondary memberships, while `constellations` remains the proto-compatible display entity.
 12. **P7 profile matching path**: Current module wiring uses TraceProfile -> ConstellationProfile matching only. `constellation_stars` is the algorithm membership table; `constellations.star_ids` is still synchronized for compatibility.
 13. **P7.1 matching refinement**: Pattern tags and revised deterministic scoring are implemented to reduce over-splitting before broader P8 profile merge quality work.
-14. **P7.2 marker**: Borderline LLM judgement and constellation sparse recall remain designed follow-up matching iterations.
-15. **P8 marker**: ConstellationProfile merge quality and message-queue backed async consistency are reserved for P8 design.
+14. **P7.2 matching refinement**: Theme codebook and gated borderline LLM judgement are implemented to reduce over-splitting when deterministic overlap is too weak but a shared upper situation exists.
+15. **P7.3 marker**: Constellation sparse recall is separated from P7.2 and remains planned.
+16. **P8 marker**: ConstellationProfile merge quality and message-queue backed async consistency are reserved for P8 design.
 
 ### Known Issues
 

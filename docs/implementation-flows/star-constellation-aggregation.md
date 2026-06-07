@@ -165,9 +165,9 @@ Star <-> Constellation
 
 更完整的设计和实现记录见 `docs/matching-optimization/constellation-profile-design.md` 与 `docs/matching-optimization/constellation-matching-design.md`。
 
-### P7.1 / P7.2 下一步设计
+### P7.1 / P7.2 聚合优化
 
-基于真实测试数据，P7 第一版存在偏向创建新星座的问题。后续拆为两步优化：
+基于真实测试数据，P7 第一版存在偏向创建新星座的问题。目前已拆为两步优化：
 
 ```text
 P7.1:
@@ -178,13 +178,15 @@ P7.1:
   -> 已增加解释性 middle 规则和候选级决策日志
 
 P7.2:
-  -> borderline top3 LLM 判断
-  -> 完善 secondary 多视角归属规则
-  -> 引入 ConstellationProfile Elasticsearch sparse 召回
-  -> dense + sparse RRF 融合后进入综合评分
+  -> 已在 ConstellationProfile 中持久化 theme codebook
+  -> 已仅对边界候选触发 top3 LLM 判断
+  -> LLM 在候选星座 theme_code 中选择 use_existing，或返回 suggest_new
+  -> use_existing 需通过 confidence、candidate id、theme_code、shared_situation、match_dimensions 门控
+  -> 强匹配、无候选、明显无关场景不调用 LLM
+  -> ES sparse 召回延后到 P7.3
 ```
 
-P7.1 / P7.2 设计详见 `docs/matching-optimization/constellation-matching-design.md`。
+P7.1 / P7.2 实现与 P7.3 设计详见 `docs/matching-optimization/constellation-matching-design.md`。
 
 ### Trace.stashed 写入说明
 

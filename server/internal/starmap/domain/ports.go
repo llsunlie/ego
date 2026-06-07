@@ -50,6 +50,11 @@ type TraceProfileGenerator interface {
 	Generate(ctx context.Context, trace writingdomain.Trace, moments []writingdomain.Moment) (*TraceProfile, *TraceProfileVector, error)
 }
 
+// ConstellationBorderlineJudge judges ambiguous constellation matches.
+type ConstellationBorderlineJudge interface {
+	Judge(ctx context.Context, input ConstellationBorderlineJudgeInput) (*ConstellationBorderlineJudgement, error)
+}
+
 // TraceProfileRepository persists TraceProfiles and their optional vectors.
 type TraceProfileRepository interface {
 	Upsert(ctx context.Context, profile *TraceProfile, vector *TraceProfileVector) error

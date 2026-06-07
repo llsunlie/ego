@@ -41,7 +41,8 @@
 | P6 | ConstellationProfile 改造 | 让星座从短 topic 聚合升级为长期主题画像聚合 | 星座画像结构、兼容旧展示字段、Star 多对多归属模型 | 已完成设计 |
 | P7 | 星座匹配流程升级 | 用 TraceProfile 匹配 ConstellationProfile | 候选召回、评分、primary/secondary 多归属流程 | 已完成第一版 |
 | P7.1 | 星座匹配过度拆分修正 | 用 pattern_tags 与更合理的评分/阈值减少误新建 | pattern_tags 字段、评分公式、解释性 middle 规则、核心日志 | 已完成 |
-| P7.2 | 星座边界判断与混合召回 | 处理边界候选与多视角归属，降低召回遗漏 | borderline LLM、secondary 规则、ES sparse 召回 | 已完成设计 |
+| P7.2 | 星座 Codebook 与边界判断 | 处理同一长期主题但确定性分数过低的候选 | theme codebook、边界 LLM、门控规则、诊断日志 | 已完成 |
+| P7.3 | 星座 sparse 召回 | 降低 ConstellationProfile 候选遗漏 | ES sparse index、dense/sparse RRF 融合 | 待设计 |
 | P8 | 星座画像合并与一致性优化 | 避免画像简单合并后变长、变泛，并补齐异步一致性 | 标签权重/topN、异步画像刷新、消息队列/补偿任务设计 | 已标记待设计 |
 | P9 | lonely / forming / active 状态落地 | 表达星座从孤星到稳定主题的形成过程 | 状态规则、列表/详情返回兼容 | 待讨论 |
 | P10 | 观测、回归与调参 | 可观察优化效果并持续校准 | 日志、指标、离线评估脚本、回归用例 | 待设计 |
@@ -197,20 +198,38 @@
 - 增加解释性 middle 规则：当 score 接近 middle 且结构化证据至少 3 类命中时，不直接新建星座。
 - 补充候选级和最终决策级 debug 日志，输出各维度分数、命中项、阈值差距和决策原因。
 
-### P7.2. 星座边界判断与混合召回
+### P7.2. 星座 Codebook 与边界判断
 
 目标：
-- 处理 “像但不完全确定” 的边界候选。
-- 支持一个 Star 更稳定地从多个视角进入多个星座。
-- 用 sparse recall 补足 dense embedding 对短语、标签和中文词面信号不敏感的问题。
+- 处理“同一长期主题，但确定性 overlap 分数过低”的候选。
+- 避免自由生成 normalized 字段导致新的同义不同词问题。
+- 通过 theme codebook 让 LLM 在已有稳定主题 code 中选择，而不是每次自由发明标签。
+- 让 LLM 只作为边界裁判，不进入每次聚合主流程。
 
 任务：
-- 对 `0.55 <= top_score < strong_threshold` 的 top3 候选触发 borderline LLM 判断。
-- LLM 只做边界重排和解释，不参与全量召回；失败时回到 P7.1 确定性决策。
-- 完善 secondary membership 规则：最多 2 个 secondary，且匹配维度不能与 primary 完全相同。
+- 已在 `ConstellationProfile` 增加 `theme_code`、`theme_label`、`theme_description`、`theme_examples`，并通过 `014_constellation_theme_codebook.sql` 迁移落库。
+- 新建星座时会从 TraceProfile/moments 生成 fallback theme codebook；当 LLM 返回有效 `suggest_new` 时可覆盖新主题 codebook。
+- P7.1 确定性评分先执行；达到 middle/解释性 middle 的候选直接加入，无候选或无边界证据直接新建。
+- 仅在边界区间触发 LLM：`weak_threshold=0.30`、`strong_threshold=0.72`、`llm_top_k=3`。
+- 边界候选需要满足至少一个证据：`profile_similarity >= 0.38`，或关键词/情绪/场景/pattern_tags 任一命中。
+- LLM 输入只包含当前 TraceProfile 与 top3 边界候选的 theme codebook 和确定性分数明细。
+- LLM 输出 `use_existing` 或 `suggest_new`，并返回 confidence、shared_situation、match_dimensions、reason。
+- `use_existing` 必须通过门控：confidence 足够、constellation_id 属于候选、theme_code 匹配候选、shared_situation 非空、match_dimensions 包含允许的上层维度。
+- LLM 失败、低置信度、未知 constellation_id、JSON 解析失败时回退 P7.1 确定性结果。
+- 日志输出候选 theme code、确定性分数明细、LLM confidence、shared_situation、accepted / rejected 与 fallback_reason。
+- P7.2 不扩展 proto，不强制新增独立 codebook 表，不把 ES sparse 召回纳入同一阶段。
+
+### P7.3. 星座 sparse 召回
+
+目标：
+- 在 P7.2 解决“候选召回到了但确定性分数低”的问题之后，再处理“候选没有召回到”的问题。
+
+任务：
 - 新增 ConstellationProfile Elasticsearch index。
+- 索引 topic、summary、keywords、emotions、scenes、pattern_tags、central_pattern、theme_label、theme_description。
 - 使用 TraceProfile 构造 sparse 查询文本。
-- 将 pgvector dense topK 与 ES sparse topK 通过 RRF 融合，再进入 P7.1 综合评分。
+- 将 pgvector dense topK 与 ES sparse topK 通过 RRF 融合。
+- 融合候选进入 P7.1 综合评分，再进入 P7.2 codebook 边界判断。
 - ES 只作为候选召回，不直接决定星座归属。
 
 ### P8. 星座画像合并与一致性优化
