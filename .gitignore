@@ -2,6 +2,7 @@
 !.claude/skills/
 !.claude/skills/**
 data/
+!client/lib/data/
 .playwright-mcp/
 .tmp/
 server/ego

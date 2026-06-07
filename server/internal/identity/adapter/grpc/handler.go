@@ -15,10 +15,11 @@ import (
 
 type Handler struct {
 	pb.UnimplementedEgoServer
-	login      *app.LoginUseCase
-	register   *app.RegisterUseCase
-	sendCode   *app.SendCodeUseCase
-	checkPhone *app.CheckPhoneUseCase
+	login         *app.LoginUseCase
+	register      *app.RegisterUseCase
+	sendCode      *app.SendCodeUseCase
+	checkPhone    *app.CheckPhoneUseCase
+	resetPassword *app.ResetPasswordUseCase
 }
 
 func NewHandler(
@@ -26,8 +27,9 @@ func NewHandler(
 	register *app.RegisterUseCase,
 	sendCode *app.SendCodeUseCase,
 	checkPhone *app.CheckPhoneUseCase,
+	resetPassword *app.ResetPasswordUseCase,
 ) *Handler {
-	return &Handler{login: login, register: register, sendCode: sendCode, checkPhone: checkPhone}
+	return &Handler{login: login, register: register, sendCode: sendCode, checkPhone: checkPhone, resetPassword: resetPassword}
 }
 
 func (h *Handler) CheckPhone(ctx context.Context, req *pb.CheckPhoneReq) (*pb.CheckPhoneRes, error) {
@@ -59,6 +61,14 @@ func (h *Handler) Login(ctx context.Context, req *pb.LoginReq) (*pb.LoginRes, er
 		return nil, mapError(err)
 	}
 	return &pb.LoginRes{Token: result.Token}, nil
+}
+
+func (h *Handler) ResetPassword(ctx context.Context, req *pb.ResetPasswordReq) (*pb.ResetPasswordRes, error) {
+	result, err := h.resetPassword.ResetPassword(ctx, req.Phone, req.Code, req.NewPassword)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.ResetPasswordRes{Token: result.Token}, nil
 }
 
 func mapError(err error) error {

@@ -61,6 +61,13 @@ class EgoClient extends $grpc.Client {
     return $createUnaryCall(_$register, request, options: options);
   }
 
+  $grpc.ResponseFuture<$0.ResetPasswordRes> resetPassword(
+    $0.ResetPasswordReq request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$resetPassword, request, options: options);
+  }
+
   /// ─── Moment（话语）─────────────────────────────────────
   /// 写下一句话，保存 Moment + Echo，返回回声
   $grpc.ResponseFuture<$0.CreateMomentRes> createMoment(
@@ -175,6 +182,11 @@ class EgoClient extends $grpc.Client {
       '/ego.Ego/Register',
       ($0.RegisterReq value) => value.writeToBuffer(),
       $0.RegisterRes.fromBuffer);
+  static final _$resetPassword =
+      $grpc.ClientMethod<$0.ResetPasswordReq, $0.ResetPasswordRes>(
+          '/ego.Ego/ResetPassword',
+          ($0.ResetPasswordReq value) => value.writeToBuffer(),
+          $0.ResetPasswordRes.fromBuffer);
   static final _$createMoment =
       $grpc.ClientMethod<$0.CreateMomentReq, $0.CreateMomentRes>(
           '/ego.Ego/CreateMoment',
@@ -267,6 +279,13 @@ abstract class EgoServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) => $0.RegisterReq.fromBuffer(value),
         ($0.RegisterRes value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.ResetPasswordReq, $0.ResetPasswordRes>(
+        'ResetPassword',
+        resetPassword_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.ResetPasswordReq.fromBuffer(value),
+        ($0.ResetPasswordRes value) => value.writeToBuffer()));
     $addMethod($grpc.ServiceMethod<$0.CreateMomentReq, $0.CreateMomentRes>(
         'CreateMoment',
         createMoment_Pre,
@@ -385,6 +404,14 @@ abstract class EgoServiceBase extends $grpc.Service {
 
   $async.Future<$0.RegisterRes> register(
       $grpc.ServiceCall call, $0.RegisterReq request);
+
+  $async.Future<$0.ResetPasswordRes> resetPassword_Pre($grpc.ServiceCall $call,
+      $async.Future<$0.ResetPasswordReq> $request) async {
+    return resetPassword($call, await $request);
+  }
+
+  $async.Future<$0.ResetPasswordRes> resetPassword(
+      $grpc.ServiceCall call, $0.ResetPasswordReq request);
 
   $async.Future<$0.CreateMomentRes> createMoment_Pre($grpc.ServiceCall $call,
       $async.Future<$0.CreateMomentReq> $request) async {

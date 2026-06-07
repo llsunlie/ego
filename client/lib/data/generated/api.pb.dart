@@ -473,6 +473,138 @@ class RegisterRes extends $pb.GeneratedMessage {
   void clearToken() => $_clearField(1);
 }
 
+class ResetPasswordReq extends $pb.GeneratedMessage {
+  factory ResetPasswordReq({
+    $core.String? phone,
+    $core.String? code,
+    $core.String? newPassword,
+  }) {
+    final result = create();
+    if (phone != null) result.phone = phone;
+    if (code != null) result.code = code;
+    if (newPassword != null) result.newPassword = newPassword;
+    return result;
+  }
+
+  ResetPasswordReq._();
+
+  factory ResetPasswordReq.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory ResetPasswordReq.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResetPasswordReq',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'ego'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'phone')
+    ..aOS(2, _omitFieldNames ? '' : 'code')
+    ..aOS(3, _omitFieldNames ? '' : 'newPassword')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResetPasswordReq clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResetPasswordReq copyWith(void Function(ResetPasswordReq) updates) =>
+      super.copyWith((message) => updates(message as ResetPasswordReq))
+          as ResetPasswordReq;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static ResetPasswordReq create() => ResetPasswordReq._();
+  @$core.override
+  ResetPasswordReq createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static ResetPasswordReq getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResetPasswordReq>(create);
+  static ResetPasswordReq? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get phone => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set phone($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasPhone() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPhone() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get code => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set code($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasCode() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearCode() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get newPassword => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set newPassword($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasNewPassword() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearNewPassword() => $_clearField(3);
+}
+
+class ResetPasswordRes extends $pb.GeneratedMessage {
+  factory ResetPasswordRes({
+    $core.String? token,
+  }) {
+    final result = create();
+    if (token != null) result.token = token;
+    return result;
+  }
+
+  ResetPasswordRes._();
+
+  factory ResetPasswordRes.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory ResetPasswordRes.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResetPasswordRes',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'ego'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'token')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResetPasswordRes clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResetPasswordRes copyWith(void Function(ResetPasswordRes) updates) =>
+      super.copyWith((message) => updates(message as ResetPasswordRes))
+          as ResetPasswordRes;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static ResetPasswordRes create() => ResetPasswordRes._();
+  @$core.override
+  ResetPasswordRes createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static ResetPasswordRes getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResetPasswordRes>(create);
+  static ResetPasswordRes? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get token => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set token($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasToken() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearToken() => $_clearField(1);
+}
+
 class Moment extends $pb.GeneratedMessage {
   factory Moment({
     $core.String? id,

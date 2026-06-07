@@ -17,6 +17,7 @@ service Ego {
   rpc CheckPhone(CheckPhoneReq) returns (CheckPhoneRes);
   rpc SendVerificationCode(SendVerificationCodeReq) returns (SendVerificationCodeRes);
   rpc Register(RegisterReq) returns (RegisterRes);
+  rpc ResetPassword(ResetPasswordReq) returns (ResetPasswordRes);
 
   // ─── Moment（话语）─────────────────────────────────────
   // 写下一句话，保存 Moment + Echo，返回回声
@@ -92,6 +93,16 @@ message RegisterReq {
 }
 
 message RegisterRes {
+  string token = 1;
+}
+
+message ResetPasswordReq {
+  string phone        = 1;
+  string code         = 2;  // 短信验证码
+  string new_password = 3;
+}
+
+message ResetPasswordRes {
   string token = 1;
 }
 
