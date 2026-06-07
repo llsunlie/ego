@@ -23,6 +23,7 @@ const (
 	Ego_CheckPhone_FullMethodName           = "/ego.Ego/CheckPhone"
 	Ego_SendVerificationCode_FullMethodName = "/ego.Ego/SendVerificationCode"
 	Ego_Register_FullMethodName             = "/ego.Ego/Register"
+	Ego_ResetPassword_FullMethodName        = "/ego.Ego/ResetPassword"
 	Ego_CreateMoment_FullMethodName         = "/ego.Ego/CreateMoment"
 	Ego_GetMoments_FullMethodName           = "/ego.Ego/GetMoments"
 	Ego_GenerateInsight_FullMethodName      = "/ego.Ego/GenerateInsight"
@@ -45,6 +46,7 @@ type EgoClient interface {
 	CheckPhone(ctx context.Context, in *CheckPhoneReq, opts ...grpc.CallOption) (*CheckPhoneRes, error)
 	SendVerificationCode(ctx context.Context, in *SendVerificationCodeReq, opts ...grpc.CallOption) (*SendVerificationCodeRes, error)
 	Register(ctx context.Context, in *RegisterReq, opts ...grpc.CallOption) (*RegisterRes, error)
+	ResetPassword(ctx context.Context, in *ResetPasswordReq, opts ...grpc.CallOption) (*ResetPasswordRes, error)
 	// ─── Moment（话语）─────────────────────────────────────
 	// 写下一句话，保存 Moment + Echo，返回回声
 	CreateMoment(ctx context.Context, in *CreateMomentReq, opts ...grpc.CallOption) (*CreateMomentRes, error)
@@ -117,6 +119,16 @@ func (c *egoClient) Register(ctx context.Context, in *RegisterReq, opts ...grpc.
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(RegisterRes)
 	err := c.cc.Invoke(ctx, Ego_Register_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *egoClient) ResetPassword(ctx context.Context, in *ResetPasswordReq, opts ...grpc.CallOption) (*ResetPasswordRes, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ResetPasswordRes)
+	err := c.cc.Invoke(ctx, Ego_ResetPassword_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -242,6 +254,7 @@ type EgoServer interface {
 	CheckPhone(context.Context, *CheckPhoneReq) (*CheckPhoneRes, error)
 	SendVerificationCode(context.Context, *SendVerificationCodeReq) (*SendVerificationCodeRes, error)
 	Register(context.Context, *RegisterReq) (*RegisterRes, error)
+	ResetPassword(context.Context, *ResetPasswordReq) (*ResetPasswordRes, error)
 	// ─── Moment（话语）─────────────────────────────────────
 	// 写下一句话，保存 Moment + Echo，返回回声
 	CreateMoment(context.Context, *CreateMomentReq) (*CreateMomentRes, error)
@@ -291,6 +304,9 @@ func (UnimplementedEgoServer) SendVerificationCode(context.Context, *SendVerific
 }
 func (UnimplementedEgoServer) Register(context.Context, *RegisterReq) (*RegisterRes, error) {
 	return nil, status.Error(codes.Unimplemented, "method Register not implemented")
+}
+func (UnimplementedEgoServer) ResetPassword(context.Context, *ResetPasswordReq) (*ResetPasswordRes, error) {
+	return nil, status.Error(codes.Unimplemented, "method ResetPassword not implemented")
 }
 func (UnimplementedEgoServer) CreateMoment(context.Context, *CreateMomentReq) (*CreateMomentRes, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateMoment not implemented")
@@ -414,6 +430,24 @@ func _Ego_Register_Handler(srv interface{}, ctx context.Context, dec func(interf
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(EgoServer).Register(ctx, req.(*RegisterReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Ego_ResetPassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResetPasswordReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EgoServer).ResetPassword(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Ego_ResetPassword_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EgoServer).ResetPassword(ctx, req.(*ResetPasswordReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -638,6 +672,10 @@ var Ego_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Register",
 			Handler:    _Ego_Register_Handler,
+		},
+		{
+			MethodName: "ResetPassword",
+			Handler:    _Ego_ResetPassword_Handler,
 		},
 		{
 			MethodName: "CreateMoment",

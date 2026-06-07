@@ -22,5 +22,5 @@ proto-dart:
 	@echo "proto (Dart) generated"
 
 sqlc:
-	@PATH="$$PATH:$$(go env GOPATH)/bin" sqlc generate
+	@cd server && PATH="$$PATH:$$(go env GOPATH)/bin" sqlc generate
 	@echo "sqlc generated"

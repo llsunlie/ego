@@ -15,4 +15,5 @@ type User struct {
 type UserRepository interface {
 	FindByPhone(ctx context.Context, phone string) (*User, error)
 	Create(ctx context.Context, user *User) error
+	UpdatePassword(ctx context.Context, userID, passwordHash string) error
 }
