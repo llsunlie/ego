@@ -115,8 +115,15 @@ server/internal/bootstrap/   ← 依赖注入, composite handler
 - 优先 subagent-driven（独立 task 并行）
 - task 间 review
 - proto 变更后必须重新 `make proto-go proto-dart`
-- 每个 task commit 一次
 - 在 feat/<feature-name> 分支上工作
+
+### 提交策略
+
+**严禁每个 task commit 一次。** 中间 task 的变更会导致代码无法编译或测试失败，产生 broken commit。
+
+- 所有代码变更累积在 working tree 中
+- 仅在 **全部 task 完成 + 测试通过** 后进行 **一次** commit
+- 特殊情况（如 proto 生成、sqlc 生成等纯无副作用步骤）可在确认生成正确后单独 commit
 
 ---
 

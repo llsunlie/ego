@@ -64,6 +64,14 @@ func (h *EgoHandler) Register(ctx context.Context, req *pb.RegisterReq) (*pb.Reg
 	return res, err
 }
 
+func (h *EgoHandler) ResetPassword(ctx context.Context, req *pb.ResetPasswordReq) (*pb.ResetPasswordRes, error) {
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "ResetPassword: request", "req", fmt.Sprintf("%+v", req))
+	res, err := h.identity.ResetPassword(ctx, req)
+	logger.InfoContext(ctx, "ResetPassword: response", "res", fmt.Sprintf("%+v", res), "error", err)
+	return res, err
+}
+
 // Moment — delegated to writing.
 func (h *EgoHandler) CreateMoment(ctx context.Context, req *pb.CreateMomentReq) (*pb.CreateMomentRes, error) {
 	logger := logging.FromContext(ctx)

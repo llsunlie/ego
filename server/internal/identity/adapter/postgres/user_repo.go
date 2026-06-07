@@ -58,3 +58,15 @@ func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
 		CreatedAt:    pgtype.Timestamptz{Time: now, Valid: true},
 	})
 }
+
+func (r *UserRepository) UpdatePassword(ctx context.Context, userID, passwordHash string) error {
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return err
+	}
+
+	return r.queries.UpdateUserPassword(ctx, sqlc.UpdateUserPasswordParams{
+		ID:           pgtype.UUID{Bytes: [16]byte(uid), Valid: true},
+		PasswordHash: passwordHash,
+	})
+}

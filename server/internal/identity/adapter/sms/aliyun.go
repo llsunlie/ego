@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
 	dypnsapi "github.com/alibabacloud-go/dypnsapi-20170525/v3/client"
@@ -98,17 +99,20 @@ func (s *AliyunSmsService) Verify(ctx context.Context, phone, code string) (bool
 
 	resp, err := s.client.CheckSmsVerifyCode(req)
 	if err != nil {
+		// 阿里云 SDK 对验证码错误/过期/已使用等场景也返回 error（如 isv.ValidateFail），
+		// 这类 error 表示校验未通过，属于正常业务结果，非系统错误。
+		if strings.Contains(err.Error(), "isv.") {
+			return false, nil
+		}
 		return false, fmt.Errorf("check sms verify code: %w", err)
 	}
 	if resp.Body == nil {
 		return false, fmt.Errorf("check sms verify code: empty response")
 	}
 	if resp.Body.Code != nil && *resp.Body.Code != "OK" {
-		msg := ""
-		if resp.Body.Message != nil {
-			msg = *resp.Body.Message
-		}
-		return false, fmt.Errorf("check sms verify code: %s - %s", *resp.Body.Code, msg)
+		// 非 OK 响应码（如 isv.ValidateFail）表示验证码校验未通过
+		// （错误、过期、已使用等），属于正常业务结果，非系统错误。
+		return false, nil
 	}
 
 	// Model.VerifyResult: "PASS" = success, "UNKNOWN" = failed

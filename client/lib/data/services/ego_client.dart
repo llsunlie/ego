@@ -54,6 +54,15 @@ class EgoClient {
     return _stub.login(req);
   }
 
+  Future<grpc.ResetPasswordRes> resetPassword({
+    required String phone,
+    required String code,
+    required String newPassword,
+  }) async {
+    final req = grpc.ResetPasswordReq(phone: phone, code: code, newPassword: newPassword);
+    return _stub.resetPassword(req);
+  }
+
   // ─── Moment ───────────────────────────────────
 
   Future<grpc.CreateMomentRes> createMoment(
