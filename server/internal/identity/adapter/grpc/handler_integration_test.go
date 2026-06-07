@@ -44,8 +44,9 @@ func newTestHandlerRealDB(t *testing.T) (*Handler, *pgxpool.Pool) {
 	registerUseCase := identityapp.NewRegisterUseCase(userRepo, hasher, tokens, ids, sms)
 	sendCodeUseCase := identityapp.NewSendCodeUseCase(sms)
 	checkPhoneUseCase := identityapp.NewCheckPhoneUseCase(userRepo)
+	resetPasswordUseCase := identityapp.NewResetPasswordUseCase(userRepo, hasher, tokens, sms)
 
-	return NewHandler(loginUseCase, registerUseCase, sendCodeUseCase, checkPhoneUseCase), pool
+	return NewHandler(loginUseCase, registerUseCase, sendCodeUseCase, checkPhoneUseCase, resetPasswordUseCase), pool
 }
 
 func cleanupUser(t *testing.T, pool *pgxpool.Pool, phone string) {
@@ -171,5 +172,30 @@ func TestIntegration_CheckPhone_RegisteredPhone(t *testing.T) {
 	}
 	if !res.Registered {
 		t.Fatal("expected registered=true for existing phone")
+	}
+}
+
+func TestIntegration_ResetPassword(t *testing.T) {
+	h, pool := newTestHandlerRealDB(t)
+	phone := "13800010008"
+	t.Cleanup(func() { cleanupUser(t, pool, phone) })
+
+	_, err := h.Register(context.Background(), &pb.RegisterReq{Phone: phone, Code: "123456", Password: "oldpass"})
+	if err != nil {
+		t.Fatalf("register: %v", err)
+	}
+
+	res, err := h.ResetPassword(context.Background(), &pb.ResetPasswordReq{Phone: phone, Code: "123456", NewPassword: "newpass"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.Token == "" {
+		t.Fatal("expected token")
+	}
+
+	// Should be able to login with new password
+	_, err = h.Login(context.Background(), &pb.LoginReq{Phone: phone, Password: "newpass"})
+	if err != nil {
+		t.Fatalf("login with new password: %v", err)
 	}
 }

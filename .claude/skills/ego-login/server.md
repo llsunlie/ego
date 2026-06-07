@@ -2,7 +2,7 @@
 
 后端 identity 领域 context — 手机号认证。
 
-## 所属 gRPC 方法（4 个，均为免认证）
+## 所属 gRPC 方法（5 个，均为免认证）
 
 | RPC | 功能 | 副作用 |
 |-----|------|--------|
@@ -10,6 +10,7 @@
 | `SendVerificationCode` | 发送短信验证码（阿里云） | SMS |
 | `Register` | 验证码校验 + 创建用户 + 签发 JWT | 写库 |
 | `Login` | 手机号+密码登录 + 签发 JWT | 无 |
+| `ResetPassword` | 验证码校验 + 更新密码 + 签发 JWT | 写库 |
 
 ## 模块结构 (`server/internal/identity/`)
 
@@ -24,6 +25,7 @@ identity/
 │   ├── send_code.go                   # SendCode 用例：校验格式 + 调 SMS
 │   ├── register.go                    # Register 用例：验码 + 查重 + bcrypt + 创建 + JWT
 │   ├── login.go                       # Login 用例：查库 + 验密 + JWT
+│   ├── reset_password.go              # ResetPassword 用例：验码 + 查库 + 更新密码 + JWT
 │   └── ports.go                       # PasswordHasher, TokenIssuer, IDGenerator, SmsService
 └── adapter/
     ├── grpc/handler.go                # 4 个 handler 方法 + mapError
@@ -70,6 +72,22 @@ identity/
 3. Issue JWT
 ```
 
+### ResetPassword (`app/reset_password.go`)
+
+```
+1. 正则校验手机号 (1[3-9]xxxxxxxxx) → ErrInvalidPhone
+2. 新密码 >= 6 位
+3. smsSender.Verify(phone, code) → ErrInvalidVerificationCode
+4. userRepo.FindByPhone(phone) → ErrUserNotFound
+5. hasher.Hash(newPassword) → bcrypt hash
+6. userRepo.UpdatePassword(userID, hash)
+7. Issue JWT
+```
+
+> **注意**：阿里云 SDK 对验证码错误/过期/已使用返回 SDKError（isv.*），
+> `adapter/sms/aliyun.go` 的 Verify 方法已将其转为 `(false, nil)`，确保
+> `ErrInvalidVerificationCode` 能被正确触发。
+
 ## 阿里云短信 (`adapter/sms/aliyun.go`)
 
 ```go
@@ -94,6 +112,7 @@ var preAuthMethods = map[string]bool{
     "CheckPhone":            true,
     "SendVerificationCode":  true,
     "Register":              true,
+    "ResetPassword":         true,
 }
 ```
 
@@ -119,6 +138,7 @@ EgoHandler.CheckPhone            → identity.CheckPhone
 EgoHandler.SendVerificationCode  → identity.SendVerificationCode
 EgoHandler.Register              → identity.Register
 EgoHandler.Login                 → identity.Login
+EgoHandler.ResetPassword          → identity.ResetPassword
 ```
 
 ## 数据库
@@ -127,4 +147,4 @@ EgoHandler.Login                 → identity.Login
 users (id UUID PK, phone VARCHAR(100) UNIQUE, password_hash VARCHAR(255), created_at TIMESTAMPTZ)
 ```
 
-sqlc queries: `GetUserByPhone`, `CreateUser`
+sqlc queries: `GetUserByPhone`, `CreateUser`, `UpdateUserPassword`

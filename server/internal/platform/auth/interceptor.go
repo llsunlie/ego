@@ -19,6 +19,7 @@ var preAuthMethods = map[string]bool{
 	"CheckPhone":            true,
 	"SendVerificationCode":  true,
 	"Register":              true,
+	"ResetPassword":         true,
 }
 
 func isPreAuthMethod(fullMethod string) bool {

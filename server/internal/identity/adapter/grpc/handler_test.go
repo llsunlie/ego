@@ -37,6 +37,16 @@ func (m *mockUserRepo) Create(_ context.Context, user *domain.User) error {
 	return nil
 }
 
+func (m *mockUserRepo) UpdatePassword(_ context.Context, userID, passwordHash string) error {
+	for _, u := range m.users {
+		if u.ID == userID {
+			u.PasswordHash = passwordHash
+			return nil
+		}
+	}
+	return nil
+}
+
 type mockIDGen struct{}
 
 func (mockIDGen) New() string { return uuid.New().String() }
@@ -44,8 +54,13 @@ func (mockIDGen) New() string { return uuid.New().String() }
 // mockSmsService always succeeds for Send and Verify — used in unit tests.
 type mockSmsService struct{}
 
-func (mockSmsService) Send(_ context.Context, _ string) error               { return nil }
-func (mockSmsService) Verify(_ context.Context, _, _ string) (bool, error)  { return true, nil }
+func (mockSmsService) Send(_ context.Context, _ string) error              { return nil }
+func (mockSmsService) Verify(_ context.Context, _, _ string) (bool, error) { return true, nil }
+
+type mockSmsServiceFailVerify struct{}
+
+func (mockSmsServiceFailVerify) Send(_ context.Context, _ string) error              { return nil }
+func (mockSmsServiceFailVerify) Verify(_ context.Context, _, _ string) (bool, error) { return false, nil }
 
 func newTestHandler(repo *mockUserRepo) *Handler {
 	hasher := auth.BcryptHasher{}
@@ -57,8 +72,62 @@ func newTestHandler(repo *mockUserRepo) *Handler {
 	register := app.NewRegisterUseCase(repo, hasher, tokens, ids, sms)
 	sendCode := app.NewSendCodeUseCase(sms)
 	checkPhone := app.NewCheckPhoneUseCase(repo)
+	resetPassword := app.NewResetPasswordUseCase(repo, hasher, tokens, sms)
 
-	return NewHandler(login, register, sendCode, checkPhone)
+	return NewHandler(login, register, sendCode, checkPhone, resetPassword)
+}
+
+func TestResetPassword_Success(t *testing.T) {
+	repo := newMockUserRepo()
+	h := newTestHandler(repo)
+
+	_, err := h.Register(context.Background(), registerReq("13800000010", "123456", "oldpass"))
+	if err != nil {
+		t.Fatalf("register: %v", err)
+	}
+
+	res, err := h.ResetPassword(context.Background(), resetPasswordReq("13800000010", "123456", "newpass"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.Token == "" {
+		t.Fatal("expected token")
+	}
+	// Verify password was actually updated by logging in with new password
+	_, err = h.Login(context.Background(), loginReq("13800000010", "newpass"))
+	if err != nil {
+		t.Fatalf("login with new password failed: %v", err)
+	}
+}
+
+func TestResetPassword_UserNotFound(t *testing.T) {
+	repo := newMockUserRepo()
+	h := newTestHandler(repo)
+
+	_, err := h.ResetPassword(context.Background(), resetPasswordReq("13800000011", "123456", "newpass"))
+	if err == nil {
+		t.Fatal("expected error for non-existent user")
+	}
+}
+
+func TestResetPassword_WrongCode(t *testing.T) {
+	repo := newMockUserRepo()
+	h := newTestHandler(repo)
+
+	_, err := h.Register(context.Background(), registerReq("13800000012", "123456", "oldpass"))
+	if err != nil {
+		t.Fatalf("register: %v", err)
+	}
+
+	// Use a mock that rejects wrong codes
+	failSms := &mockSmsServiceFailVerify{}
+	resetPassword := app.NewResetPasswordUseCase(repo, auth.BcryptHasher{}, auth.JWTIssuer{Secret: []byte("secret"), Exp: 24 * time.Hour}, failSms)
+	h2 := NewHandler(h.login, h.register, h.sendCode, h.checkPhone, resetPassword)
+
+	_, err = h2.ResetPassword(context.Background(), resetPasswordReq("13800000012", "000000", "newpass"))
+	if err == nil {
+		t.Fatal("expected error for wrong verification code")
+	}
 }
 
 func TestRegister_Success(t *testing.T) {
@@ -230,4 +299,8 @@ func loginReq(phone, password string) *pb.LoginReq {
 
 func registerReq(phone, code, password string) *pb.RegisterReq {
 	return &pb.RegisterReq{Phone: phone, Code: code, Password: password}
+}
+
+func resetPasswordReq(phone, code, password string) *pb.ResetPasswordReq {
+	return &pb.ResetPasswordReq{Phone: phone, Code: code, NewPassword: password}
 }

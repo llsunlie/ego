@@ -129,6 +129,33 @@ const RegisterRes$json = {
 final $typed_data.Uint8List registerResDescriptor =
     $convert.base64Decode('CgtSZWdpc3RlclJlcxIUCgV0b2tlbhgBIAEoCVIFdG9rZW4=');
 
+@$core.Deprecated('Use resetPasswordReqDescriptor instead')
+const ResetPasswordReq$json = {
+  '1': 'ResetPasswordReq',
+  '2': [
+    {'1': 'phone', '3': 1, '4': 1, '5': 9, '10': 'phone'},
+    {'1': 'code', '3': 2, '4': 1, '5': 9, '10': 'code'},
+    {'1': 'new_password', '3': 3, '4': 1, '5': 9, '10': 'newPassword'},
+  ],
+};
+
+/// Descriptor for `ResetPasswordReq`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resetPasswordReqDescriptor = $convert.base64Decode(
+    'ChBSZXNldFBhc3N3b3JkUmVxEhQKBXBob25lGAEgASgJUgVwaG9uZRISCgRjb2RlGAIgASgJUg'
+    'Rjb2RlEiEKDG5ld19wYXNzd29yZBgDIAEoCVILbmV3UGFzc3dvcmQ=');
+
+@$core.Deprecated('Use resetPasswordResDescriptor instead')
+const ResetPasswordRes$json = {
+  '1': 'ResetPasswordRes',
+  '2': [
+    {'1': 'token', '3': 1, '4': 1, '5': 9, '10': 'token'},
+  ],
+};
+
+/// Descriptor for `ResetPasswordRes`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resetPasswordResDescriptor = $convert
+    .base64Decode('ChBSZXNldFBhc3N3b3JkUmVzEhQKBXRva2VuGAEgASgJUgV0b2tlbg==');
+
 @$core.Deprecated('Use momentDescriptor instead')
 const Moment$json = {
   '1': 'Moment',
