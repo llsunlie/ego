@@ -29,6 +29,7 @@ func NewHandler(deps Deps) *identitygrpc.Handler {
 	registerUseCase := identityapp.NewRegisterUseCase(userRepo, deps.Hasher, deps.Tokens, ids, deps.SmsSender)
 	sendCodeUseCase := identityapp.NewSendCodeUseCase(deps.SmsSender)
 	checkPhoneUseCase := identityapp.NewCheckPhoneUseCase(userRepo)
+	resetPasswordUseCase := identityapp.NewResetPasswordUseCase(userRepo, deps.Hasher, deps.Tokens, deps.SmsSender)
 
-	return identitygrpc.NewHandler(loginUseCase, registerUseCase, sendCodeUseCase, checkPhoneUseCase)
+	return identitygrpc.NewHandler(loginUseCase, registerUseCase, sendCodeUseCase, checkPhoneUseCase, resetPasswordUseCase)
 }

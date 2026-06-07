@@ -16,16 +16,19 @@
 | `client/lib/data/generated/api.pbgrpc.dart` | 生成的 EgoClient gRPC stub |
 | `client/lib/core/router/router.dart` | GoRouter 路由配置 |
 
-## 交互流程 (3 Step)
+## 交互流程 (4 Step)
 
 ```
 Step 0: 输入手机号 → CheckPhone RPC
   ├─ registered=true → Step 1 (密码登录)
+  │   └─ 点击「忘记密码？」→ Step 3 (重置密码)
   └─ registered=false → 自动发送验证码 → Step 2 (验证码注册)
 
 Step 1: 输入密码 → Login RPC → 跳转 /onboard 或 /now
 
 Step 2: 输入验证码 + 设置密码 → Register RPC → 跳转 /onboard
+
+Step 3: 输入验证码 + 新密码 → ResetPassword RPC → 自动登录 → 跳转首页
 ```
 
 ## 状态管理
@@ -38,8 +41,8 @@ Step 2: 输入验证码 + 设置密码 → Register RPC → 跳转 /onboard
 ## 页面逻辑
 
 - `_phoneCtrl`, `_passwordCtrl`, `_codeCtrl` — 输入控制器
-- `_step` — 0=手机号, 1=密码登录, 2=验证码注册
-- `_lastSentPhone` — 缓存已发验证码的手机号，避免重复发送触发频率限制
+- `_step` — 0=手机号, 1=密码登录, 2=验证码注册, 3=重置密码
+- `_codeSentPhone` — 缓存已发验证码的手机号，避免重复发送触发频率限制（Step 2/3 共享）
 - `_countdown` — 验证码倒计时秒数（倒计时保持，返回 Step 0 不重置）
 
 ## gRPC 调用
@@ -47,9 +50,10 @@ Step 2: 输入验证码 + 设置密码 → Register RPC → 跳转 /onboard
 | 方法 | RPC | 时机 |
 |------|-----|------|
 | `checkPhone(phone)` | CheckPhone | Step 0 点击"下一步" |
-| `sendVerificationCode(phone)` | SendVerificationCode | 新手机自动调用 / "重新发送" |
+| `sendVerificationCode(phone)` | SendVerificationCode | 新手机自动调用 / "重新发送" / 进入 Step 3 自动调用 |
 | `register(phone, code, password)` | Register | Step 2 点击"注册" |
 | `login(phone, password)` | Login | Step 1 点击"登录" |
+| `resetPassword(phone, code, newPassword)` | ResetPassword | Step 3 点击"重置密码" |
 
 ## 错误处理
 

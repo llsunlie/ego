@@ -20,7 +20,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   bool _loading = false;
   String? _error;
   int _countdown = 0;
-  String? _lastSentPhone; // 缓存最近发送过验证码的手机号，避免重复发送
+  String? _codeSentPhone; // 缓存已发验证码的手机号，避免重复发送触发频率限制
 
   @override
   void dispose() {
@@ -55,7 +55,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
       if (res.registered) {
         setState(() { _loading = false; _step = 1; });
-      } else if (phone == _lastSentPhone) {
+      } else if (phone == _codeSentPhone) {
         // Same phone — already sent SMS, go directly to code+password form
         setState(() { _loading = false; _step = 2; });
       } else {
@@ -63,7 +63,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         try {
           await client.sendVerificationCode(phone);
           if (!mounted) return;
-          setState(() { _loading = false; _step = 2; _countdown = 60; _lastSentPhone = phone; });
+          setState(() { _loading = false; _step = 2; _countdown = 60; _codeSentPhone = phone; });
           _startCountdown();
         } catch (_) {
           if (!mounted) return;
@@ -86,7 +86,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       final client = ref.read(EgoClient.provider);
       await client.sendVerificationCode(_phoneCtrl.text.trim());
       if (!mounted) return;
-      setState(() { _loading = false; _countdown = 60; _lastSentPhone = _phoneCtrl.text.trim(); });
+      setState(() { _loading = false; _countdown = 60; _codeSentPhone = _phoneCtrl.text.trim(); });
       _startCountdown();
     } catch (_) {
       if (!mounted) return;
@@ -187,6 +187,65 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     });
   }
 
+  Future<void> _goToStep3() async {
+    final phone = _phoneCtrl.text.trim();
+    if (phone == _codeSentPhone) {
+      // SMS 已发至该手机号且倒计时仍在运行，直接进入重置密码页
+      setState(() { _step = 3; });
+      return;
+    }
+
+    setState(() { _loading = true; _error = null; });
+
+    try {
+      final client = ref.read(EgoClient.provider);
+      await client.sendVerificationCode(phone);
+      if (!mounted) return;
+      setState(() { _loading = false; _step = 3; _countdown = 60; _codeSentPhone = phone; });
+      _startCountdown();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      _setError('发送验证码失败，请稍后重试');
+    }
+  }
+
+  Future<void> _resetPassword() async {
+    final code = _codeCtrl.text.trim();
+    final password = _passwordCtrl.text;
+
+    if (code.isEmpty) {
+      _setError('请输入验证码');
+      return;
+    }
+    if (password.length < 6) {
+      _setError('密码至少 6 位');
+      return;
+    }
+
+    setState(() { _loading = true; _error = null; });
+
+    try {
+      final client = ref.read(EgoClient.provider);
+      final res = await client.resetPassword(
+        phone: _phoneCtrl.text.trim(),
+        code: code,
+        newPassword: password,
+      );
+      if (mounted) {
+        ref.read(authProvider.notifier).login(res.token);
+      }
+    } on GrpcError catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        _setError(e.message ?? '重置密码失败，请稍后重试');
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+      _setError('重置密码失败，请稍后重试');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -210,7 +269,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16),
                     child: Text(
-                      _step == 1 ? '密码登录' : '创建账号',
+                      _step == 1 ? '密码登录' : _step == 3 ? '重置密码' : '创建账号',
                       style: const TextStyle(
                         fontSize: 16,
                         color: Color(0xFFCCA880),
@@ -259,7 +318,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ),
 
                 // Step 1: Password login
-                if (_step == 1)
+                if (_step == 1) ...[
                   TextField(
                     controller: _passwordCtrl,
                     obscureText: true,
@@ -270,6 +329,18 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) => _login(),
                   ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: GestureDetector(
+                      onTap: _loading ? null : _goToStep3,
+                      child: const Text(
+                        '忘记密码？',
+                        style: TextStyle(fontSize: 12, color: Color(0xFFCCA880)),
+                      ),
+                    ),
+                  ),
+                ],
 
                 // Step 2: Verification code + set password
                 if (_step == 2) ...[
@@ -315,6 +386,50 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ),
                 ],
 
+                // Step 3: Forgot password — code + new password
+                if (_step == 3) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _codeCtrl,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(6),
+                          ],
+                          decoration: const InputDecoration(
+                            hintText: '验证码',
+                            prefixIcon: Icon(Icons.sms_outlined),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      SizedBox(
+                        width: 100,
+                        child: TextButton(
+                          onPressed: _countdown > 0 || _loading ? null : () => _resendCode(),
+                          child: Text(
+                            _countdown > 0 ? '${_countdown}s' : '重新发送',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _passwordCtrl,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      hintText: '设置新密码（至少 6 位）',
+                      prefixIcon: Icon(Icons.lock_outline),
+                    ),
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _resetPassword(),
+                  ),
+                ],
+
                 if (_error != null) ...[
                   const SizedBox(height: 16),
                   Text(_error!, style: const TextStyle(color: Colors.redAccent)),
@@ -351,6 +466,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Text('注册', style: TextStyle(fontSize: 16)),
+                  ),
+                if (_step == 3)
+                  ElevatedButton(
+                    onPressed: _loading ? null : _resetPassword,
+                    child: _loading
+                        ? const SizedBox(
+                            height: 20, width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('重置密码', style: TextStyle(fontSize: 16)),
                   ),
               ],
             ),
