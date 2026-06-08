@@ -134,8 +134,9 @@ server/internal/bootstrap/   ← 依赖注入, composite handler
 2. **Go 静态检查**: `go vet ./internal/<domain>/...`（agent 执行）
 3. **Flutter 静态分析**: `cd client && flutter analyze`（agent 执行，必须零 issue）
 4. **Smoke 测试**: `bash smoke.sh`（agent 执行，端到端 grpcurl 测试）
-5. **真机测试**: 连接设备运行 `flutter run`，按手动测试清单逐项验证（用户执行）
+5. **真机测试**: 运行 `bash clean-start.sh`，按手动测试清单逐项验证（用户执行）
 6. **sqlc 副作用检查**: `make sqlc` 后检查 `git diff --stat`，如果 `server/internal/platform/postgres/sqlc/` 下出现 features 无关的变更，需 `git checkout` 还原（agent 执行）
+7. **Version 文件**: 若涉及前端变更，则真机测试通过后运行 `make version` 更新 `client/lib/core/version.dart`（从 git tag 生成版本号），**必须纳入 commit**。
 
 ### 真机测试硬阻断规则
 
@@ -267,6 +268,7 @@ client/lib/
   core/router/router.dart
   core/providers/
   core/theme/
+  core/version.dart (由 make version 生成，从 git tag 获取版本号)
   data/services/ego_client.dart
   data/generated/ (proto 生成，勿手动编辑)
   features/<page>/
