@@ -20,12 +20,32 @@ description: 引导页 context — 路由 /onboard，新用户登录后的 5 步
 | `client/lib/core/providers/onboarding_provider.dart` | 引导完成状态管理 |
 | `client/lib/core/router/router.dart` | 路由守卫：未完成引导 → 强制 `/onboard` |
 | `client/lib/core/theme/colors.dart` | 主题色定义 (AppColors) |
+| `client/lib/features/now/widgets/starry_background.dart` | 星空背景组件 (StarryBackground)，引导页复用自 now 模块 |
 
 ## 状态管理
 
 - **onboardingCompleteProvider** (`StateNotifierProvider`)
   - `complete()` 标记引导完成，持久化到 LocalStore
   - Router 监听此 provider 决定是否放行到 `/now`
+
+## 页面结构
+
+```dart
+Scaffold(
+  backgroundColor: AppColors.darkBg,
+  body: Stack(
+    children: [
+      const StarryBackground(),      // 底层：星空动画背景
+      SafeArea(
+        child: AnimatedSwitcher(...), // Step 间切换动画
+      ),
+    ],
+  ),
+)
+```
+
+- `StarryBackground` 来自 `client/lib/features/now/widgets/starry_background.dart`，绘制动态星空粒子效果
+- `Scaffold.backgroundColor` 已设为 `AppColors.darkBg`，星空背景在此底色上叠加
 
 ## 引导流程 (5 Steps)
 
