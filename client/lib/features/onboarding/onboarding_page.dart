@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/onboarding_provider.dart';
 import '../../core/theme/colors.dart';
+import '../now/widgets/starry_background.dart';
 import 'onboarding_data.dart';
 
 class OnboardingPage extends ConsumerStatefulWidget {
@@ -68,13 +69,18 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.darkBg,
-      body: SafeArea(
-        child: AnimatedSwitcher(
+      body: Stack(
+        children: [
+          const StarryBackground(),
+          SafeArea(
+            child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 500),
           switchInCurve: Curves.easeOut,
           switchOutCurve: Curves.easeIn,
           child: _buildStep(_step),
         ),
+      ),
+        ],
       ),
     );
   }
