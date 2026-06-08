@@ -1,8 +1,11 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:grpc/grpc_or_grpcweb.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/theme/colors.dart';
 import '../../data/services/ego_client.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -19,6 +22,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   int _step = 0;
   bool _loading = false;
   String? _error;
+  bool _agreedToTerms = false;
   int _countdown = 0;
   String? _codeSentPhone; // 缓存已发验证码的手机号，避免重复发送触发频率限制
 
@@ -57,13 +61,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         setState(() { _loading = false; _step = 1; });
       } else if (phone == _codeSentPhone) {
         // Same phone — already sent SMS, go directly to code+password form
-        setState(() { _loading = false; _step = 2; });
+        setState(() { _loading = false; _step = 2; _agreedToTerms = false; });
       } else {
         // New phone: auto-send SMS and go directly to code+password form
         try {
           await client.sendVerificationCode(phone);
           if (!mounted) return;
-          setState(() { _loading = false; _step = 2; _countdown = 60; _codeSentPhone = phone; });
+          setState(() { _loading = false; _step = 2; _countdown = 60; _codeSentPhone = phone; _agreedToTerms = false; });
           _startCountdown();
         } catch (_) {
           if (!mounted) return;
@@ -146,6 +150,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     }
     if (password.length < 6) {
       _setError('密码至少 6 位');
+      return;
+    }
+    if (!_agreedToTerms) {
+      _setError('请阅读并同意服务条款和隐私政策');
       return;
     }
 
@@ -384,6 +392,51 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) => _register(),
                   ),
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: Checkbox(
+                          value: _agreedToTerms,
+                          onChanged: (v) => setState(() => _agreedToTerms = v ?? false),
+                          activeColor: AppColors.gold,
+                          side: const BorderSide(color: AppColors.textSecondary, width: 1.5),
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: RichText(
+                          text: TextSpan(
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                              height: 1.5,
+                            ),
+                            children: [
+                              const TextSpan(text: '我已阅读并同意'),
+                              TextSpan(
+                                text: '《服务条款》',
+                                style: const TextStyle(color: AppColors.coldBlue),
+                                recognizer: TapGestureRecognizer()
+                                  ..onTap = () => context.push('/terms'),
+                              ),
+                              const TextSpan(text: ' 和 '),
+                              TextSpan(
+                                text: '《隐私政策》',
+                                style: const TextStyle(color: AppColors.coldBlue),
+                                recognizer: TapGestureRecognizer()
+                                  ..onTap = () => context.push('/privacy'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
 
                 // Step 3: Forgot password — code + new password
@@ -459,7 +512,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ),
                 if (_step == 2)
                   ElevatedButton(
-                    onPressed: _loading ? null : _register,
+                    onPressed: (_loading || !_agreedToTerms) ? null : _register,
                     child: _loading
                         ? const SizedBox(
                             height: 20, width: 20,
