@@ -113,10 +113,10 @@ server/internal/bootstrap/   ← 依赖注入, composite handler
 
 按 plan task 顺序执行：
 
+- 开始前先创建新分支（如 `feat/xxx`、`fix/xxx`）
 - 优先 subagent-driven（独立 task 并行）
 - task 间 review
 - proto 变更后必须重新 `make proto-go proto-dart`
-- 在 feat/<feature-name> 分支上工作
 
 ### 提交策略
 
@@ -136,7 +136,6 @@ server/internal/bootstrap/   ← 依赖注入, composite handler
 4. **Smoke 测试**: `bash smoke.sh`（agent 执行，端到端 grpcurl 测试）
 5. **真机测试**: 运行 `bash clean-start.sh`，按手动测试清单逐项验证（用户执行）
 6. **sqlc 副作用检查**: `make sqlc` 后检查 `git diff --stat`，如果 `server/internal/platform/postgres/sqlc/` 下出现 features 无关的变更，需 `git checkout` 还原（agent 执行）
-7. **Version 文件**: 若涉及前端变更，则真机测试通过后运行 `make version` 更新 `client/lib/core/version.dart`（从 git tag 生成版本号），**必须纳入 commit**。
 
 ### 真机测试硬阻断规则
 
@@ -268,7 +267,7 @@ client/lib/
   core/router/router.dart
   core/providers/
   core/theme/
-  core/version.dart (由 make version 生成，从 git tag 获取版本号)
+  core/version.dart
   data/services/ego_client.dart
   data/generated/ (proto 生成，勿手动编辑)
   features/<page>/

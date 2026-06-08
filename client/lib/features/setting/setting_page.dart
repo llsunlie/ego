@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/providers/auth_provider.dart';
@@ -18,6 +19,7 @@ class _SettingPageState extends ConsumerState<SettingPage> {
   grpc.GetProfileRes? _profile;
   bool _loading = true;
   String? _error;
+  String _rawPhone = '';
 
   @override
   void initState() {
@@ -31,6 +33,7 @@ class _SettingPageState extends ConsumerState<SettingPage> {
       final res = await client.getProfile(ref);
       setState(() {
         _profile = res;
+        _rawPhone = res.phone;
         _loading = false;
       });
     } catch (e) {
@@ -54,6 +57,80 @@ class _SettingPageState extends ConsumerState<SettingPage> {
   String _formatDate(int unixMs) {
     final dt = DateTime.fromMillisecondsSinceEpoch(unixMs);
     return '${dt.year}/${dt.month.toString().padLeft(2, '0')}/${dt.day.toString().padLeft(2, '0')}';
+  }
+
+  void _copyToClipboard(String text, String message) {
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(color: Colors.white)),
+        duration: const Duration(seconds: 1),
+        backgroundColor: AppColors.surface,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Widget _sectionHeader(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        color: AppColors.textHint,
+        fontSize: 13,
+      ),
+    );
+  }
+
+  Widget _settingRow({
+    required IconData icon,
+    required String label,
+    String? value,
+    bool showArrow = false,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            Icon(icon, color: AppColors.gold, size: 20),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+              ),
+            ),
+            const Spacer(),
+            if (value != null)
+              Text(
+                value,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 14,
+                ),
+              ),
+            if (showArrow) ...[
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right, color: AppColors.textHint, size: 20),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _rowDivider() {
+    return const Padding(
+      padding: EdgeInsets.only(left: 32),
+      child: Divider(
+        color: AppColors.surfaceLight,
+        height: 1,
+        thickness: 1,
+      ),
+    );
   }
 
   @override
@@ -102,33 +179,45 @@ class _SettingPageState extends ConsumerState<SettingPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 32),
-                      const Text(
-                        '账号信息',
-                        style: TextStyle(
-                          color: AppColors.textHint,
-                          fontSize: 13,
-                        ),
+                      _sectionHeader('账号信息'),
+                      const SizedBox(height: 8),
+                      _settingRow(
+                        icon: Icons.phone_android_outlined,
+                        label: '手机号',
+                        value: _maskPhone(_rawPhone),
+                        onTap: () => _copyToClipboard(_rawPhone, '手机号已复制'),
                       ),
-                      const SizedBox(height: 16),
-                      _infoRow(
-                        '手机号',
-                        _maskPhone(_profile!.phone),
-                      ),
-                      const SizedBox(height: 12),
-                      _infoRow(
-                        '注册时间',
-                        _formatDate(_profile!.createdAt.toInt()),
+                      _rowDivider(),
+                      _settingRow(
+                        icon: Icons.calendar_today_outlined,
+                        label: '注册时间',
+                        value: _formatDate(_profile!.createdAt.toInt()),
+                        onTap: () => _copyToClipboard(
+                            _formatDate(_profile!.createdAt.toInt()), '注册时间已复制'),
                       ),
                       const SizedBox(height: 32),
-                      const Text(
-                        '关于',
-                        style: TextStyle(
-                          color: AppColors.textHint,
-                          fontSize: 13,
-                        ),
+                      _sectionHeader('关于'),
+                      const SizedBox(height: 8),
+                      _settingRow(
+                        icon: Icons.info_outline,
+                        label: '版本',
+                        value: appVersion,
+                        onTap: () => _copyToClipboard(appVersion, '版本号已复制'),
                       ),
-                      const SizedBox(height: 16),
-                      _infoRow('版本', appVersion),
+                      _rowDivider(),
+                      _settingRow(
+                        icon: Icons.description_outlined,
+                        label: '服务条款',
+                        showArrow: true,
+                        onTap: () => context.push('/terms'),
+                      ),
+                      _rowDivider(),
+                      _settingRow(
+                        icon: Icons.shield_outlined,
+                        label: '隐私政策',
+                        showArrow: true,
+                        onTap: () => context.push('/privacy'),
+                      ),
                       const SizedBox(height: 48),
                       SizedBox(
                         width: double.infinity,
@@ -157,28 +246,6 @@ class _SettingPageState extends ConsumerState<SettingPage> {
                     ],
                   ),
                 ),
-    );
-  }
-
-  Widget _infoRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.textHint,
-            fontSize: 15,
-          ),
-        ),
-        Text(
-          value,
-          style: const TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 15,
-          ),
-        ),
-      ],
     );
   }
 }
