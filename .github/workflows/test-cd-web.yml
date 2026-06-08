@@ -22,6 +22,8 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: sync version
+        run: make version
       - name: build web
         run: cd client && flutter build web --release -O4 --no-source-maps --base-href / --dart-define=SERVER_HOST=${{ secrets.TEST_SERVER_HOST }}
 
