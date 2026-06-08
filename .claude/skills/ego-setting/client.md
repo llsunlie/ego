@@ -11,6 +11,7 @@
 | 文件 | 说明 |
 |------|------|
 | `client/lib/features/setting/setting_page.dart` | 设置页 UI，`ConsumerStatefulWidget` |
+| `client/lib/core/version.dart` | `make version` 生成，`appVersion` 常量来自 `git describe --tags` |
 | `client/lib/shared/widgets/app_shell.dart` | 左上角 `Icons.settings_outlined` 入口 |
 | `client/lib/core/router/router.dart` | `/setting` 路由（GoRoute） |
 | `client/lib/data/services/ego_client.dart` | `getProfile(WidgetRef ref)` — 携带 token 调用 RPC |
@@ -25,6 +26,9 @@ SettingPage
 │   ├── 标签「账号信息」（灰色小字）
 │   ├── 手机号行：标签 + 脱敏值（138****8888）
 │   └── 注册时间行：标签 + 格式化日期（2025/01/15）
+├── 关于区
+│   ├── 标签「关于」（灰色小字）
+│   └── 版本行：标签 + appVersion（来自 git describe --tags）
 └── 退出登录按钮（红色边框 + 红色文字，全宽，无确认弹窗）
 ```
 
