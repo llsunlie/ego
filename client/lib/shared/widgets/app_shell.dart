@@ -14,7 +14,23 @@ class AppShell extends ConsumerWidget {
     final tabIndex = ref.watch(tabProvider);
 
     return Scaffold(
-      body: navigationShell,
+      body: Stack(
+        children: [
+          navigationShell,
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            left: 4,
+            child: IconButton(
+              icon: const Icon(
+                Icons.settings_outlined,
+                color: Color(0xFF5A5A70),
+                size: 22,
+              ),
+              onPressed: () => context.push('/setting'),
+            ),
+          ),
+        ],
+      ),
       bottomNavigationBar: ClipRect(
         child: BackdropFilter(
           filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),

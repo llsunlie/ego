@@ -63,6 +63,14 @@ class EgoClient {
     return _stub.resetPassword(req);
   }
 
+  // ─── Setting ───────────────────────────────────
+
+  Future<grpc.GetProfileRes> getProfile(WidgetRef ref) async {
+    final req = grpc.GetProfileReq();
+    final token = ref.read(authProvider).token;
+    return _stub.getProfile(req, options: authCallOptions(token));
+  }
+
   // ─── Moment ───────────────────────────────────
 
   Future<grpc.CreateMomentRes> createMoment(

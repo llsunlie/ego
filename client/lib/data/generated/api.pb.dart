@@ -605,6 +605,110 @@ class ResetPasswordRes extends $pb.GeneratedMessage {
   void clearToken() => $_clearField(1);
 }
 
+class GetProfileReq extends $pb.GeneratedMessage {
+  factory GetProfileReq() => create();
+
+  GetProfileReq._();
+
+  factory GetProfileReq.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory GetProfileReq.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'GetProfileReq',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'ego'),
+      createEmptyInstance: create)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetProfileReq clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetProfileReq copyWith(void Function(GetProfileReq) updates) =>
+      super.copyWith((message) => updates(message as GetProfileReq))
+          as GetProfileReq;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetProfileReq create() => GetProfileReq._();
+  @$core.override
+  GetProfileReq createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static GetProfileReq getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetProfileReq>(create);
+  static GetProfileReq? _defaultInstance;
+}
+
+class GetProfileRes extends $pb.GeneratedMessage {
+  factory GetProfileRes({
+    $core.String? phone,
+    $fixnum.Int64? createdAt,
+  }) {
+    final result = create();
+    if (phone != null) result.phone = phone;
+    if (createdAt != null) result.createdAt = createdAt;
+    return result;
+  }
+
+  GetProfileRes._();
+
+  factory GetProfileRes.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory GetProfileRes.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'GetProfileRes',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'ego'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'phone')
+    ..aInt64(2, _omitFieldNames ? '' : 'createdAt')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetProfileRes clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetProfileRes copyWith(void Function(GetProfileRes) updates) =>
+      super.copyWith((message) => updates(message as GetProfileRes))
+          as GetProfileRes;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetProfileRes create() => GetProfileRes._();
+  @$core.override
+  GetProfileRes createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static GetProfileRes getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetProfileRes>(create);
+  static GetProfileRes? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get phone => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set phone($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasPhone() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPhone() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get createdAt => $_getI64(1);
+  @$pb.TagNumber(2)
+  set createdAt($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasCreatedAt() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearCreatedAt() => $_clearField(2);
+}
+
 class Moment extends $pb.GeneratedMessage {
   factory Moment({
     $core.String? id,

@@ -156,6 +156,29 @@ const ResetPasswordRes$json = {
 final $typed_data.Uint8List resetPasswordResDescriptor = $convert
     .base64Decode('ChBSZXNldFBhc3N3b3JkUmVzEhQKBXRva2VuGAEgASgJUgV0b2tlbg==');
 
+@$core.Deprecated('Use getProfileReqDescriptor instead')
+const GetProfileReq$json = {
+  '1': 'GetProfileReq',
+};
+
+/// Descriptor for `GetProfileReq`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getProfileReqDescriptor =
+    $convert.base64Decode('Cg1HZXRQcm9maWxlUmVx');
+
+@$core.Deprecated('Use getProfileResDescriptor instead')
+const GetProfileRes$json = {
+  '1': 'GetProfileRes',
+  '2': [
+    {'1': 'phone', '3': 1, '4': 1, '5': 9, '10': 'phone'},
+    {'1': 'created_at', '3': 2, '4': 1, '5': 3, '10': 'createdAt'},
+  ],
+};
+
+/// Descriptor for `GetProfileRes`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getProfileResDescriptor = $convert.base64Decode(
+    'Cg1HZXRQcm9maWxlUmVzEhQKBXBob25lGAEgASgJUgVwaG9uZRIdCgpjcmVhdGVkX2F0GAIgAS'
+    'gDUgljcmVhdGVkQXQ=');
+
 @$core.Deprecated('Use momentDescriptor instead')
 const Moment$json = {
   '1': 'Moment',

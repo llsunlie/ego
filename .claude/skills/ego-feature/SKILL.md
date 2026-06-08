@@ -122,33 +122,62 @@ server/internal/bootstrap/   ← 依赖注入, composite handler
 **严禁每个 task commit 一次。** 中间 task 的变更会导致代码无法编译或测试失败，产生 broken commit。
 
 - 所有代码变更累积在 working tree 中
-- 仅在 **全部 task 完成 + 测试通过** 后进行 **一次** commit
+- 仅在 **全部 task 完成 + 全部检查通过 + 真机测试通过** 后进行 **一次** commit
 - 特殊情况（如 proto 生成、sqlc 生成等纯无副作用步骤）可在确认生成正确后单独 commit
+
+### 提交前必检清单
+
+**所有变更 commit 前必须依次通过以下检查，任何一项未通过都不得提交：**
+
+1. **Go 测试**: `go test ./internal/<domain>/... -v -count=1`（agent 执行）
+2. **Go 静态检查**: `go vet ./internal/<domain>/...`（agent 执行）
+3. **Flutter 静态分析**: `cd client && flutter analyze`（agent 执行，必须零 issue）
+4. **Smoke 测试**: `bash smoke.sh`（agent 执行，端到端 grpcurl 测试）
+5. **真机测试**: 连接设备运行 `flutter run`，按手动测试清单逐项验证（用户执行）
+6. **sqlc 副作用检查**: `make sqlc` 后检查 `git diff --stat`，如果 `server/internal/platform/postgres/sqlc/` 下出现 features 无关的变更，需 `git checkout` 还原（agent 执行）
+
+> **真机测试**: agent 负责前 5 项自动化检查，真机测试由用户手动验证后通知 agent commit。: `make sqlc` 后检查 `git diff --stat`，如果 `server/internal/platform/postgres/sqlc/` 下出现 features 无关的变更，需 `git checkout` 还原
+
+> **真机测试**: 如果当前环境无可用设备，跳过并告知用户需自行测试。
 
 ---
 
-## Phase 5: 测试
+## Phase 5: 提测验证
 
-### 5a. Go 测试
+**全部 task 完成后的提测流程。必须先通过所有检查，再执行 commit。**
+
+### 5a. 静态检查（必须）
 
 ```bash
-# 单元测试（mock）
+# Go 单元测试
 go test ./internal/<domain>/adapter/grpc/ -run '^Test[^I]' -v
 
-# 集成测试（需 postgres 运行）
-go test ./internal/<domain>/adapter/grpc/ -run '^TestIntegration' -v
-```
+# Go 静态检查
+go vet ./internal/<domain>/...
 
-### 5b. SMS/外部服务测试（如涉及）
-
-```bash
-TEST_PHONE_NUMBER=138xxxxxxx go test ./internal/<domain>/adapter/sms/ -run TestSend -v
-```
-
-### 5c. Flutter 静态检查
-
-```bash
+# Flutter 静态分析
 cd client && flutter analyze
+```
+
+### 5b. Smoke 端到端测试（必须）
+
+```bash
+# 从零启动 PostgreSQL + 迁移 + 编译 + 启动服务 + grpcurl 测试全部 RPC
+bash smoke.sh
+```
+
+**新增 RPC 必须在 smoke.sh 中添加对应的测试断言**：
+- 正常调用：带 token 验证返回数据正确
+- 鉴权验证：不带 token 验证返回 UNAUTHENTICATED
+
+### 5c. 真机测试（如有设备）
+
+```bash
+# 连接设备后运行
+cd client && flutter run
+
+# 或指定设备
+flutter run -d <device_id>
 ```
 
 ### 5d. 手动测试清单
