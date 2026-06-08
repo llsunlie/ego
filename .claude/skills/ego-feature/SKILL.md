@@ -36,6 +36,7 @@ server/internal/bootstrap/   ← 依赖注入, composite handler
 | 过往/history/past/trace | `ego-past` | timeline | `client/lib/features/past/`, `server/internal/timeline/` |
 | 星图/starmap/星座/对话/chat | `ego-starmap` | starmap + conversation | `client/lib/features/starmap/`, `server/internal/starmap/` + `conversation/` |
 | 引导/onboarding | `ego-onboarding` | - | `client/lib/features/onboarding/` |
+| 设置/账号信息/登出/profile | `ego-setting` | setting | `client/lib/features/setting/`, `server/internal/setting/` |
 | 基础设施/DB/AI/auth/配置 | `ego-platform` | platform + config + bootstrap | `server/internal/{platform,config,bootstrap}/` |
 
 2. **读取对应 skill 的 `SKILL.md`**，然后引导 agent Read `client.md` 和 `server.md`
