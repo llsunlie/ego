@@ -47,6 +47,8 @@ jobs:
         run: cd client && flutter pub get
 
       # 构建 release APK（从 secret 解码 keystore，通过环境变量传入签名参数）
+      - name: sync version
+        run: make version
       - name: build apk
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > client/android/app/upload-keystore.jks

@@ -61,6 +61,20 @@ for f in "$MIGRATIONS_DIR"/*.sql; do
 done
 log "all migrations applied"
 
+# ---------- seed test user ----------
+log "seeding test user..."
+SEED_PHONE="18861622557"
+SEED_PASSWORD_HASH='$2b$12$PKkQDhmSYlgRqsB1QsYAkuhou.usAXhV.vFUKD5xKQgtmu28ANQdS'  # bcrypt("llccllcc")
+SEED_UUID="7be63c93-0cd1-4408-b1a4-e1add4e29649"
+SEED_TS="2025-01-15T00:00:00Z"
+
+docker compose exec -T postgres psql -U ego -d ego >/dev/null 2>&1 <<SQL
+INSERT INTO users (id, phone, password_hash, created_at)
+VALUES ('$SEED_UUID', '$SEED_PHONE', '$SEED_PASSWORD_HASH', '$SEED_TS')
+ON CONFLICT DO NOTHING;
+SQL
+log "test user seeded: phone=$SEED_PHONE"
+
 # ---------- go backend ----------
 log "building & starting backend..."
 cd "$ROOT/server"
@@ -80,6 +94,10 @@ fi
 log "backend ready  gRPC :${GRPC_PORT}  gRPC-web :${WEB_PORT}"
 
 # ---------- flutter web ----------
+log "syncing app version from git tag..."
+cd "$ROOT"
+make version
+
 log "building flutter web (release)..."
 cd "$ROOT/client"
 flutter build web --release -O4 --no-source-maps --base-href /
