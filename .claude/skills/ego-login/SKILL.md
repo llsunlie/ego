@@ -15,10 +15,12 @@ description: 登录注册 feature — 前端 client page: /login + 后端 identi
 ### 前端 (`client/`)
 | 文件 | 说明 |
 |------|------|
-| `client/lib/features/login/login_page.dart` | 4-step 登录 UI（手机号→密码/验证码注册/忘记密码） |
+| `client/lib/features/login/login_page.dart` | 4-step 登录 UI（手机号→密码/验证码注册/忘记密码）；Step 2 含协议 checkbox |
+| `client/lib/features/login/terms_page.dart` | 服务条款页面 |
+| `client/lib/features/login/privacy_page.dart` | 隐私政策页面 |
 | `client/lib/core/providers/auth_provider.dart` | Auth 状态管理 |
 | `client/lib/data/services/ego_client.dart` | `checkPhone()` / `sendVerificationCode()` / `register()` / `login()` / `resetPassword()` |
-| `client/lib/core/router/router.dart` | `/login` 路由 + 守卫 |
+| `client/lib/core/router/router.dart` | `/login` `/terms` `/privacy` 路由 + 守卫 |
 
 ### 后端 (`server/`)
 | 文件 | 说明 |
