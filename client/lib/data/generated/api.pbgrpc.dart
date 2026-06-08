@@ -68,6 +68,14 @@ class EgoClient extends $grpc.Client {
     return $createUnaryCall(_$resetPassword, request, options: options);
   }
 
+  /// ─── Setting（设置）──────────────────────────────────
+  $grpc.ResponseFuture<$0.GetProfileRes> getProfile(
+    $0.GetProfileReq request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$getProfile, request, options: options);
+  }
+
   /// ─── Moment（话语）─────────────────────────────────────
   /// 写下一句话，保存 Moment + Echo，返回回声
   $grpc.ResponseFuture<$0.CreateMomentRes> createMoment(
@@ -187,6 +195,11 @@ class EgoClient extends $grpc.Client {
           '/ego.Ego/ResetPassword',
           ($0.ResetPasswordReq value) => value.writeToBuffer(),
           $0.ResetPasswordRes.fromBuffer);
+  static final _$getProfile =
+      $grpc.ClientMethod<$0.GetProfileReq, $0.GetProfileRes>(
+          '/ego.Ego/GetProfile',
+          ($0.GetProfileReq value) => value.writeToBuffer(),
+          $0.GetProfileRes.fromBuffer);
   static final _$createMoment =
       $grpc.ClientMethod<$0.CreateMomentReq, $0.CreateMomentRes>(
           '/ego.Ego/CreateMoment',
@@ -286,6 +299,13 @@ abstract class EgoServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) => $0.ResetPasswordReq.fromBuffer(value),
         ($0.ResetPasswordRes value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GetProfileReq, $0.GetProfileRes>(
+        'GetProfile',
+        getProfile_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.GetProfileReq.fromBuffer(value),
+        ($0.GetProfileRes value) => value.writeToBuffer()));
     $addMethod($grpc.ServiceMethod<$0.CreateMomentReq, $0.CreateMomentRes>(
         'CreateMoment',
         createMoment_Pre,
@@ -412,6 +432,14 @@ abstract class EgoServiceBase extends $grpc.Service {
 
   $async.Future<$0.ResetPasswordRes> resetPassword(
       $grpc.ServiceCall call, $0.ResetPasswordReq request);
+
+  $async.Future<$0.GetProfileRes> getProfile_Pre(
+      $grpc.ServiceCall $call, $async.Future<$0.GetProfileReq> $request) async {
+    return getProfile($call, await $request);
+  }
+
+  $async.Future<$0.GetProfileRes> getProfile(
+      $grpc.ServiceCall call, $0.GetProfileReq request);
 
   $async.Future<$0.CreateMomentRes> createMoment_Pre($grpc.ServiceCall $call,
       $async.Future<$0.CreateMomentReq> $request) async {
