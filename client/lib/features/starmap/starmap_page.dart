@@ -117,13 +117,17 @@ class _StarmapPageState extends ConsumerState<StarmapPage>
             // Page header — matches past_page style
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
-              child: Text(
-                '已有 ${state.totalStarCount} 颗星',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.white.withValues(alpha: 0.5),
-                  fontWeight: FontWeight.w300,
-                  letterSpacing: 1.5,
+              child: SizedBox(
+                width: double.infinity,
+                child: Text(
+                  '已有 ${state.totalStarCount} 颗星',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withValues(alpha: 0.5),
+                    fontWeight: FontWeight.w300,
+                    letterSpacing: 1.5,
+                  ),
                 ),
               ),
             ),

@@ -26,7 +26,8 @@ func main() {
 	timelineHandler := bootstrap.NewTimelineHandler(p)
 	starmapHandler := bootstrap.NewStarmapHandler(p)
 	chatHandler := bootstrap.NewChatHandler(p)
-	handler := bootstrap.NewEgoHandler(identityHandler, writingHandler, timelineHandler, starmapHandler, chatHandler)
+	settingHandler := bootstrap.NewSettingHandler(p)
+	handler := bootstrap.NewEgoHandler(identityHandler, writingHandler, timelineHandler, starmapHandler, chatHandler, settingHandler)
 	server := bootstrap.NewServer(cfg, p, handler)
 
 	if err := server.Serve(); err != nil {

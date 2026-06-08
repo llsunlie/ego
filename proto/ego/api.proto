@@ -19,6 +19,9 @@ service Ego {
   rpc Register(RegisterReq) returns (RegisterRes);
   rpc ResetPassword(ResetPasswordReq) returns (ResetPasswordRes);
 
+  // ─── Setting（设置）──────────────────────────────────
+  rpc GetProfile(GetProfileReq) returns (GetProfileRes);
+
   // ─── Moment（话语）─────────────────────────────────────
   // 写下一句话，保存 Moment + Echo，返回回声
   rpc CreateMoment(CreateMomentReq) returns (CreateMomentRes);
@@ -104,6 +107,13 @@ message ResetPasswordReq {
 
 message ResetPasswordRes {
   string token = 1;
+}
+
+message GetProfileReq {}
+
+message GetProfileRes {
+  string phone     = 1;  // 手机号
+  int64  created_at = 2;  // 注册时间 unix timestamp ms
 }
 
 // =========================================================================
