@@ -26,6 +26,8 @@ jobs:
       # 拉取仓库代码
       - name: checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
 
       # JDK 17，Android 构建必需
       - name: setup java

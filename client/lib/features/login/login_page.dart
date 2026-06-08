@@ -415,6 +415,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               fontSize: 13,
                               color: AppColors.textSecondary,
                               height: 1.5,
+                              fontFamily: 'NotoSansSC',
+                              fontFamilyFallback: ['NotoSansSymbols2'],
                             ),
                             children: [
                               const TextSpan(text: '我已阅读并同意'),
