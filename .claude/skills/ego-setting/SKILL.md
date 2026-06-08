@@ -15,7 +15,7 @@ description: Settings/account info/logout feature context. Read-only user profil
 ### 前端 (`client/`)
 | 文件 | 说明 |
 |------|------|
-| `client/lib/features/setting/setting_page.dart` | 设置页 UI：脱敏手机号 + 注册时间 + 关于/版本 + 红色登出按钮 |
+| `client/lib/features/setting/setting_page.dart` | 设置页 UI：icon 分区行 + copy/导航交互 + 服务条款/隐私政策入口 + 红色登出按钮 |
 | `client/lib/core/version.dart` | `make version` 生成 `appVersion` 常量，来源 `git describe --tags` |
 | `client/lib/shared/widgets/app_shell.dart` | 左上角齿轮图标入口（push 导航到 /setting） |
 | `client/lib/core/router/router.dart` | `/setting` 路由（普通 GoRoute，需登录） |
