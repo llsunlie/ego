@@ -5,7 +5,7 @@ description: Use when implementing a new feature or making changes to the ego ap
 
 # ego-feature
 
-全栈功能开发工作流。输入 `/ego-feature <需求描述>` 自动执行 7 个阶段。
+全栈功能开发工作流。输入 `/ego-feature <需求描述>` 自动执行 8 个阶段。
 
 ## 架构速查
 
@@ -201,6 +201,36 @@ flutter run -d <device_id>
 3. 更新：路由、新 RPC、新文件、改动后的数据流、架构变更
 4. 如果 `SKILL.md` 中的快速文件索引有变化，一并更新
 5. 提交 skill 更新
+
+---
+
+## Phase 7: Push & PR
+
+**全部 commit 完成后，推送到远程并创建 Pull Request。**
+
+### 步骤
+
+1. **推送分支**：
+
+```bash
+git push origin <current-branch>
+```
+
+2. **创建 PR**：
+
+```bash
+gh pr create \
+  --base test \
+  --head <current-branch> \
+  --title "<PR title>" \
+  --body "<PR body>"
+```
+
+### 约定
+
+- **Base branch**: `test`（开发集成分支），最终合入 `main`
+- **PR body** 末尾附带 `🤖 Generated with [Claude Code](https://claude.com/claude-code)`
+- 如果 `gh` CLI 未认证，提示用户自行创建 PR
 
 ---
 
