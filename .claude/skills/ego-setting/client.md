@@ -10,7 +10,7 @@
 
 | 文件 | 说明 |
 |------|------|
-| `client/lib/features/setting/setting_page.dart` | 设置页 UI，`ConsumerStatefulWidget` |
+| `client/lib/features/setting/setting_page.dart` | 设置页 UI: 分区 icon 行 + copy / push 交互，`ConsumerStatefulWidget` |
 | `client/lib/core/version.dart` | `make version` 生成，`appVersion` 常量来自 `git describe --tags` |
 | `client/lib/shared/widgets/app_shell.dart` | 左上角 `Icons.settings_outlined` 入口 |
 | `client/lib/core/router/router.dart` | `/setting` 路由（GoRoute） |
@@ -24,12 +24,15 @@ SettingPage
 ├── AppBar（透明背景，金色「设置」标题居中，左侧返回箭头）
 ├── 账号信息区
 │   ├── 标签「账号信息」（灰色小字）
-│   ├── 手机号行：标签 + 脱敏值（138****8888）
-│   └── 注册时间行：标签 + 格式化日期（2025/01/15）
+│   ├── 📱 手机号行：icon + label + 脱敏值 → 点击复制原始手机号
+│   └── 📅 注册时间行：icon + label + 日期 → 点击复制日期文本
 ├── 关于区
 │   ├── 标签「关于」（灰色小字）
-│   └── 版本行：标签 + appVersion（来自 git describe --tags）
-└── 退出登录按钮（红色边框 + 红色文字，全宽，无确认弹窗）
+│   ├── ℹ️ 版本行：icon + label + 版本号 → 点击复制版本号
+│   ├── 📄 服务条款行：icon + label + 右箭头 → push /terms
+│   └── 🛡️ 隐私政策行：icon + label + 右箭头 → push /privacy
+├── 退出登录按钮（红色边框 + 红色文字，全宽，无确认弹窗）
+└── 区域间通过 SizedBox 分隔，行间通过 1px 细线分割
 ```
 
 ## 状态管理
@@ -42,9 +45,19 @@ SettingPage
 ```
 1. initState() → _loadProfile()
 2. ref.read(EgoClient.provider).getProfile(ref) → gRPC GetProfile
-3. 成功 → setState(_profile, _loading=false)
+3. 成功 → setState(_profile, _rawPhone, _loading=false)
 4. 失败 → setState(_error, _loading=false)
 ```
+
+## 交互
+
+| 行 | 点击行为 |
+|----|---------|
+| 手机号 | 复制原始手机号到剪贴板，SnackBar 提示「手机号已复制」 |
+| 注册时间 | 复制日期文本到剪贴板，SnackBar 提示「注册时间已复制」 |
+| 版本 | 复制版本号到剪贴板，SnackBar 提示「版本号已复制」 |
+| 服务条款 | `context.push('/terms')` → TermsPage（位于 login feature） |
+| 隐私政策 | `context.push('/privacy')` → PrivacyPage（位于 login feature） |
 
 ## gRPC 调用
 
