@@ -137,9 +137,15 @@ server/internal/bootstrap/   ← 依赖注入, composite handler
 5. **真机测试**: 连接设备运行 `flutter run`，按手动测试清单逐项验证（用户执行）
 6. **sqlc 副作用检查**: `make sqlc` 后检查 `git diff --stat`，如果 `server/internal/platform/postgres/sqlc/` 下出现 features 无关的变更，需 `git checkout` 还原（agent 执行）
 
-> **真机测试**: agent 负责前 5 项自动化检查，真机测试由用户手动验证后通知 agent commit。: `make sqlc` 后检查 `git diff --stat`，如果 `server/internal/platform/postgres/sqlc/` 下出现 features 无关的变更，需 `git checkout` 还原
+### 真机测试硬阻断规则
 
-> **真机测试**: 如果当前环境无可用设备，跳过并告知用户需自行测试。
+**Agent 严禁在用户确认真机测试通过前执行 commit。** 此规则无例外：
+
+- 前 5 项自动化检查（Go test/vet、Flutter analyze、smoke.sh、sqlc）全部通过后，agent **必须停止并等待**
+- Agent 输出手动测试清单，明确告知用户：「请在真机上完成测试后通知我 commit」
+- **唯有用户明确通知测试通过后**，agent 才能执行 `git commit`
+- 即使用户说「可以提交了」，agent 也应二次确认：「真机测试已通过？」
+- 如果当前环境无可用设备：agent 禁止自行 commit，必须告知用户需自行在设备上测试并通知结果
 
 ---
 
