@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/theme/colors.dart';
+import '../../core/version.dart';
 import '../../data/services/ego_client.dart';
 import '../../data/generated/api.pbgrpc.dart' as grpc;
 
@@ -118,6 +119,16 @@ class _SettingPageState extends ConsumerState<SettingPage> {
                         '注册时间',
                         _formatDate(_profile!.createdAt.toInt()),
                       ),
+                      const SizedBox(height: 32),
+                      const Text(
+                        '关于',
+                        style: TextStyle(
+                          color: AppColors.textHint,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _infoRow('版本', appVersion),
                       const SizedBox(height: 48),
                       SizedBox(
                         width: double.infinity,
