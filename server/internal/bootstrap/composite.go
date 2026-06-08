@@ -19,15 +19,17 @@ type EgoHandler struct {
 	timeline pb.EgoServer
 	starmap  pb.EgoServer
 	chat     pb.EgoServer
+	setting  pb.EgoServer
 }
 
-func NewEgoHandler(identity, writing, timeline, starmap, chat pb.EgoServer) *EgoHandler {
+func NewEgoHandler(identity, writing, timeline, starmap, chat, setting pb.EgoServer) *EgoHandler {
 	return &EgoHandler{
 		identity: identity,
 		writing:  writing,
 		timeline: timeline,
 		starmap:  starmap,
 		chat:     chat,
+		setting:  setting,
 	}
 }
 
@@ -164,5 +166,14 @@ func (h *EgoHandler) SendMessage(ctx context.Context, req *pb.SendMessageReq) (*
 	logger.InfoContext(ctx, "SendMessage: request", "req", fmt.Sprintf("%+v", req))
 	res, err := h.chat.SendMessage(ctx, req)
 	logger.InfoContext(ctx, "SendMessage: response", "res", fmt.Sprintf("%+v", res), "error", err)
+	return res, err
+}
+
+// Setting — delegated to setting.
+func (h *EgoHandler) GetProfile(ctx context.Context, req *pb.GetProfileReq) (*pb.GetProfileRes, error) {
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "GetProfile: request", "req", fmt.Sprintf("%+v", req))
+	res, err := h.setting.GetProfile(ctx, req)
+	logger.InfoContext(ctx, "GetProfile: response", "res", fmt.Sprintf("%+v", res), "error", err)
 	return res, err
 }

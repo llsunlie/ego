@@ -9,6 +9,7 @@ import '../../features/past/past_page.dart';
 import '../../features/past/trace_detail_page.dart';
 import '../../features/starmap/starmap_page.dart';
 import '../../features/starmap/constellation_detail_page.dart';
+import '../../features/setting/setting_page.dart';
 import '../../shared/widgets/app_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -39,6 +40,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/onboard',
         builder: (context, state) => const OnboardingPage(),
+      ),
+      GoRoute(
+        path: '/setting',
+        builder: (context, state) => const SettingPage(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>

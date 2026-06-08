@@ -90,6 +90,20 @@ for f in "$SERVER_DIR/internal/platform/postgres/migrations/"*.sql; do
 done
 pass "all migrations applied"
 
+# --- seed test user ---------------------------------------------------------
+# Insert test user directly (bypass SMS verification required by Register RPC)
+SEED_PHONE="13800000001"
+SEED_PASSWORD_HASH='$2b$10$3OpKjTcxWvc1b5YePO0kzuzB.2MNpWe8PPwFSxXHHA80M7aOzCoc.'  # bcrypt("test1234")
+SEED_UUID="2f16aa80-0a52-44a7-a8ea-581535fcb320"
+SEED_TS="2025-01-15T00:00:00Z"
+
+docker compose exec -T postgres psql -U ego -d ego >/dev/null 2>&1 <<SQL
+INSERT INTO users (id, phone, password_hash, created_at)
+VALUES ('$SEED_UUID', '$SEED_PHONE', '$SEED_PASSWORD_HASH', '$SEED_TS')
+ON CONFLICT DO NOTHING;
+SQL
+pass "test user seeded: phone=$SEED_PHONE"
+
 # --- step 3: build server -------------------------------------------------
 
 info "building server..."
@@ -126,7 +140,7 @@ $GRPCURL -plaintext "$GRPC_ADDR" list | grep -q "ego.Ego" || fail "ego.Ego servi
 # --- step 5: login → get JWT token ----------------------------------------
 
 info "logging in..."
-LOGIN_JSON=$($GRPCURL -plaintext -d '{"account":"smoke-tester","password":"test1234"}' "$GRPC_ADDR" ego.Ego/Login 2>&1)
+LOGIN_JSON=$($GRPCURL -plaintext -d '{"phone":"13800000001","password":"test1234"}' "$GRPC_ADDR" ego.Ego/Login 2>&1)
 echo "  login response: $LOGIN_JSON"
 
 TOKEN=$(echo "$LOGIN_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
@@ -136,6 +150,33 @@ fi
 pass "JWT token obtained"
 
 AUTH="authorization: Bearer $TOKEN"
+
+# ============================================================================
+# Smoke Test: Setting — 账号信息与登出
+# ============================================================================
+
+info "=== Smoke: Setting — GetProfile ==="
+
+RES_PROFILE=$($GRPCURL -plaintext -H "$AUTH" -d '{}' "$GRPC_ADDR" ego.Ego/GetProfile 2>&1)
+echo "  GetProfile: $RES_PROFILE"
+
+PROFILE_PHONE=$(echo "$RES_PROFILE" | python3 -c "import sys,json; print(json.load(sys.stdin)['phone'])")
+PROFILE_CREATED_AT=$(echo "$RES_PROFILE" | python3 -c "import sys,json; print(json.load(sys.stdin)['createdAt'])")
+
+# assert: phone is present and non-empty
+[ -n "$PROFILE_PHONE" ] && [ "$PROFILE_PHONE" != "null" ] || fail "GetProfile: phone is empty"
+# assert: created_at is present and non-zero
+[ -n "$PROFILE_CREATED_AT" ] && [ "$PROFILE_CREATED_AT" != "null" ] && [ "$PROFILE_CREATED_AT" != "0" ] || fail "GetProfile: created_at is empty or zero"
+pass "GetProfile: phone=$PROFILE_PHONE, created_at=$PROFILE_CREATED_AT"
+
+# assert: unauthorized access without token
+RES_PROFILE_NOAUTH=$($GRPCURL -plaintext -d '{}' "$GRPC_ADDR" ego.Ego/GetProfile 2>&1) || true
+echo "  GetProfile (no auth): $RES_PROFILE_NOAUTH"
+if echo "$RES_PROFILE_NOAUTH" | grep -qi "unauthenticated\|missing\|error"; then
+  pass "GetProfile: unauthorized rejected (correct)"
+else
+  fail "GetProfile: expected authentication error for unauthenticated request"
+fi
 
 # ============================================================================
 # Smoke Test: F1 写字 → 回声 → 观察
@@ -494,7 +535,8 @@ echo -e "${GREEN}========================================${RESET}"
 echo -e "${GREEN}  All smoke tests passed!${RESET}"
 echo -e "${GREEN}========================================${RESET}"
 echo ""
-echo "  F1 Write+Observe     : PASS"
+echo "  Setting GetProfile   : PASS"
+  F1 Write+Observe     : PASS"
 echo "  GetMoments           : PASS"
 echo "  F2 ContinueTrace     : PASS"
 echo "  F3 StashTrace        : PASS"
