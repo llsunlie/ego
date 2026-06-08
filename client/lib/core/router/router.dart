@@ -10,6 +10,8 @@ import '../../features/past/trace_detail_page.dart';
 import '../../features/starmap/starmap_page.dart';
 import '../../features/starmap/constellation_detail_page.dart';
 import '../../features/setting/setting_page.dart';
+import '../../features/login/terms_page.dart';
+import '../../features/login/privacy_page.dart';
 import '../../shared/widgets/app_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -23,8 +25,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       final loggedIn = authState.isLoggedIn;
       final isLoginRoute = state.matchedLocation == '/login';
       final isOnboardingRoute = state.matchedLocation == '/onboard';
+      final isTermsRoute = state.matchedLocation == '/terms';
+      final isPrivacyRoute = state.matchedLocation == '/privacy';
 
-      if (!loggedIn && !isLoginRoute) return '/login';
+      if (!loggedIn && !isLoginRoute && !isTermsRoute && !isPrivacyRoute) return '/login';
       if (loggedIn && isLoginRoute) {
         return onboardingDone ? '/now' : '/onboard';
       }
@@ -44,6 +48,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/setting',
         builder: (context, state) => const SettingPage(),
+      ),
+      GoRoute(
+        path: '/terms',
+        builder: (context, state) => const TermsPage(),
+      ),
+      GoRoute(
+        path: '/privacy',
+        builder: (context, state) => const PrivacyPage(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
