@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:grpc/grpc_or_grpcweb.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/theme/colors.dart';
+import '../now/widgets/starry_background.dart';
 import '../../data/services/ego_client.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -257,9 +258,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
+      backgroundColor: AppColors.darkBg,
+      body: Stack(
+        children: [
+          const StarryBackground(),
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -536,6 +541,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             ),
           ),
         ),
+      ),
+        ],
       ),
     );
   }

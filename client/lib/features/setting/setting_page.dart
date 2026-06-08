@@ -6,6 +6,7 @@ import '../../core/providers/auth_provider.dart';
 import '../../core/theme/colors.dart';
 import '../../core/version.dart';
 import '../../data/services/ego_client.dart';
+import '../now/widgets/starry_background.dart';
 import '../../data/generated/api.pbgrpc.dart' as grpc;
 
 class SettingPage extends ConsumerStatefulWidget {
@@ -154,7 +155,10 @@ class _SettingPageState extends ConsumerState<SettingPage> {
         ),
         centerTitle: true,
       ),
-      body: _loading
+      body: Stack(
+        children: [
+          const StarryBackground(),
+          _loading
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.gold),
             )
@@ -246,6 +250,8 @@ class _SettingPageState extends ConsumerState<SettingPage> {
                     ],
                   ),
                 ),
+        ],
+      ),
     );
   }
 }
