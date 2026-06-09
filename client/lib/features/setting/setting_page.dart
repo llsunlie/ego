@@ -222,6 +222,13 @@ class _SettingPageState extends ConsumerState<SettingPage> {
                         showArrow: true,
                         onTap: () => context.push('/privacy'),
                       ),
+                      _rowDivider(),
+                      _settingRow(
+                        icon: Icons.feedback_outlined,
+                        label: '用户反馈',
+                        showArrow: true,
+                        onTap: () => context.push('/feedback'),
+                      ),
                       const SizedBox(height: 48),
                       SizedBox(
                         width: double.infinity,

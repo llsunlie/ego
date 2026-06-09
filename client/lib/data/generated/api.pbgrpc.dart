@@ -76,6 +76,13 @@ class EgoClient extends $grpc.Client {
     return $createUnaryCall(_$getProfile, request, options: options);
   }
 
+  $grpc.ResponseFuture<$0.SubmitFeedbackRes> submitFeedback(
+    $0.SubmitFeedbackReq request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$submitFeedback, request, options: options);
+  }
+
   /// ─── Moment（话语）─────────────────────────────────────
   /// 写下一句话，保存 Moment + Echo，返回回声
   $grpc.ResponseFuture<$0.CreateMomentRes> createMoment(
@@ -200,6 +207,11 @@ class EgoClient extends $grpc.Client {
           '/ego.Ego/GetProfile',
           ($0.GetProfileReq value) => value.writeToBuffer(),
           $0.GetProfileRes.fromBuffer);
+  static final _$submitFeedback =
+      $grpc.ClientMethod<$0.SubmitFeedbackReq, $0.SubmitFeedbackRes>(
+          '/ego.Ego/SubmitFeedback',
+          ($0.SubmitFeedbackReq value) => value.writeToBuffer(),
+          $0.SubmitFeedbackRes.fromBuffer);
   static final _$createMoment =
       $grpc.ClientMethod<$0.CreateMomentReq, $0.CreateMomentRes>(
           '/ego.Ego/CreateMoment',
@@ -306,6 +318,13 @@ abstract class EgoServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) => $0.GetProfileReq.fromBuffer(value),
         ($0.GetProfileRes value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.SubmitFeedbackReq, $0.SubmitFeedbackRes>(
+        'SubmitFeedback',
+        submitFeedback_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.SubmitFeedbackReq.fromBuffer(value),
+        ($0.SubmitFeedbackRes value) => value.writeToBuffer()));
     $addMethod($grpc.ServiceMethod<$0.CreateMomentReq, $0.CreateMomentRes>(
         'CreateMoment',
         createMoment_Pre,
@@ -440,6 +459,15 @@ abstract class EgoServiceBase extends $grpc.Service {
 
   $async.Future<$0.GetProfileRes> getProfile(
       $grpc.ServiceCall call, $0.GetProfileReq request);
+
+  $async.Future<$0.SubmitFeedbackRes> submitFeedback_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.SubmitFeedbackReq> $request) async {
+    return submitFeedback($call, await $request);
+  }
+
+  $async.Future<$0.SubmitFeedbackRes> submitFeedback(
+      $grpc.ServiceCall call, $0.SubmitFeedbackReq request);
 
   $async.Future<$0.CreateMomentRes> createMoment_Pre($grpc.ServiceCall $call,
       $async.Future<$0.CreateMomentReq> $request) async {

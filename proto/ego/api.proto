@@ -21,6 +21,7 @@ service Ego {
 
   // ─── Setting（设置）──────────────────────────────────
   rpc GetProfile(GetProfileReq) returns (GetProfileRes);
+  rpc SubmitFeedback(SubmitFeedbackReq) returns (SubmitFeedbackRes);
 
   // ─── Moment（话语）─────────────────────────────────────
   // 写下一句话，保存 Moment + Echo，返回回声
@@ -114,6 +115,15 @@ message GetProfileReq {}
 message GetProfileRes {
   string phone     = 1;  // 手机号
   int64  created_at = 2;  // 注册时间 unix timestamp ms
+}
+
+message SubmitFeedbackReq {
+  string content = 1;  // 反馈文本内容
+}
+
+message SubmitFeedbackRes {
+  string id         = 1;  // 反馈记录 ID
+  int64  created_at = 2;  // 提交时间 unix timestamp ms
 }
 
 // =========================================================================

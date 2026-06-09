@@ -10,6 +10,7 @@ import '../../features/past/trace_detail_page.dart';
 import '../../features/starmap/starmap_page.dart';
 import '../../features/starmap/constellation_detail_page.dart';
 import '../../features/setting/setting_page.dart';
+import '../../features/setting/feedback_page.dart';
 import '../../features/login/terms_page.dart';
 import '../../features/login/privacy_page.dart';
 import '../../shared/widgets/app_shell.dart';
@@ -48,6 +49,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/setting',
         builder: (context, state) => const SettingPage(),
+      ),
+      GoRoute(
+        path: '/feedback',
+        builder: (context, state) => const FeedbackPage(),
       ),
       GoRoute(
         path: '/terms',
