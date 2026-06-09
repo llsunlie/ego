@@ -177,3 +177,11 @@ func (h *EgoHandler) GetProfile(ctx context.Context, req *pb.GetProfileReq) (*pb
 	logger.InfoContext(ctx, "GetProfile: response", "res", fmt.Sprintf("%+v", res), "error", err)
 	return res, err
 }
+
+func (h *EgoHandler) SubmitFeedback(ctx context.Context, req *pb.SubmitFeedbackReq) (*pb.SubmitFeedbackRes, error) {
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "SubmitFeedback: request", "req", fmt.Sprintf("%+v", req))
+	res, err := h.setting.SubmitFeedback(ctx, req)
+	logger.InfoContext(ctx, "SubmitFeedback: response", "res", fmt.Sprintf("%+v", res), "error", err)
+	return res, err
+}

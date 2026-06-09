@@ -179,6 +179,32 @@ final $typed_data.Uint8List getProfileResDescriptor = $convert.base64Decode(
     'Cg1HZXRQcm9maWxlUmVzEhQKBXBob25lGAEgASgJUgVwaG9uZRIdCgpjcmVhdGVkX2F0GAIgAS'
     'gDUgljcmVhdGVkQXQ=');
 
+@$core.Deprecated('Use submitFeedbackReqDescriptor instead')
+const SubmitFeedbackReq$json = {
+  '1': 'SubmitFeedbackReq',
+  '2': [
+    {'1': 'content', '3': 1, '4': 1, '5': 9, '10': 'content'},
+  ],
+};
+
+/// Descriptor for `SubmitFeedbackReq`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List submitFeedbackReqDescriptor = $convert.base64Decode(
+    'ChFTdWJtaXRGZWVkYmFja1JlcRIYCgdjb250ZW50GAEgASgJUgdjb250ZW50');
+
+@$core.Deprecated('Use submitFeedbackResDescriptor instead')
+const SubmitFeedbackRes$json = {
+  '1': 'SubmitFeedbackRes',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 9, '10': 'id'},
+    {'1': 'created_at', '3': 2, '4': 1, '5': 3, '10': 'createdAt'},
+  ],
+};
+
+/// Descriptor for `SubmitFeedbackRes`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List submitFeedbackResDescriptor = $convert.base64Decode(
+    'ChFTdWJtaXRGZWVkYmFja1JlcxIOCgJpZBgBIAEoCVICaWQSHQoKY3JlYXRlZF9hdBgCIAEoA1'
+    'IJY3JlYXRlZEF0');
+
 @$core.Deprecated('Use momentDescriptor instead')
 const Moment$json = {
   '1': 'Moment',

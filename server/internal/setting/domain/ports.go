@@ -15,3 +15,8 @@ type UserInfo struct {
 type UserReader interface {
 	FindByID(ctx context.Context, id string) (*UserInfo, error)
 }
+
+// FeedbackWriter persists user feedback.
+type FeedbackWriter interface {
+	Save(ctx context.Context, feedback *Feedback) error
+}

@@ -71,6 +71,15 @@ class EgoClient {
     return _stub.getProfile(req, options: authCallOptions(token));
   }
 
+  Future<grpc.SubmitFeedbackRes> submitFeedback(
+    WidgetRef ref, {
+    required String content,
+  }) async {
+    final req = grpc.SubmitFeedbackReq(content: content);
+    final token = ref.read(authProvider).token;
+    return _stub.submitFeedback(req, options: authCallOptions(token));
+  }
+
   // ─── Moment ───────────────────────────────────
 
   Future<grpc.CreateMomentRes> createMoment(
