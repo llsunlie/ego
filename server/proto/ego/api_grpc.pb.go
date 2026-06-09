@@ -25,6 +25,7 @@ const (
 	Ego_Register_FullMethodName             = "/ego.Ego/Register"
 	Ego_ResetPassword_FullMethodName        = "/ego.Ego/ResetPassword"
 	Ego_GetProfile_FullMethodName           = "/ego.Ego/GetProfile"
+	Ego_SubmitFeedback_FullMethodName       = "/ego.Ego/SubmitFeedback"
 	Ego_CreateMoment_FullMethodName         = "/ego.Ego/CreateMoment"
 	Ego_GetMoments_FullMethodName           = "/ego.Ego/GetMoments"
 	Ego_GenerateInsight_FullMethodName      = "/ego.Ego/GenerateInsight"
@@ -50,6 +51,7 @@ type EgoClient interface {
 	ResetPassword(ctx context.Context, in *ResetPasswordReq, opts ...grpc.CallOption) (*ResetPasswordRes, error)
 	// ─── Setting（设置）──────────────────────────────────
 	GetProfile(ctx context.Context, in *GetProfileReq, opts ...grpc.CallOption) (*GetProfileRes, error)
+	SubmitFeedback(ctx context.Context, in *SubmitFeedbackReq, opts ...grpc.CallOption) (*SubmitFeedbackRes, error)
 	// ─── Moment（话语）─────────────────────────────────────
 	// 写下一句话，保存 Moment + Echo，返回回声
 	CreateMoment(ctx context.Context, in *CreateMomentReq, opts ...grpc.CallOption) (*CreateMomentRes, error)
@@ -142,6 +144,16 @@ func (c *egoClient) GetProfile(ctx context.Context, in *GetProfileReq, opts ...g
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetProfileRes)
 	err := c.cc.Invoke(ctx, Ego_GetProfile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *egoClient) SubmitFeedback(ctx context.Context, in *SubmitFeedbackReq, opts ...grpc.CallOption) (*SubmitFeedbackRes, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SubmitFeedbackRes)
+	err := c.cc.Invoke(ctx, Ego_SubmitFeedback_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -270,6 +282,7 @@ type EgoServer interface {
 	ResetPassword(context.Context, *ResetPasswordReq) (*ResetPasswordRes, error)
 	// ─── Setting（设置）──────────────────────────────────
 	GetProfile(context.Context, *GetProfileReq) (*GetProfileRes, error)
+	SubmitFeedback(context.Context, *SubmitFeedbackReq) (*SubmitFeedbackRes, error)
 	// ─── Moment（话语）─────────────────────────────────────
 	// 写下一句话，保存 Moment + Echo，返回回声
 	CreateMoment(context.Context, *CreateMomentReq) (*CreateMomentRes, error)
@@ -325,6 +338,9 @@ func (UnimplementedEgoServer) ResetPassword(context.Context, *ResetPasswordReq) 
 }
 func (UnimplementedEgoServer) GetProfile(context.Context, *GetProfileReq) (*GetProfileRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetProfile not implemented")
+}
+func (UnimplementedEgoServer) SubmitFeedback(context.Context, *SubmitFeedbackReq) (*SubmitFeedbackRes, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SubmitFeedback not implemented")
 }
 func (UnimplementedEgoServer) CreateMoment(context.Context, *CreateMomentReq) (*CreateMomentRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateMoment not implemented")
@@ -484,6 +500,24 @@ func _Ego_GetProfile_Handler(srv interface{}, ctx context.Context, dec func(inte
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(EgoServer).GetProfile(ctx, req.(*GetProfileReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Ego_SubmitFeedback_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SubmitFeedbackReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EgoServer).SubmitFeedback(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Ego_SubmitFeedback_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EgoServer).SubmitFeedback(ctx, req.(*SubmitFeedbackReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -716,6 +750,10 @@ var Ego_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetProfile",
 			Handler:    _Ego_GetProfile_Handler,
+		},
+		{
+			MethodName: "SubmitFeedback",
+			Handler:    _Ego_SubmitFeedback_Handler,
 		},
 		{
 			MethodName: "CreateMoment",

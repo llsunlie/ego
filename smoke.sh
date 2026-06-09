@@ -178,6 +178,37 @@ else
   fail "GetProfile: expected authentication error for unauthenticated request"
 fi
 
+info "=== Smoke: Setting — SubmitFeedback ==="
+
+# Normal feedback submission
+RES_FEEDBACK=$($GRPCURL -plaintext -H "$AUTH" -d '{"content":"这是一条来自 smoke 测试的反馈"}' "$GRPC_ADDR" ego.Ego/SubmitFeedback 2>&1)
+echo "  SubmitFeedback: $RES_FEEDBACK"
+
+FB_ID=$(echo "$RES_FEEDBACK" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+FB_CREATED_AT=$(echo "$RES_FEEDBACK" | python3 -c "import sys,json; print(json.load(sys.stdin)['createdAt'])")
+
+[ -n "$FB_ID" ] && [ "$FB_ID" != "null" ] || fail "SubmitFeedback: id is empty"
+[ -n "$FB_CREATED_AT" ] && [ "$FB_CREATED_AT" != "null" ] && [ "$FB_CREATED_AT" != "0" ] || fail "SubmitFeedback: created_at is empty or zero"
+pass "SubmitFeedback: id=$FB_ID, created_at=$FB_CREATED_AT"
+
+# Unauthenticated request
+RES_FB_NOAUTH=$($GRPCURL -plaintext -d '{"content":"test"}' "$GRPC_ADDR" ego.Ego/SubmitFeedback 2>&1) || true
+echo "  SubmitFeedback (no auth): $RES_FB_NOAUTH"
+if echo "$RES_FB_NOAUTH" | grep -qi "unauthenticated\|missing\|error"; then
+  pass "SubmitFeedback: unauthorized rejected (correct)"
+else
+  fail "SubmitFeedback: expected authentication error for unauthenticated request"
+fi
+
+# Empty content
+RES_FB_EMPTY=$($GRPCURL -plaintext -H "$AUTH" -d '{"content":"  "}' "$GRPC_ADDR" ego.Ego/SubmitFeedback 2>&1) || true
+echo "  SubmitFeedback (empty): $RES_FB_EMPTY"
+if echo "$RES_FB_EMPTY" | grep -qi "invalid\|InvalidArgument"; then
+  pass "SubmitFeedback: empty content rejected (correct)"
+else
+  fail "SubmitFeedback: expected InvalidArgument for empty content"
+fi
+
 # ============================================================================
 # Smoke Test: F1 写字 → 回声 → 观察
 # ============================================================================
