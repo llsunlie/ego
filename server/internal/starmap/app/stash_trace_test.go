@@ -112,19 +112,42 @@ func (m *mockTraceProfileRepo) Upsert(ctx context.Context, profile *domain.Trace
 }
 
 type mockConstellationProfileRepo struct {
-	findCandidatesFn func(ctx context.Context, userID string, embedding []float32, limit int) ([]domain.ConstellationProfileCandidate, error)
-	upsertFn         func(ctx context.Context, profile *domain.ConstellationProfile, vector *domain.ConstellationProfileVector) error
-	addMembershipFn  func(ctx context.Context, membership domain.ConstellationMembership) error
+	findCandidatesFn      func(ctx context.Context, userID string, embedding []float32, limit int) ([]domain.ConstellationProfileCandidate, error)
+	findCandidatesByIDsFn func(ctx context.Context, userID string, constellationIDs []string) ([]domain.ConstellationProfileCandidate, error)
+	upsertFn              func(ctx context.Context, profile *domain.ConstellationProfile, vector *domain.ConstellationProfileVector) error
+	addMembershipFn       func(ctx context.Context, membership domain.ConstellationMembership) error
 }
 
 func (m *mockConstellationProfileRepo) FindCandidates(ctx context.Context, userID string, embedding []float32, limit int) ([]domain.ConstellationProfileCandidate, error) {
 	return m.findCandidatesFn(ctx, userID, embedding, limit)
+}
+func (m *mockConstellationProfileRepo) FindCandidatesByIDs(ctx context.Context, userID string, constellationIDs []string) ([]domain.ConstellationProfileCandidate, error) {
+	if m.findCandidatesByIDsFn == nil {
+		return nil, nil
+	}
+	return m.findCandidatesByIDsFn(ctx, userID, constellationIDs)
 }
 func (m *mockConstellationProfileRepo) Upsert(ctx context.Context, profile *domain.ConstellationProfile, vector *domain.ConstellationProfileVector) error {
 	return m.upsertFn(ctx, profile, vector)
 }
 func (m *mockConstellationProfileRepo) AddMembership(ctx context.Context, membership domain.ConstellationMembership) error {
 	return m.addMembershipFn(ctx, membership)
+}
+
+type mockConstellationProfileSparseReader struct {
+	searchFn func(ctx context.Context, profile domain.TraceProfile, limit int) ([]domain.ConstellationProfileSparseCandidate, error)
+}
+
+func (m *mockConstellationProfileSparseReader) SearchCandidates(ctx context.Context, profile domain.TraceProfile, limit int) ([]domain.ConstellationProfileSparseCandidate, error) {
+	return m.searchFn(ctx, profile, limit)
+}
+
+type mockConstellationProfileIndexer struct {
+	indexFn func(ctx context.Context, profile domain.ConstellationProfile) error
+}
+
+func (m *mockConstellationProfileIndexer) IndexProfile(ctx context.Context, profile domain.ConstellationProfile) error {
+	return m.indexFn(ctx, profile)
 }
 
 type mockIDGen struct {
@@ -141,6 +164,25 @@ func (m *mockSeqIDGen) New() string {
 	id := m.ids[0]
 	m.ids = m.ids[1:]
 	return id
+}
+
+func testConstellationProfileCandidate(id string, embedding []float32) domain.ConstellationProfileCandidate {
+	return domain.ConstellationProfileCandidate{
+		Profile: domain.ConstellationProfile{
+			ConstellationID: id,
+			UserID:          "user-1",
+			Topic:           id,
+			TraceCount:      1,
+		},
+		Vector: domain.ConstellationProfileVector{
+			ConstellationID:   id,
+			UserID:            "user-1",
+			Model:             "test",
+			Dim:               len(embedding),
+			ProfileEmbedding:  embedding,
+			CentroidEmbedding: embedding,
+		},
+	}
 }
 
 // --- tests ---
@@ -497,6 +539,142 @@ func TestStashTrace_ProfileClusteringCreatesPrimaryConstellation(t *testing.T) {
 	case <-done:
 	case <-time.After(2 * time.Second):
 		t.Fatal("profile clustering did not complete within timeout")
+	}
+}
+
+func TestMergeConstellationCandidatesRRF_PromotesCandidatesSeenByBothRetrievers(t *testing.T) {
+	dense := []domain.ConstellationProfileCandidate{
+		testConstellationProfileCandidate("dense-only", []float32{1, 0}),
+		testConstellationProfileCandidate("both", []float32{1, 0}),
+	}
+	sparse := []domain.ConstellationProfileCandidate{
+		testConstellationProfileCandidate("both", []float32{1, 0}),
+		testConstellationProfileCandidate("sparse-only", []float32{1, 0}),
+	}
+
+	got := mergeConstellationCandidatesRRF(dense, sparse, 60, 3)
+	if len(got) != 3 {
+		t.Fatalf("len = %d, want 3", len(got))
+	}
+	if got[0].Profile.ConstellationID != "both" {
+		t.Fatalf("top candidate = %q, want both", got[0].Profile.ConstellationID)
+	}
+}
+
+func TestStashTrace_ProfileClusteringUsesSparseOnlyCandidate(t *testing.T) {
+	ctx := context.WithValue(context.Background(), "user_id", "user-1")
+	now := time.Now()
+
+	trace := &writingdomain.Trace{ID: "tr-1", UserID: "user-1", Stashed: false, CreatedAt: now}
+	moments := []writingdomain.Moment{{ID: "mom-1", TraceID: trace.ID, UserID: trace.UserID, Content: "入职资料还在等反馈", CreatedAt: now}}
+	done := make(chan struct{})
+	var attached string
+
+	traceReader := &mockTraceReader{
+		getByIDFn: func(ctx context.Context, id string) (*writingdomain.Trace, error) {
+			return trace, nil
+		},
+		listMomentsByTraceIDFn: func(ctx context.Context, traceID string) ([]writingdomain.Moment, error) {
+			return moments, nil
+		},
+	}
+	traceStasher := &mockTraceStasher{markStashedFn: func(ctx context.Context, traceID string) error { return nil }}
+	starRepo := &mockStarRepo{
+		createFn:      func(ctx context.Context, star *domain.Star) error { return nil },
+		updateTopicFn: func(ctx context.Context, starID string, topic string) error { return nil },
+	}
+	constellationRepo := &mockConstellationRepo{
+		findByIDFn: func(ctx context.Context, id string) (*domain.Constellation, error) {
+			return &domain.Constellation{ID: id, UserID: trace.UserID, Topic: "入职等待", Name: "入职等待", StarIDs: []string{}, CreatedAt: now, UpdatedAt: now}, nil
+		},
+		updateFn: func(ctx context.Context, c *domain.Constellation) error { return nil },
+	}
+	assetGen := &mockAssetGen{generateFn: func(ctx context.Context, moments []writingdomain.Moment) (string, []float32, string, string, []string, error) {
+		return "入职等待", nil, "入职等待", "入职等待反馈", nil, nil
+	}}
+	profileGen := &mockTraceProfileGen{generateFn: func(ctx context.Context, trace writingdomain.Trace, moments []writingdomain.Moment) (*domain.TraceProfile, *domain.TraceProfileVector, error) {
+		return &domain.TraceProfile{
+				TraceID:     trace.ID,
+				UserID:      trace.UserID,
+				Topic:       "入职等待",
+				Summary:     "用户记录了入职资料等待反馈。",
+				Keywords:    []string{"入职", "反馈"},
+				Scenes:      []string{"工作"},
+				PatternTags: []string{"等待反馈"},
+				ProfileText: "主题：入职等待",
+				Status:      domain.TraceProfileStatusReady,
+			},
+			&domain.TraceProfileVector{TraceID: trace.ID, UserID: trace.UserID, Model: "test", Dim: 2, Embedding: []float32{1, 0}},
+			nil
+	}}
+	candidate := domain.ConstellationProfileCandidate{
+		Profile: domain.ConstellationProfile{
+			ConstellationID: "c-sparse",
+			UserID:          trace.UserID,
+			Topic:           "入职等待",
+			Summary:         "围绕入职资料与反馈等待。",
+			Keywords:        []string{"入职", "反馈"},
+			Scenes:          []string{"工作"},
+			PatternTags:     []string{"等待反馈"},
+			TraceCount:      2,
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		},
+		Vector: domain.ConstellationProfileVector{
+			ConstellationID:   "c-sparse",
+			UserID:            trace.UserID,
+			Model:             "test",
+			Dim:               2,
+			ProfileEmbedding:  []float32{1, 0},
+			CentroidEmbedding: []float32{1, 0},
+			CreatedAt:         now,
+			UpdatedAt:         now,
+		},
+	}
+	profileRepo := &mockTraceProfileRepo{upsertFn: func(ctx context.Context, profile *domain.TraceProfile, vector *domain.TraceProfileVector) error {
+		return nil
+	}}
+	constellationProfileRepo := &mockConstellationProfileRepo{
+		findCandidatesFn: func(ctx context.Context, userID string, embedding []float32, limit int) ([]domain.ConstellationProfileCandidate, error) {
+			return nil, nil
+		},
+		findCandidatesByIDsFn: func(ctx context.Context, userID string, ids []string) ([]domain.ConstellationProfileCandidate, error) {
+			if len(ids) != 1 || ids[0] != "c-sparse" {
+				t.Fatalf("sparse ids = %#v, want [c-sparse]", ids)
+			}
+			return []domain.ConstellationProfileCandidate{candidate}, nil
+		},
+		upsertFn: func(ctx context.Context, profile *domain.ConstellationProfile, vector *domain.ConstellationProfileVector) error {
+			return nil
+		},
+		addMembershipFn: func(ctx context.Context, membership domain.ConstellationMembership) error {
+			attached = membership.ConstellationID
+			close(done)
+			return nil
+		},
+	}
+	sparseReader := &mockConstellationProfileSparseReader{searchFn: func(ctx context.Context, profile domain.TraceProfile, limit int) ([]domain.ConstellationProfileSparseCandidate, error) {
+		return []domain.ConstellationProfileSparseCandidate{{ConstellationID: "c-sparse", Score: 12.3, MatchedFields: []string{"keywords"}}}, nil
+	}}
+
+	uc := NewStashTraceUseCaseWithTraceProfile(
+		traceReader, traceStasher, starRepo, constellationRepo,
+		assetGen,
+		profileGen, nil, profileRepo, constellationProfileRepo,
+		&mockSeqIDGen{ids: []string{"star-1"}},
+	)
+	uc.UseConstellationSparseSearch(nil, sparseReader, 10, 60)
+
+	if _, err := uc.Execute(ctx, StashTraceInput{TraceID: trace.ID}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("sparse-only clustering did not complete")
+	}
+	if attached != "c-sparse" {
+		t.Fatalf("attached = %q, want c-sparse", attached)
 	}
 }
 

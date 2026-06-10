@@ -701,20 +701,33 @@ LLM 输出从单个 `constellation_id` 扩展为：
 - 触发 LLM 的边界区判断。
 - 诊断日志和后续调参。
 
-### P7.4 预留：ConstellationProfile ES sparse 召回
+### P7.4：ConstellationProfile ES sparse 召回
 
-星座级 ES sparse 召回暂不放入 P7.2。
-
-原因：当前暴露的问题不是候选没召回，而是候选召回后确定性分数过低。ES sparse 更适合后续解决候选遗漏。
-
-预留 P7.4：
+P7.4 已实现星座级 ES sparse 召回，用于解决 dense embedding 未召回到候选星座的问题。
 
 ```text
 dense: pgvector profile_embedding topK
 sparse: ES ConstellationProfile topK
 fused: RRF(dense, sparse)
 score: P7.1 综合评分
-borderline: P7.2 codebook LLM
+borderline: P7.3 统一归属裁判
+```
+
+运行规则：
+
+- `ConstellationProfile` 每次 upsert 成功后 best-effort 写入 `ego_constellation_profiles`。
+- ES 只作为候选召回索引，PostgreSQL 仍是事实来源。
+- sparse 返回 constellation_id 后，通过 PostgreSQL 回读完整 profile/vector，再参与后续评分。
+- dense 与 sparse 并发召回，ES sparse 失败或回读失败只记录 warn，不阻塞聚合。
+- RRF 只决定候选融合顺序，不直接进入最终归属 score。
+- 不提供历史回填命令；新建或更新后的 ConstellationProfile 会进入 ES。
+
+默认配置：
+
+```text
+CONSTELLATION_SPARSE_RECALL_ENABLED=true
+CONSTELLATION_SPARSE_RECALL_TOP_K=10
+CONSTELLATION_HYBRID_RRF_K=60
 ```
 
 ## P8 衔接

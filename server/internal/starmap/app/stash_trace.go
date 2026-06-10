@@ -16,6 +16,8 @@ import (
 
 const (
 	constellationCandidateLimit       = 10
+	constellationSparseRecallTopK     = 10
+	constellationHybridRRFK           = 60
 	constellationStrongMatchThreshold = 0.68
 	constellationMiddleMatchThreshold = 0.52
 	constellationExplainableThreshold = 0.50
@@ -50,6 +52,10 @@ type StashTraceUseCase struct {
 	borderlineJudge   domain.ConstellationBorderlineJudge
 	profileRepo       domain.TraceProfileRepository
 	constellationProf domain.ConstellationProfileRepository
+	profileIndexer    domain.ConstellationProfileSearchIndexer
+	sparseProfiles    domain.ConstellationProfileSparseCandidateReader
+	sparseTopK        int
+	hybridRRFK        int
 	ids               IDGenerator
 }
 
@@ -97,7 +103,20 @@ func NewStashTraceUseCaseWithTraceProfile(
 		borderlineJudge:   borderlineJudge,
 		profileRepo:       profileRepo,
 		constellationProf: constellationProf,
+		sparseTopK:        constellationSparseRecallTopK,
+		hybridRRFK:        constellationHybridRRFK,
 		ids:               ids,
+	}
+}
+
+func (uc *StashTraceUseCase) UseConstellationSparseSearch(indexer domain.ConstellationProfileSearchIndexer, reader domain.ConstellationProfileSparseCandidateReader, sparseTopK int, hybridRRFK int) {
+	uc.profileIndexer = indexer
+	uc.sparseProfiles = reader
+	if sparseTopK > 0 {
+		uc.sparseTopK = sparseTopK
+	}
+	if hybridRRFK > 0 {
+		uc.hybridRRFK = hybridRRFK
 	}
 }
 
@@ -230,7 +249,7 @@ func (uc *StashTraceUseCase) clusterWithProfileAsync(ctx context.Context, trace 
 
 	var ranked []scoredConstellationCandidate
 	if vector != nil {
-		candidates, err := uc.constellationProf.FindCandidates(ctx, trace.UserID, vector.Embedding, constellationCandidateLimit)
+		candidates, err := uc.recallConstellationCandidates(ctx, trace, star, profile, vector)
 		if err != nil {
 			logger.ErrorContext(ctx, "starmap profile clustering candidate recall failed",
 				"trace_id", trace.ID,
@@ -240,13 +259,6 @@ func (uc *StashTraceUseCase) clusterWithProfileAsync(ctx context.Context, trace 
 			)
 			return
 		}
-		logger.DebugContext(ctx, "starmap profile clustering candidates recalled",
-			"trace_id", trace.ID,
-			"star_id", star.ID,
-			"candidate_limit", constellationCandidateLimit,
-			"candidate_count", len(candidates),
-			"candidate_summaries", constellationCandidateSummaries(candidates, constellationCandidateLimit),
-		)
 		ranked = rankConstellationCandidates(profile, vector, candidates)
 		logger.DebugContext(ctx, "starmap profile clustering candidates ranked",
 			"trace_id", trace.ID,
@@ -507,6 +519,141 @@ func (uc *StashTraceUseCase) clusterWithProfileAsync(ctx context.Context, trace 
 	)
 }
 
+type constellationDenseRecallResult struct {
+	candidates []domain.ConstellationProfileCandidate
+	err        error
+}
+
+type constellationSparseRecallResult struct {
+	candidates []domain.ConstellationProfileCandidate
+	sparse     []domain.ConstellationProfileSparseCandidate
+	err        error
+}
+
+func (uc *StashTraceUseCase) recallConstellationCandidates(ctx context.Context, trace writingdomain.Trace, star domain.Star, profile *domain.TraceProfile, vector *domain.TraceProfileVector) ([]domain.ConstellationProfileCandidate, error) {
+	logger := logging.FromContext(ctx)
+	denseCh := make(chan constellationDenseRecallResult, 1)
+	sparseCh := make(chan constellationSparseRecallResult, 1)
+
+	go func() {
+		candidates, err := uc.constellationProf.FindCandidates(ctx, trace.UserID, vector.Embedding, constellationCandidateLimit)
+		denseCh <- constellationDenseRecallResult{candidates: candidates, err: err}
+	}()
+	go func() {
+		if uc.sparseProfiles == nil || uc.sparseTopK <= 0 {
+			sparseCh <- constellationSparseRecallResult{}
+			return
+		}
+		sparse, err := uc.sparseProfiles.SearchCandidates(ctx, *profile, uc.sparseTopK)
+		if err != nil {
+			sparseCh <- constellationSparseRecallResult{err: err}
+			return
+		}
+		ids := constellationSparseCandidateIDs(sparse)
+		candidates, err := uc.constellationProf.FindCandidatesByIDs(ctx, trace.UserID, ids)
+		sparseCh <- constellationSparseRecallResult{candidates: candidates, sparse: sparse, err: err}
+	}()
+
+	denseResult := <-denseCh
+	if denseResult.err != nil {
+		return nil, denseResult.err
+	}
+	sparseResult := <-sparseCh
+	if sparseResult.err != nil {
+		logger.WarnContext(ctx, "starmap constellation sparse recall failed",
+			"trace_id", trace.ID,
+			"star_id", star.ID,
+			"error", sparseResult.err,
+		)
+		sparseResult = constellationSparseRecallResult{}
+	}
+
+	fused := mergeConstellationCandidatesRRF(denseResult.candidates, sparseResult.candidates, uc.hybridRRFK, constellationCandidateLimit)
+	logger.DebugContext(ctx, "starmap constellation recall candidates",
+		"trace_id", trace.ID,
+		"star_id", star.ID,
+		"current_topic", profile.Topic,
+		"dense_count", len(denseResult.candidates),
+		"sparse_count", len(sparseResult.candidates),
+		"fused_count", len(fused),
+		"dense_top_k", constellationCandidateLimit,
+		"sparse_top_k", uc.sparseTopK,
+		"rrf_k", uc.hybridRRFK,
+		"dense_candidates", constellationCandidateSummaries(denseResult.candidates, constellationCandidateLimit),
+		"sparse_candidates", sparseConstellationCandidateSummaries(sparseResult.sparse, sparseResult.candidates, uc.sparseTopK),
+		"fused_candidates", constellationCandidateSummaries(fused, constellationCandidateLimit),
+	)
+	return fused, nil
+}
+
+func constellationSparseCandidateIDs(candidates []domain.ConstellationProfileSparseCandidate) []string {
+	ids := make([]string, 0, len(candidates))
+	seen := make(map[string]struct{}, len(candidates))
+	for _, candidate := range candidates {
+		id := strings.TrimSpace(candidate.ConstellationID)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+type rankedConstellationCandidate struct {
+	candidate domain.ConstellationProfileCandidate
+	score     float64
+}
+
+func mergeConstellationCandidatesRRF(dense []domain.ConstellationProfileCandidate, sparse []domain.ConstellationProfileCandidate, rrfK int, limit int) []domain.ConstellationProfileCandidate {
+	if rrfK <= 0 {
+		rrfK = constellationHybridRRFK
+	}
+	if limit <= 0 {
+		limit = maxInt(len(dense), len(sparse))
+	}
+	byID := make(map[string]rankedConstellationCandidate)
+	add := func(candidate domain.ConstellationProfileCandidate, rank int) {
+		id := candidate.Profile.ConstellationID
+		if id == "" {
+			return
+		}
+		current := byID[id]
+		if current.candidate.Profile.ConstellationID == "" {
+			current.candidate = candidate
+		}
+		current.score += 1 / float64(rrfK+rank)
+		byID[id] = current
+	}
+	for i, candidate := range dense {
+		add(candidate, i+1)
+	}
+	for i, candidate := range sparse {
+		add(candidate, i+1)
+	}
+	ranked := make([]rankedConstellationCandidate, 0, len(byID))
+	for _, candidate := range byID {
+		ranked = append(ranked, candidate)
+	}
+	sort.SliceStable(ranked, func(i, j int) bool {
+		if ranked[i].score == ranked[j].score {
+			return ranked[i].candidate.Profile.ConstellationID < ranked[j].candidate.Profile.ConstellationID
+		}
+		return ranked[i].score > ranked[j].score
+	})
+	if len(ranked) > limit {
+		ranked = ranked[:limit]
+	}
+	result := make([]domain.ConstellationProfileCandidate, 0, len(ranked))
+	for _, candidate := range ranked {
+		result = append(result, candidate.candidate)
+	}
+	return result
+}
+
 func (uc *StashTraceUseCase) runBorderlineJudgement(ctx context.Context, trace writingdomain.Trace, star domain.Star, profile *domain.TraceProfile, moments []writingdomain.Moment, ranked []scoredConstellationCandidate) *domain.ConstellationBorderlineJudgement {
 	logger := logging.FromContext(ctx)
 	if uc.borderlineJudge == nil {
@@ -752,7 +899,7 @@ func (uc *StashTraceUseCase) createConstellationFromTraceProfile(ctx context.Con
 			UpdatedAt:         now,
 		}
 	}
-	if err := uc.constellationProf.Upsert(ctx, cProfile, cVector); err != nil {
+	if err := uc.upsertConstellationProfile(ctx, cProfile, cVector); err != nil {
 		return "", fmt.Errorf("upsert constellation profile: %w", err)
 	}
 	if err := uc.constellationProf.AddMembership(ctx, domain.ConstellationMembership{
@@ -807,7 +954,7 @@ func (uc *StashTraceUseCase) attachStarToConstellation(ctx context.Context, cons
 			UpdatedAt:         now,
 		}
 	}
-	if err := uc.constellationProf.Upsert(ctx, updatedProfile, updatedVector); err != nil {
+	if err := uc.upsertConstellationProfile(ctx, updatedProfile, updatedVector); err != nil {
 		return fmt.Errorf("upsert constellation profile: %w", err)
 	}
 	if err := uc.constellationProf.AddMembership(ctx, domain.ConstellationMembership{
@@ -823,6 +970,23 @@ func (uc *StashTraceUseCase) attachStarToConstellation(ctx context.Context, cons
 		CreatedAt:       now,
 	}); err != nil {
 		return fmt.Errorf("add membership: %w", err)
+	}
+	return nil
+}
+
+func (uc *StashTraceUseCase) upsertConstellationProfile(ctx context.Context, profile *domain.ConstellationProfile, vector *domain.ConstellationProfileVector) error {
+	if err := uc.constellationProf.Upsert(ctx, profile, vector); err != nil {
+		return err
+	}
+	if uc.profileIndexer != nil && profile != nil {
+		if err := uc.profileIndexer.IndexProfile(ctx, *profile); err != nil {
+			logging.FromContext(ctx).WarnContext(ctx, "starmap constellation profile sparse index failed",
+				"constellation_id", profile.ConstellationID,
+				"user_id", profile.UserID,
+				"topic", profile.Topic,
+				"error", err,
+			)
+		}
 	}
 	return nil
 }
@@ -901,6 +1065,33 @@ func constellationCandidateSummaries(candidates []domain.ConstellationProfileCan
 	return result
 }
 
+func sparseConstellationCandidateSummaries(sparse []domain.ConstellationProfileSparseCandidate, candidates []domain.ConstellationProfileCandidate, limit int) []map[string]any {
+	byID := make(map[string]domain.ConstellationProfileCandidate, len(candidates))
+	for _, candidate := range candidates {
+		byID[candidate.Profile.ConstellationID] = candidate
+	}
+	if limit > 0 && len(sparse) > limit {
+		sparse = sparse[:limit]
+	}
+	result := make([]map[string]any, 0, len(sparse))
+	for rank, candidate := range sparse {
+		summary := map[string]any{
+			"rank":             rank + 1,
+			"constellation_id": candidate.ConstellationID,
+			"score":            candidate.Score,
+			"matched_fields":   candidate.MatchedFields,
+			"preview":          candidate.Preview,
+		}
+		if loaded, ok := byID[candidate.ConstellationID]; ok {
+			summary["topic"] = loaded.Profile.Topic
+			summary["theme_code"] = loaded.Profile.ThemeCode
+			summary["theme_label"] = loaded.Profile.ThemeLabel
+		}
+		result = append(result, summary)
+	}
+	return result
+}
+
 func scoredConstellationCandidateSummaries(candidates []scoredConstellationCandidate, limit int) []map[string]any {
 	if limit > 0 && len(candidates) > limit {
 		candidates = candidates[:limit]
@@ -939,6 +1130,13 @@ func scoredConstellationCandidateSummary(candidate scoredConstellationCandidate,
 		"dimensions":           candidate.dimensions,
 		"reason":               candidate.reason,
 	}
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func borderlineSelectionLogSummary(selection *domain.ConstellationBorderlineSelection) map[string]any {

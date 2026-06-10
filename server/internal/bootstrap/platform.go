@@ -18,20 +18,23 @@ import (
 )
 
 type Platform struct {
-	Pool           *pgxpool.Pool
-	JWTKey         []byte
-	JWTExp         time.Duration
-	Hasher         auth.BcryptHasher
-	Tokens         auth.JWTIssuer
-	Logger         *slog.Logger
-	AIClient       *ai.Client
-	SmsService     *sms.AliyunSmsService
-	ESClient       *elasticsearch.Client
-	AIEmbeddingDim int
-	EchoRecallTopK int32
-	EchoSparseTopK int32
-	EchoHybridRRFK int
-	EchoSparseOn   bool
+	Pool                    *pgxpool.Pool
+	JWTKey                  []byte
+	JWTExp                  time.Duration
+	Hasher                  auth.BcryptHasher
+	Tokens                  auth.JWTIssuer
+	Logger                  *slog.Logger
+	AIClient                *ai.Client
+	SmsService              *sms.AliyunSmsService
+	ESClient                *elasticsearch.Client
+	AIEmbeddingDim          int
+	EchoRecallTopK          int32
+	EchoSparseTopK          int32
+	EchoHybridRRFK          int
+	EchoSparseOn            bool
+	ConstellationSparseTopK int
+	ConstellationHybridRRFK int
+	ConstellationSparseOn   bool
 }
 
 func InitPlatform(cfg *config.Config) (*Platform, error) {
@@ -81,6 +84,21 @@ func InitPlatform(cfg *config.Config) (*Platform, error) {
 		pool.Close()
 		return nil, fmt.Errorf("invalid ECHO_SPARSE_RECALL_ENABLED: %w", err)
 	}
+	constellationSparseTopK, err := strconv.Atoi(cfg.ConstellationSparseTopK)
+	if err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("invalid CONSTELLATION_SPARSE_RECALL_TOP_K: %w", err)
+	}
+	constellationHybridRRFK, err := strconv.Atoi(cfg.ConstellationHybridRRFK)
+	if err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("invalid CONSTELLATION_HYBRID_RRF_K: %w", err)
+	}
+	constellationSparseOn, err := strconv.ParseBool(cfg.ConstellationSparseEnabled)
+	if err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("invalid CONSTELLATION_SPARSE_RECALL_ENABLED: %w", err)
+	}
 
 	aiClient := ai.NewClient(ai.Config{
 		EmbeddingAPIKey:  cfg.AIEmbeddingAPIKey,
@@ -103,23 +121,29 @@ func InitPlatform(cfg *config.Config) (*Platform, error) {
 		"echo_sparse_enabled", echoSparseOn,
 		"echo_sparse_top_k", echoSparseTopK,
 		"echo_hybrid_rrf_k", echoHybridRRFK,
+		"constellation_sparse_enabled", constellationSparseOn,
+		"constellation_sparse_top_k", constellationSparseTopK,
+		"constellation_hybrid_rrf_k", constellationHybridRRFK,
 	)
 
 	return &Platform{
-		Pool:           pool,
-		JWTKey:         jwtKey,
-		JWTExp:         jwtExp,
-		Hasher:         auth.BcryptHasher{},
-		Tokens:         auth.JWTIssuer{Secret: jwtKey, Exp: jwtExp},
-		Logger:         logger,
-		AIClient:       aiClient,
-		SmsService:     newSmsService(cfg, pool),
-		ESClient:       esClient,
-		AIEmbeddingDim: embeddingDim,
-		EchoRecallTopK: int32(echoRecallTopK),
-		EchoSparseTopK: int32(echoSparseTopK),
-		EchoHybridRRFK: echoHybridRRFK,
-		EchoSparseOn:   echoSparseOn,
+		Pool:                    pool,
+		JWTKey:                  jwtKey,
+		JWTExp:                  jwtExp,
+		Hasher:                  auth.BcryptHasher{},
+		Tokens:                  auth.JWTIssuer{Secret: jwtKey, Exp: jwtExp},
+		Logger:                  logger,
+		AIClient:                aiClient,
+		SmsService:              newSmsService(cfg, pool),
+		ESClient:                esClient,
+		AIEmbeddingDim:          embeddingDim,
+		EchoRecallTopK:          int32(echoRecallTopK),
+		EchoSparseTopK:          int32(echoSparseTopK),
+		EchoHybridRRFK:          echoHybridRRFK,
+		EchoSparseOn:            echoSparseOn,
+		ConstellationSparseTopK: constellationSparseTopK,
+		ConstellationHybridRRFK: constellationHybridRRFK,
+		ConstellationSparseOn:   constellationSparseOn,
 	}, nil
 }
 

@@ -139,10 +139,20 @@
     {
       "id": "starmap.constellation_sparse_recall_p7_4",
       "title": "P7.4 ConstellationProfile ES sparse recall",
-      "status": "planned",
+      "status": "passing",
       "evidence": [
+        "domain/ports.go",
+        "domain/types.go",
+        "adapter/elasticsearch/constellation_profile_search.go",
+        "adapter/elasticsearch/constellation_profile_search_test.go",
+        "adapter/postgres/constellation_profile_repo.go",
+        "app/stash_trace.go",
+        "app/stash_trace_test.go",
+        "module.go",
+        "bootstrap/starmap.go",
         "docs/matching-optimization/constellation-matching-design.md",
-        "docs/matching-optimization/optimization-plan.md"
+        "docs/matching-optimization/optimization-plan.md",
+        "go test ./internal/starmap/..."
       ]
     },
     {

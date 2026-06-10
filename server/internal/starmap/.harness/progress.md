@@ -18,7 +18,9 @@ P7.1 over-splitting reduction is implemented. TraceProfile/ConstellationProfile 
 
 P7.2 theme codebook and gated borderline LLM judgement are implemented. `ConstellationProfile` now persists `theme_code`, `theme_label`, `theme_description`, and `theme_examples`; new constellations receive deterministic fallback codebook entries, and valid `suggest_new` LLM output can override them. Deterministic P7.1 scoring still runs first; strong matches attach directly, while weak-but-evidenced top3 borderline candidates call `ConstellationBorderlineJudge`. Accepted output must pass confidence, candidate id, theme_code, shared theme, and match_dimensions gates. Rejected/failed judgements fall back to creating a new constellation.
 
-P7.3 unified membership judgement is implemented. The borderline LLM now judges primary and secondary constellation memberships in one call, using the product-level question "which constellation would feel natural when the user reviews this star later" instead of overly fine-grained event labels. Strong deterministic primary matches still bypass LLM. Borderline candidates in `[0.30, 0.68)` can be accepted by LLM; secondary memberships no longer require the previous middle score threshold, but must pass confidence and evidence gates. ConstellationProfile Elasticsearch sparse recall is split out as P7.4.
+P7.3 unified membership judgement is implemented. The borderline LLM now judges primary and secondary constellation memberships in one call, using the product-level question "which constellation would feel natural when the user reviews this star later" instead of overly fine-grained event labels. Strong deterministic primary matches still bypass LLM. Borderline candidates in `[0.30, 0.68)` can be accepted by LLM; secondary memberships no longer require the previous middle score threshold, but must pass confidence and evidence gates.
+
+P7.4 ConstellationProfile Elasticsearch sparse recall is implemented. Runtime now indexes ConstellationProfile upserts into `ego_constellation_profiles` on a best-effort basis, recalls dense pgvector and ES sparse candidates concurrently, fuses them with RRF, and then reuses the existing deterministic scoring plus P7.3 judgement path. ES failures only warn and fall back to dense candidates. No historical backfill command is provided.
 
 ### Test summary
 
@@ -26,7 +28,7 @@ P7.3 unified membership judgement is implemented. The borderline LLM now judges 
 |---|---|---|
 | `app/` | StashTrace, borderline judgement, primary/secondary membership, ListConstellations, and GetConstellation coverage | All pass |
 | `adapter/grpc/` | 5 (StashTrace, StashTrace_Error, ListConstellations, GetConstellation, GetConstellation_Error) | All pass |
-| `internal/starmap/...` | TraceProfile persistence, P7 profile-based constellation matching, P7.1 pattern_tags scoring, P7.2/P7.3 borderline judgement, multi-membership unique list count, and existing starmap tests | All pass |
+| `internal/starmap/...` | TraceProfile persistence, P7 profile-based constellation matching, P7.1 pattern_tags scoring, P7.2/P7.3 borderline judgement, P7.4 sparse recall, multi-membership unique list count, and existing starmap tests | All pass |
 
 ### Completed layers
 
@@ -69,7 +71,7 @@ P7.3 unified membership judgement is implemented. The borderline LLM now judges 
 13. **P7.1 matching refinement**: Pattern tags and revised deterministic scoring are implemented to reduce over-splitting before broader P8 profile merge quality work.
 14. **P7.2 matching refinement**: Theme codebook and gated borderline LLM judgement are implemented to reduce over-splitting when deterministic overlap is too weak but a shared upper situation exists.
 15. **P7.3 matching refinement**: Borderline LLM judgement now returns a primary selection plus optional secondary selections in one call. Direct deterministic primary attach is reserved for strong matches; secondary attach is allowed from explicit LLM evidence even when deterministic score is below the old middle threshold.
-16. **P7.4 marker**: Constellation sparse recall is separated from P7.3 and remains planned.
+16. **P7.4 sparse recall**: ConstellationProfile ES sparse recall is implemented as an optional enhancement. Dense pgvector remains authoritative for primary availability; ES sparse failures warn and do not block clustering. Historical ES backfill is intentionally omitted.
 17. **P8 marker**: ConstellationProfile merge quality and message-queue backed async consistency are reserved for P8 design.
 
 ### Known Issues

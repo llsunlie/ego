@@ -57,11 +57,13 @@ gRPC: StashTrace
   -> TraceProfileGenerator.Generate(trace, moments)
   -> TraceProfileRepository.Upsert(trace_profile, trace_vector)
   -> stars.UpdateTopic(trace_profile.topic)
-  -> ConstellationProfileRepository.FindCandidates(trace_vector.embedding)
+  -> pgvector dense recall + ES sparse recall
+  -> RRF 融合候选
   -> 综合评分并选择 primary / secondary 星座
   -> 若没有 strong primary：创建新 Constellation / ConstellationProfile
   -> 写入 constellation_stars membership
   -> 更新 ConstellationProfile 统计和 centroid embedding
+  -> best-effort 更新 ConstellationProfile ES sparse index
 ```
 
 模块装配在 `server/internal/starmap/module.go`：
@@ -191,10 +193,16 @@ P7.3:
   -> 0.30 <= score < 0.68 的边界候选交由 LLM 判断是否自然归属
   -> secondary 不再要求达到旧 middle threshold，但必须通过 confidence 和证据门控
   -> 新建 primary 时只接受 LLM 明确给出的 secondary
-  -> ES sparse 召回延后到 P7.4
+
+P7.4:
+  -> 已新增 ConstellationProfile ES sparse index
+  -> 已将 dense pgvector 与 ES sparse 候选并发召回
+  -> 已通过 RRF 融合候选，融合后继续走现有评分和 P7.3 裁判
+  -> ES 写入、查询或 sparse ID 回读失败只记录 warn，不阻塞聚合
+  -> 不提供历史回填命令，仅保证后续 upsert 的星座画像进入 ES
 ```
 
-P7.1 / P7.2 / P7.3 实现与 P7.4 设计详见 `docs/matching-optimization/constellation-matching-design.md`。
+P7.1 / P7.2 / P7.3 / P7.4 实现详见 `docs/matching-optimization/constellation-matching-design.md`。
 
 ### Trace.stashed 写入说明
 

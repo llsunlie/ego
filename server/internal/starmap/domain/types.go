@@ -116,6 +116,13 @@ type ConstellationProfileCandidate struct {
 	Vector  ConstellationProfileVector
 }
 
+type ConstellationProfileSparseCandidate struct {
+	ConstellationID string
+	Score           float64
+	MatchedFields   []string
+	Preview         string
+}
+
 const (
 	ConstellationBorderlineDecisionUseExisting = "use_existing"
 	ConstellationBorderlineDecisionSuggestNew  = "suggest_new"

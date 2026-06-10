@@ -2,8 +2,10 @@ package starmap
 
 import (
 	platformai "ego-server/internal/platform/ai"
+	platformes "ego-server/internal/platform/elasticsearch"
 	"ego-server/internal/platform/postgres/sqlc"
 	starmapai "ego-server/internal/starmap/adapter/ai"
+	starmapes "ego-server/internal/starmap/adapter/elasticsearch"
 	starmapgrpc "ego-server/internal/starmap/adapter/grpc"
 	starmapid "ego-server/internal/starmap/adapter/id"
 	starmappostgres "ego-server/internal/starmap/adapter/postgres"
@@ -14,9 +16,13 @@ import (
 // Deps contains process-level resources and external capabilities needed to
 // assemble the starmap bounded context.
 type Deps struct {
-	DB             sqlc.DBTX
-	AIClient       *platformai.Client
-	AIEmbeddingDim int
+	DB                      sqlc.DBTX
+	AIClient                *platformai.Client
+	ESClient                *platformes.Client
+	AIEmbeddingDim          int
+	ConstellationSparseOn   bool
+	ConstellationSparseTopK int
+	ConstellationHybridRRFK int
 }
 
 // NewHandler wires the starmap module's adapters, application use cases, and
@@ -42,6 +48,10 @@ func NewHandler(deps Deps) *starmapgrpc.Handler {
 		profileGen, borderlineJudge, profileRepo, constellationProfileRepo,
 		ids,
 	)
+	if deps.ConstellationSparseOn && deps.ESClient != nil {
+		profileSearch := starmapes.NewConstellationProfileSearch(deps.ESClient, starmapes.DefaultConstellationProfileIndex)
+		stashTrace.UseConstellationSparseSearch(profileSearch, profileSearch, deps.ConstellationSparseTopK, deps.ConstellationHybridRRFK)
+	}
 	listConstellations := starmapapp.NewListConstellationsUseCase(constellationRepo, starRepo)
 	getConstellation := starmapapp.NewGetConstellationUseCase(
 		constellationRepo, starRepo, traceReader,

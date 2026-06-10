@@ -43,7 +43,7 @@
 | P7.1 | 星座匹配过度拆分修正 | 用 pattern_tags 与更合理的评分/阈值减少误新建 | pattern_tags 字段、评分公式、解释性 middle 规则、核心日志 | 已完成 |
 | P7.2 | 星座 Codebook 与边界判断 | 处理同一长期主题但确定性分数过低的候选 | theme codebook、边界 LLM、门控规则、诊断日志 | 已完成 |
 | P7.3 | 星座统一归属裁判 | 让边界 LLM 一次判断 primary + secondary，并降低确定性分数过低导致的兜底比例 | LLM primary/secondary 输出、阈值调整、secondary gate、回归测试 | 已完成 |
-| P7.4 | 星座 sparse 召回 | 降低 ConstellationProfile 候选遗漏 | ES sparse index、dense/sparse RRF 融合 | 待设计 |
+| P7.4 | 星座 sparse 召回 | 降低 ConstellationProfile 候选遗漏 | ES sparse index、dense/sparse RRF 融合 | 已完成 |
 | P8 | 星座画像合并与一致性优化 | 避免画像简单合并后变长、变泛，并补齐异步一致性 | 标签权重/topN、异步画像刷新、消息队列/补偿任务设计 | 已标记待设计 |
 | P9 | lonely / forming / active 状态落地 | 表达星座从孤星到稳定主题的形成过程 | 状态规则、列表/详情返回兼容 | 待讨论 |
 | P10 | 观测、回归与调参 | 可观察优化效果并持续校准 | 日志、指标、离线评估脚本、回归用例 | 待设计 |
@@ -241,13 +241,19 @@
 目标：
 - 在 P7.2/P7.3 解决“候选召回到了但确定性分数低、LLM 归属未整合多视角”的问题之后，再处理“候选没有召回到”的问题。
 
-任务：
-- 新增 ConstellationProfile Elasticsearch index。
-- 索引 topic、summary、keywords、emotions、scenes、pattern_tags、central_pattern、theme_label、theme_description。
-- 使用 TraceProfile 构造 sparse 查询文本。
-- 将 pgvector dense topK 与 ES sparse topK 通过 RRF 融合。
-- 融合候选进入 P7.1 综合评分，再进入 P7.2 codebook 边界判断。
-- ES 只作为候选召回，不直接决定星座归属。
+已实现：
+- 新增 `ego_constellation_profiles` Elasticsearch index。
+- 索引 topic、summary、keywords、emotions、scenes、pattern_tags、central_pattern、theme_label、theme_description、theme_examples、profile_text。
+- `ConstellationProfile` upsert 成功后 best-effort 写入 ES；写入失败只记录 warn。
+- `TraceProfile` 构造 sparse 查询文本，和 pgvector dense topK 并发召回。
+- 使用 RRF 融合 dense / sparse 候选，融合结果继续进入 P7.1 综合评分和 P7.3 统一归属裁判。
+- ES sparse 查询失败或 PG 回读 sparse IDs 失败只记录 warn，并继续使用 dense 候选。
+- 不提供历史回填命令；P7.4 只保证后续运行时更新的 ConstellationProfile 进入 ES。
+
+配置：
+- `CONSTELLATION_SPARSE_RECALL_ENABLED=true`
+- `CONSTELLATION_SPARSE_RECALL_TOP_K=10`
+- `CONSTELLATION_HYBRID_RRF_K=60`
 
 ### P8. 星座画像合并与一致性优化
 

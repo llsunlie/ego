@@ -57,6 +57,38 @@ ORDER BY cv.profile_embedding <=> $2::vector
 LIMIT $3
 `
 
+const findConstellationProfileCandidatesByIDsSQL = `
+SELECT
+  cp.constellation_id,
+  cp.user_id,
+  cp.topic,
+  cp.summary,
+  cp.keywords,
+  cp.emotions,
+  cp.scenes,
+  cp.central_pattern,
+  cp.pattern_tags,
+  cp.theme_code,
+  cp.theme_label,
+  cp.theme_description,
+  cp.theme_examples,
+  cp.profile_text,
+  cp.trace_count,
+  cp.moment_count,
+  cp.status,
+  cp.last_error,
+  cp.created_at,
+  cp.updated_at,
+  cv.model,
+  cv.dim,
+  cv.profile_embedding::text,
+  cv.centroid_embedding::text
+FROM constellation_profiles cp
+JOIN constellation_profile_vectors cv ON cv.constellation_id = cp.constellation_id
+WHERE cp.user_id = $1
+  AND cp.constellation_id = ANY($2::uuid[])
+`
+
 const upsertConstellationProfileSQL = `
 INSERT INTO constellation_profiles (
   constellation_id, user_id, topic, summary, keywords, emotions, scenes,
@@ -148,7 +180,58 @@ func (r *ConstellationProfileRepository) FindCandidates(ctx context.Context, use
 		return nil, fmt.Errorf("find constellation profile candidates: %w", err)
 	}
 	defer rows.Close()
+	return scanConstellationProfileCandidates(rows)
+}
 
+func (r *ConstellationProfileRepository) FindCandidatesByIDs(ctx context.Context, userID string, constellationIDs []string) ([]domain.ConstellationProfileCandidate, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("db is required for constellation profile candidates by ids")
+	}
+	if len(constellationIDs) == 0 {
+		return nil, nil
+	}
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, fmt.Errorf("parse user_id: %w", err)
+	}
+	ids := make([]pgtype.UUID, 0, len(constellationIDs))
+	for _, id := range constellationIDs {
+		parsed, err := uuid.Parse(id)
+		if err != nil {
+			return nil, fmt.Errorf("parse constellation_id: %w", err)
+		}
+		ids = append(ids, pgtype.UUID{Bytes: [16]byte(parsed), Valid: true})
+	}
+	rows, err := r.db.Query(ctx, findConstellationProfileCandidatesByIDsSQL,
+		pgtype.UUID{Bytes: [16]byte(uid), Valid: true},
+		ids,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("find constellation profile candidates by ids: %w", err)
+	}
+	defer rows.Close()
+	candidates, err := scanConstellationProfileCandidates(rows)
+	if err != nil {
+		return nil, err
+	}
+	byID := make(map[string]domain.ConstellationProfileCandidate, len(candidates))
+	for _, candidate := range candidates {
+		byID[candidate.Profile.ConstellationID] = candidate
+	}
+	ordered := make([]domain.ConstellationProfileCandidate, 0, len(candidates))
+	for _, id := range constellationIDs {
+		if candidate, ok := byID[id]; ok {
+			ordered = append(ordered, candidate)
+		}
+	}
+	return ordered, nil
+}
+
+func scanConstellationProfileCandidates(rows interface {
+	Next() bool
+	Scan(dest ...any) error
+	Err() error
+}) ([]domain.ConstellationProfileCandidate, error) {
 	var candidates []domain.ConstellationProfileCandidate
 	for rows.Next() {
 		var (

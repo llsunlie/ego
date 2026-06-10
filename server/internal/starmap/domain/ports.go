@@ -63,6 +63,17 @@ type TraceProfileRepository interface {
 // ConstellationProfileRepository persists long-term constellation algorithm profiles.
 type ConstellationProfileRepository interface {
 	FindCandidates(ctx context.Context, userID string, embedding []float32, limit int) ([]ConstellationProfileCandidate, error)
+	FindCandidatesByIDs(ctx context.Context, userID string, constellationIDs []string) ([]ConstellationProfileCandidate, error)
 	Upsert(ctx context.Context, profile *ConstellationProfile, vector *ConstellationProfileVector) error
 	AddMembership(ctx context.Context, membership ConstellationMembership) error
+}
+
+// ConstellationProfileSearchIndexer writes ConstellationProfiles to an external sparse search index.
+type ConstellationProfileSearchIndexer interface {
+	IndexProfile(ctx context.Context, profile ConstellationProfile) error
+}
+
+// ConstellationProfileSparseCandidateReader returns Constellation IDs ranked by sparse text search.
+type ConstellationProfileSparseCandidateReader interface {
+	SearchCandidates(ctx context.Context, profile TraceProfile, limit int) ([]ConstellationProfileSparseCandidate, error)
 }
