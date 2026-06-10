@@ -42,7 +42,8 @@
 | P7 | 星座匹配流程升级 | 用 TraceProfile 匹配 ConstellationProfile | 候选召回、评分、primary/secondary 多归属流程 | 已完成第一版 |
 | P7.1 | 星座匹配过度拆分修正 | 用 pattern_tags 与更合理的评分/阈值减少误新建 | pattern_tags 字段、评分公式、解释性 middle 规则、核心日志 | 已完成 |
 | P7.2 | 星座 Codebook 与边界判断 | 处理同一长期主题但确定性分数过低的候选 | theme codebook、边界 LLM、门控规则、诊断日志 | 已完成 |
-| P7.3 | 星座 sparse 召回 | 降低 ConstellationProfile 候选遗漏 | ES sparse index、dense/sparse RRF 融合 | 待设计 |
+| P7.3 | 星座统一归属裁判 | 让边界 LLM 一次判断 primary + secondary，并降低确定性分数过低导致的兜底比例 | LLM primary/secondary 输出、阈值调整、secondary gate、回归测试 | 已完成 |
+| P7.4 | 星座 sparse 召回 | 降低 ConstellationProfile 候选遗漏 | ES sparse index、dense/sparse RRF 融合 | 待设计 |
 | P8 | 星座画像合并与一致性优化 | 避免画像简单合并后变长、变泛，并补齐异步一致性 | 标签权重/topN、异步画像刷新、消息队列/补偿任务设计 | 已标记待设计 |
 | P9 | lonely / forming / active 状态落地 | 表达星座从孤星到稳定主题的形成过程 | 状态规则、列表/详情返回兼容 | 待讨论 |
 | P10 | 观测、回归与调参 | 可观察优化效果并持续校准 | 日志、指标、离线评估脚本、回归用例 | 待设计 |
@@ -132,7 +133,7 @@
 - 设计并创建 `trace_profiles` 与 `trace_profile_vectors`。
 - 生成 `topic`、`summary`、`keywords`、`emotions`、`scenes`、`central_pattern`、`representative_moment_index` 与 `profile_text`，后端将 index 映射为持久化的 `representative_moment_id`。
 - 对 `profile_text` 生成 embedding 并写入独立 pgvector 表。
-- LLM 生成失败最多重试 2 次，仍失败则 fallback；embedding 失败写入 `failed` profile 但不写 vector。
+- LLM JSON 生成在 generator 内最多 3 次尝试，仍失败则 fallback；embedding 在 generator 内最多 3 次尝试，仍失败则写入 `failed` profile 但不写 vector。
 
 ### P5. TraceProfile 质量验证与调优
 
@@ -174,7 +175,7 @@
 - 新增 `constellation_stars` 表达 Star 与 Constellation 的多对多归属。
 - `StashTrace` 后台聚类切换为 TraceProfile -> ConstellationProfile。
 - 移除旧 `topic -> ConstellationMatcher` 聚合路径，避免 profile 聚合失败时静默回到旧逻辑。
-- TraceProfile 生成增加应用层重试；关键异步错误记录 `recovery=pending_message_queue`，后续用消息队列或补偿任务保证一致性。
+- TraceProfile 的 LLM JSON 与 embedding 重试收敛在 generator 内；关键异步错误记录 `recovery=pending_message_queue`，后续用消息队列或补偿任务保证一致性。
 - 召回 ConstellationProfile topK 候选并综合评分。
 - 支持 primary / secondary 归属。
 - 新建星座时以 TraceProfile 初始化 ConstellationProfile。
@@ -219,10 +220,26 @@
 - 日志输出候选 theme code、确定性分数明细、LLM confidence、shared_situation、accepted / rejected 与 fallback_reason。
 - P7.2 不扩展 proto，不强制新增独立 codebook 表，不把 ES sparse 召回纳入同一阶段。
 
-### P7.3. 星座 sparse 召回
+### P7.3. 星座统一归属裁判
 
 目标：
-- 在 P7.2 解决“候选召回到了但确定性分数低”的问题之后，再处理“候选没有召回到”的问题。
+- 将边界 LLM 从“primary 兜底”升级为一次判断 primary + secondary。
+- 让确定性分数负责强匹配直通、候选排序和 LLM 触发，而不是独自决定大多数自然主题归属。
+- 降低 secondary 对 `middle_threshold` 的依赖，避免主归属靠 LLM、secondary 却全部因分数低被跳过。
+
+已完成：
+- `ConstellationBorderlineJudgement` 增加 `Primary` 与 `Secondary` 选择结构，同时兼容旧的单候选 JSON。
+- `ConstellationBorderlineJudge` prompt 改为“用户回看时最自然的星座归属”口径，输出 primary + secondary。
+- strong threshold 调整为 `0.68`；borderline 候选区间改为 `0.30 <= score < 0.68`。
+- score 权重轻调：提高 scene/keyword 对短中文自然主题的辅助作用，降低 emotion 权重。
+- LLM primary gate 维持 `confidence >= 0.65`；secondary gate 使用 `confidence >= 0.60`，不再要求 `score >= 0.60`。
+- 新建 primary 后仅接受 LLM 明确给出的 secondary，不再用确定性分数自动挂旧候选。
+- 增加 primary + secondary 落库回归测试，以及新旧 JSON parser 测试。
+
+### P7.4. 星座 sparse 召回
+
+目标：
+- 在 P7.2/P7.3 解决“候选召回到了但确定性分数低、LLM 归属未整合多视角”的问题之后，再处理“候选没有召回到”的问题。
 
 任务：
 - 新增 ConstellationProfile Elasticsearch index。

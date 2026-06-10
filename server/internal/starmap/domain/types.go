@@ -166,4 +166,15 @@ type ConstellationBorderlineJudgement struct {
 	SuggestedThemeCode        string
 	SuggestedThemeLabel       string
 	SuggestedThemeDescription string
+	Primary                   *ConstellationBorderlineSelection
+	Secondary                 []ConstellationBorderlineSelection
+}
+
+type ConstellationBorderlineSelection struct {
+	ConstellationID string
+	ThemeCode       string
+	Confidence      float64
+	SharedTheme     string
+	MatchDimensions []string
+	Reason          string
 }

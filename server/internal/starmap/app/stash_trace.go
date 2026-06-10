@@ -16,29 +16,28 @@ import (
 
 const (
 	constellationCandidateLimit       = 10
-	constellationStrongMatchThreshold = 0.72
-	constellationMiddleMatchThreshold = 0.60
-	constellationExplainableThreshold = 0.58
+	constellationStrongMatchThreshold = 0.68
+	constellationMiddleMatchThreshold = 0.52
+	constellationExplainableThreshold = 0.50
 	maxSecondaryConstellationMatches  = 2
-	profileClusteringMaxAttempts      = 3
 	borderlineCandidateLimit          = 3
 	borderlineWeakThreshold           = 0.30
 	borderlineProfileSimilarityFloor  = 0.38
 	borderlineConfidenceThreshold     = 0.65
 	borderlineSuggestedConfidence     = 0.55
 
-	constellationProfileSimilarityWeight  = 0.45
-	constellationCentroidSimilarityWeight = 0.20
-	constellationKeywordOverlapWeight     = 0.12
-	constellationSceneOverlapWeight       = 0.08
-	constellationEmotionOverlapWeight     = 0.07
+	constellationProfileSimilarityWeight  = 0.42
+	constellationCentroidSimilarityWeight = 0.22
+	constellationKeywordOverlapWeight     = 0.14
+	constellationSceneOverlapWeight       = 0.10
+	constellationEmotionOverlapWeight     = 0.04
 	constellationPatternTagsOverlapWeight = 0.08
 
-	singleTraceProfileSimilarityWeight  = 0.60
-	singleTraceKeywordOverlapWeight     = 0.14
-	singleTraceSceneOverlapWeight       = 0.10
-	singleTraceEmotionOverlapWeight     = 0.08
-	singleTracePatternTagsOverlapWeight = 0.08
+	singleTraceProfileSimilarityWeight  = 0.56
+	singleTraceKeywordOverlapWeight     = 0.16
+	singleTraceSceneOverlapWeight       = 0.12
+	singleTraceEmotionOverlapWeight     = 0.06
+	singleTracePatternTagsOverlapWeight = 0.10
 )
 
 type StashTraceUseCase struct {
@@ -183,9 +182,9 @@ func (uc *StashTraceUseCase) clusterWithProfileAsync(ctx context.Context, trace 
 		return
 	}
 
-	profile, vector, err := uc.generateTraceProfileWithRetry(ctx, trace, star.ID, moments)
+	profile, vector, err := uc.profileGen.Generate(ctx, trace, moments)
 	if err != nil {
-		logger.ErrorContext(ctx, "starmap profile clustering trace profile generation exhausted",
+		logger.ErrorContext(ctx, "starmap profile clustering trace profile generation failed",
 			"trace_id", trace.ID,
 			"star_id", star.ID,
 			"error", err,
@@ -220,14 +219,10 @@ func (uc *StashTraceUseCase) clusterWithProfileAsync(ctx context.Context, trace 
 		"star_id", star.ID,
 		"topic", profile.Topic,
 		"status", profile.Status,
-		"keyword_count", len(profile.Keywords),
 		"keywords", profile.Keywords,
-		"emotion_count", len(profile.Emotions),
 		"emotions", profile.Emotions,
-		"scene_count", len(profile.Scenes),
 		"scenes", profile.Scenes,
-		"has_central_pattern", strings.TrimSpace(profile.CentralPattern) != "",
-		"pattern_tag_count", len(profile.PatternTags),
+		"entral_pattern", profile.CentralPattern,
 		"pattern_tags", profile.PatternTags,
 		"has_vector", vector != nil,
 		"vector_dim", traceVectorDim(vector),
@@ -274,14 +269,13 @@ func (uc *StashTraceUseCase) clusterWithProfileAsync(ctx context.Context, trace 
 	var primaryDimensions []string
 	var primaryScore float64
 	primaryDecision := "create_new"
+	var borderlineJudgement *domain.ConstellationBorderlineJudgement
+	var llmSecondary []scoredConstellationCandidate
 	if len(ranked) > 0 && isPrimaryAttachCandidate(ranked[0]) {
 		primaryID = ranked[0].candidate.Profile.ConstellationID
 		primaryDimensions = ranked[0].dimensions
 		primaryScore = ranked[0].score
 		primaryDecision = "attach_existing"
-		if ranked[0].score < constellationStrongMatchThreshold {
-			primaryDecision = "attach_existing_middle"
-		}
 		logger.DebugContext(ctx, "starmap profile clustering primary decision",
 			"trace_id", trace.ID,
 			"star_id", star.ID,
@@ -331,21 +325,23 @@ func (uc *StashTraceUseCase) clusterWithProfileAsync(ctx context.Context, trace 
 			"candidate_count", len(ranked),
 			"top_candidate", topCandidate,
 		)
-		borderlineJudgement := uc.runBorderlineJudgement(ctx, trace, star, profile, moments, ranked)
+		borderlineJudgement = uc.runBorderlineJudgement(ctx, trace, star, profile, moments, ranked)
 		if accepted, selected := uc.acceptBorderlineJudgement(ctx, trace, star, borderlineJudgement, ranked); accepted {
 			primaryID = selected.candidate.Profile.ConstellationID
 			primaryDimensions = selected.dimensions
 			primaryScore = selected.score
 			primaryDecision = "attach_existing_borderline"
+			llmSecondary = uc.acceptBorderlineSecondaryJudgements(ctx, trace, star, borderlineJudgement, ranked, primaryID)
 			logger.DebugContext(ctx, "starmap profile clustering borderline primary decision",
 				"trace_id", trace.ID,
 				"star_id", star.ID,
 				"decision", primaryDecision,
 				"constellation_id", primaryID,
 				"score", primaryScore,
-				"llm_confidence", borderlineJudgement.Confidence,
-				"llm_shared_situation", borderlineJudgement.SharedSituation,
-				"llm_match_dimensions", borderlineJudgement.MatchDimensions,
+				"llm_confidence", selectionConfidence(borderlineJudgement.Primary, borderlineJudgement.Confidence),
+				"llm_shared_theme", selectionSharedTheme(borderlineJudgement.Primary, borderlineJudgement.SharedSituation),
+				"llm_match_dimensions", selected.dimensions,
+				"llm_secondary_count", len(llmSecondary),
 				"reason", selected.reason,
 				"top_candidate", scoredConstellationCandidateSummary(selected, 1),
 			)
@@ -372,11 +368,53 @@ func (uc *StashTraceUseCase) clusterWithProfileAsync(ctx context.Context, trace 
 			}
 			primaryDimensions = []string{"new_theme"}
 			primaryScore = 1.0
+			llmSecondary = uc.acceptBorderlineSecondaryJudgements(ctx, trace, star, borderlineJudgement, ranked, primaryID)
 		}
 	}
 
 	secondaryCount := 0
+	attachedSecondary := map[string]struct{}{}
+	for _, candidate := range llmSecondary {
+		if secondaryCount >= maxSecondaryConstellationMatches {
+			break
+		}
+		if candidate.candidate.Profile.ConstellationID == primaryID {
+			continue
+		}
+		logger.DebugContext(ctx, "starmap profile clustering secondary decision",
+			"trace_id", trace.ID,
+			"star_id", star.ID,
+			"decision", "attach_secondary_llm",
+			"constellation_id", candidate.candidate.Profile.ConstellationID,
+			"score", candidate.score,
+			"dimensions", candidate.dimensions,
+			"reason", candidate.reason,
+		)
+		if err := uc.attachStarToConstellation(ctx, candidate.candidate.Profile.ConstellationID, star, trace, moments, profile, vector, candidate, domain.ConstellationMatchTypeSecondary, 0.5); err != nil {
+			logger.WarnContext(ctx, "starmap profile clustering attach secondary failed",
+				"trace_id", trace.ID,
+				"star_id", star.ID,
+				"constellation_id", candidate.candidate.Profile.ConstellationID,
+				"score", candidate.score,
+				"error", err,
+				"recovery", "pending_message_queue",
+			)
+			continue
+		}
+		attachedSecondary[candidate.candidate.Profile.ConstellationID] = struct{}{}
+		secondaryCount++
+	}
 	for _, candidate := range ranked {
+		if primaryDecision == "create_new" {
+			logger.DebugContext(ctx, "starmap profile clustering secondary candidate skipped",
+				"trace_id", trace.ID,
+				"star_id", star.ID,
+				"constellation_id", candidate.candidate.Profile.ConstellationID,
+				"score", candidate.score,
+				"reason", "primary_created_new",
+			)
+			continue
+		}
 		if secondaryCount >= maxSecondaryConstellationMatches {
 			logger.DebugContext(ctx, "starmap profile clustering secondary candidate skipped",
 				"trace_id", trace.ID,
@@ -398,16 +436,26 @@ func (uc *StashTraceUseCase) clusterWithProfileAsync(ctx context.Context, trace 
 			)
 			continue
 		}
-		if candidate.score < constellationMiddleMatchThreshold && !candidate.explainableMiddle {
+		if _, ok := attachedSecondary[candidate.candidate.Profile.ConstellationID]; ok {
 			logger.DebugContext(ctx, "starmap profile clustering secondary candidate skipped",
 				"trace_id", trace.ID,
 				"star_id", star.ID,
 				"constellation_id", candidate.candidate.Profile.ConstellationID,
 				"score", candidate.score,
-				"threshold", constellationMiddleMatchThreshold,
+				"reason", "already_attached_by_llm",
+			)
+			continue
+		}
+		if candidate.score < borderlineWeakThreshold && !candidate.explainableMiddle {
+			logger.DebugContext(ctx, "starmap profile clustering secondary candidate skipped",
+				"trace_id", trace.ID,
+				"star_id", star.ID,
+				"constellation_id", candidate.candidate.Profile.ConstellationID,
+				"score", candidate.score,
+				"threshold", borderlineWeakThreshold,
 				"explainable_threshold", constellationExplainableThreshold,
 				"explainable_middle", candidate.explainableMiddle,
-				"reason", "below_middle_threshold",
+				"reason", "below_secondary_threshold",
 			)
 			continue
 		}
@@ -459,33 +507,6 @@ func (uc *StashTraceUseCase) clusterWithProfileAsync(ctx context.Context, trace 
 	)
 }
 
-func (uc *StashTraceUseCase) generateTraceProfileWithRetry(ctx context.Context, trace writingdomain.Trace, starID string, moments []writingdomain.Moment) (*domain.TraceProfile, *domain.TraceProfileVector, error) {
-	logger := logging.FromContext(ctx)
-	var lastErr error
-	for attempt := 1; attempt <= profileClusteringMaxAttempts; attempt++ {
-		profile, vector, err := uc.profileGen.Generate(ctx, trace, moments)
-		if err == nil {
-			if attempt > 1 {
-				logger.InfoContext(ctx, "starmap trace profile generation retry succeeded",
-					"trace_id", trace.ID,
-					"star_id", starID,
-					"attempt", attempt,
-				)
-			}
-			return profile, vector, nil
-		}
-		lastErr = err
-		logger.WarnContext(ctx, "starmap trace profile generation attempt failed",
-			"trace_id", trace.ID,
-			"star_id", starID,
-			"attempt", attempt,
-			"max_attempts", profileClusteringMaxAttempts,
-			"error", err,
-		)
-	}
-	return nil, nil, lastErr
-}
-
 func (uc *StashTraceUseCase) runBorderlineJudgement(ctx context.Context, trace writingdomain.Trace, star domain.Star, profile *domain.TraceProfile, moments []writingdomain.Moment, ranked []scoredConstellationCandidate) *domain.ConstellationBorderlineJudgement {
 	logger := logging.FromContext(ctx)
 	if uc.borderlineJudge == nil {
@@ -526,6 +547,8 @@ func (uc *StashTraceUseCase) runBorderlineJudgement(ctx context.Context, trace w
 		"shared_situation", judgement.SharedSituation,
 		"match_dimensions", judgement.MatchDimensions,
 		"reason", judgement.Reason,
+		"primary", borderlineSelectionLogSummary(judgement.Primary),
+		"secondary", borderlineSelectionLogSummaries(judgement.Secondary),
 		"suggested_theme_code", judgement.SuggestedThemeCode,
 		"suggested_theme_label", judgement.SuggestedThemeLabel,
 	)
@@ -547,64 +570,128 @@ func (uc *StashTraceUseCase) acceptBorderlineJudgement(ctx context.Context, trac
 		)
 		return false, scoredConstellationCandidate{}
 	}
-	if judgement.Confidence < borderlineConfidenceThreshold {
+	selection := judgement.Primary
+	if selection == nil && judgement.ConstellationID != "" {
+		selection = &domain.ConstellationBorderlineSelection{
+			ConstellationID: strings.TrimSpace(judgement.ConstellationID),
+			ThemeCode:       strings.TrimSpace(judgement.ThemeCode),
+			Confidence:      judgement.Confidence,
+			SharedTheme:     strings.TrimSpace(judgement.SharedSituation),
+			MatchDimensions: append([]string(nil), judgement.MatchDimensions...),
+			Reason:          strings.TrimSpace(judgement.Reason),
+		}
+	}
+	if selection == nil {
+		logger.DebugContext(ctx, "starmap borderline judgement rejected",
+			"trace_id", trace.ID,
+			"star_id", star.ID,
+			"reason", "missing_primary_selection",
+		)
+		return false, scoredConstellationCandidate{}
+	}
+	return uc.acceptBorderlineSelection(ctx, trace, star, *selection, ranked, borderlineConfidenceThreshold, true)
+}
+
+func (uc *StashTraceUseCase) acceptBorderlineSecondaryJudgements(ctx context.Context, trace writingdomain.Trace, star domain.Star, judgement *domain.ConstellationBorderlineJudgement, ranked []scoredConstellationCandidate, primaryID string) []scoredConstellationCandidate {
+	if judgement == nil || len(judgement.Secondary) == 0 {
+		return nil
+	}
+	result := make([]scoredConstellationCandidate, 0, len(judgement.Secondary))
+	seen := map[string]struct{}{primaryID: {}}
+	for _, selection := range judgement.Secondary {
+		id := strings.TrimSpace(selection.ConstellationID)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		accepted, scored := uc.acceptBorderlineSelection(ctx, trace, star, selection, ranked, 0.60, false)
+		if !accepted {
+			continue
+		}
+		seen[id] = struct{}{}
+		result = append(result, scored)
+		if len(result) >= maxSecondaryConstellationMatches {
+			break
+		}
+	}
+	return result
+}
+
+func (uc *StashTraceUseCase) acceptBorderlineSelection(ctx context.Context, trace writingdomain.Trace, star domain.Star, selection domain.ConstellationBorderlineSelection, ranked []scoredConstellationCandidate, confidenceThreshold float64, primary bool) (bool, scoredConstellationCandidate) {
+	logger := logging.FromContext(ctx)
+	selection.ConstellationID = strings.TrimSpace(selection.ConstellationID)
+	selection.ThemeCode = strings.TrimSpace(selection.ThemeCode)
+	selection.SharedTheme = strings.TrimSpace(selection.SharedTheme)
+	selection.Reason = strings.TrimSpace(selection.Reason)
+	if selection.Confidence < confidenceThreshold {
 		logger.DebugContext(ctx, "starmap borderline judgement rejected",
 			"trace_id", trace.ID,
 			"star_id", star.ID,
 			"reason", "low_confidence",
-			"confidence", judgement.Confidence,
-			"threshold", borderlineConfidenceThreshold,
+			"constellation_id", selection.ConstellationID,
+			"confidence", selection.Confidence,
+			"threshold", confidenceThreshold,
+			"primary", primary,
 		)
 		return false, scoredConstellationCandidate{}
 	}
-	if strings.TrimSpace(judgement.SharedSituation) == "" {
+	if selection.SharedTheme == "" {
 		logger.DebugContext(ctx, "starmap borderline judgement rejected",
 			"trace_id", trace.ID,
 			"star_id", star.ID,
-			"reason", "missing_shared_situation",
+			"reason", "missing_shared_theme",
+			"constellation_id", selection.ConstellationID,
+			"primary", primary,
 		)
 		return false, scoredConstellationCandidate{}
 	}
-	if !hasAllowedBorderlineDimension(judgement.MatchDimensions) {
+	if !hasAllowedBorderlineDimension(selection.MatchDimensions) {
 		logger.DebugContext(ctx, "starmap borderline judgement rejected",
 			"trace_id", trace.ID,
 			"star_id", star.ID,
 			"reason", "missing_allowed_dimension",
-			"match_dimensions", judgement.MatchDimensions,
+			"constellation_id", selection.ConstellationID,
+			"match_dimensions", selection.MatchDimensions,
+			"primary", primary,
 		)
 		return false, scoredConstellationCandidate{}
 	}
 	for _, candidate := range ranked {
-		if candidate.candidate.Profile.ConstellationID != judgement.ConstellationID {
+		if candidate.candidate.Profile.ConstellationID != selection.ConstellationID {
 			continue
 		}
-		if !isBorderlineCandidate(candidate) {
+		if !isBorderlineCandidate(candidate) && !(selection.Confidence >= 0.75 && !primary) {
 			logger.DebugContext(ctx, "starmap borderline judgement rejected",
 				"trace_id", trace.ID,
 				"star_id", star.ID,
 				"reason", "candidate_not_in_borderline_range",
-				"constellation_id", judgement.ConstellationID,
+				"constellation_id", selection.ConstellationID,
 				"score", candidate.score,
+				"confidence", selection.Confidence,
+				"primary", primary,
 			)
 			return false, scoredConstellationCandidate{}
 		}
-		if strings.TrimSpace(candidate.candidate.Profile.ThemeCode) != "" && candidate.candidate.Profile.ThemeCode != strings.TrimSpace(judgement.ThemeCode) {
+		if strings.TrimSpace(candidate.candidate.Profile.ThemeCode) != "" && candidate.candidate.Profile.ThemeCode != selection.ThemeCode {
 			logger.DebugContext(ctx, "starmap borderline judgement rejected",
 				"trace_id", trace.ID,
 				"star_id", star.ID,
 				"reason", "theme_code_mismatch",
-				"constellation_id", judgement.ConstellationID,
+				"constellation_id", selection.ConstellationID,
 				"candidate_theme_code", candidate.candidate.Profile.ThemeCode,
-				"judgement_theme_code", judgement.ThemeCode,
+				"judgement_theme_code", selection.ThemeCode,
+				"primary", primary,
 			)
 			return false, scoredConstellationCandidate{}
 		}
 		selected := candidate
-		if len(judgement.MatchDimensions) > 0 {
-			selected.dimensions = append([]string(nil), judgement.MatchDimensions...)
+		if len(selection.MatchDimensions) > 0 {
+			selected.dimensions = append([]string(nil), selection.MatchDimensions...)
 		}
-		if strings.TrimSpace(judgement.Reason) != "" {
-			selected.reason = judgement.Reason
+		if selection.Reason != "" {
+			selected.reason = selection.Reason
 		}
 		return true, selected
 	}
@@ -612,7 +699,8 @@ func (uc *StashTraceUseCase) acceptBorderlineJudgement(ctx context.Context, trac
 		"trace_id", trace.ID,
 		"star_id", star.ID,
 		"reason", "constellation_id_not_in_candidates",
-		"constellation_id", judgement.ConstellationID,
+		"constellation_id", selection.ConstellationID,
+		"primary", primary,
 	)
 	return false, scoredConstellationCandidate{}
 }
@@ -853,6 +941,42 @@ func scoredConstellationCandidateSummary(candidate scoredConstellationCandidate,
 	}
 }
 
+func borderlineSelectionLogSummary(selection *domain.ConstellationBorderlineSelection) map[string]any {
+	if selection == nil {
+		return nil
+	}
+	return map[string]any{
+		"constellation_id": selection.ConstellationID,
+		"theme_code":       selection.ThemeCode,
+		"confidence":       selection.Confidence,
+		"shared_theme":     selection.SharedTheme,
+		"match_dimensions": selection.MatchDimensions,
+		"reason":           selection.Reason,
+	}
+}
+
+func borderlineSelectionLogSummaries(selections []domain.ConstellationBorderlineSelection) []map[string]any {
+	result := make([]map[string]any, 0, len(selections))
+	for i := range selections {
+		result = append(result, borderlineSelectionLogSummary(&selections[i]))
+	}
+	return result
+}
+
+func selectionConfidence(selection *domain.ConstellationBorderlineSelection, fallback float64) float64 {
+	if selection == nil {
+		return fallback
+	}
+	return selection.Confidence
+}
+
+func selectionSharedTheme(selection *domain.ConstellationBorderlineSelection, fallback string) string {
+	if selection == nil {
+		return fallback
+	}
+	return selection.SharedTheme
+}
+
 func borderlineCandidates(ranked []scoredConstellationCandidate) []domain.ConstellationBorderlineCandidate {
 	if len(ranked) == 0 {
 		return nil
@@ -923,7 +1047,7 @@ func borderlineCandidateLogSummaries(candidates []domain.ConstellationBorderline
 }
 
 func isBorderlineCandidate(candidate scoredConstellationCandidate) bool {
-	if candidate.score >= constellationMiddleMatchThreshold {
+	if candidate.score >= constellationStrongMatchThreshold {
 		return false
 	}
 	if candidate.score < borderlineWeakThreshold {
@@ -1279,7 +1403,7 @@ func constellationScoreComponents(candidate scoredConstellationCandidate) map[st
 }
 
 func isPrimaryAttachCandidate(candidate scoredConstellationCandidate) bool {
-	return candidate.score >= constellationMiddleMatchThreshold || candidate.explainableMiddle
+	return candidate.score >= constellationStrongMatchThreshold
 }
 
 func isExplainableMiddleCandidate(keywordOverlap float64, sceneOverlap float64, emotionOverlap float64, patternTagsOverlap float64, score float64) bool {

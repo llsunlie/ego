@@ -1,10 +1,18 @@
 package ai
 
 import (
+	"context"
+	"encoding/json"
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	platformai "ego-server/internal/platform/ai"
 	starmapdomain "ego-server/internal/starmap/domain"
 	writingdomain "ego-server/internal/writing/domain"
 )
@@ -164,5 +172,125 @@ func TestFallbackTraceProfileResponse_AllowsEmptyCentralPattern(t *testing.T) {
 	}
 	if resp.RepresentativeIndex != 1 {
 		t.Fatalf("representative_moment_index = %d, want 1", resp.RepresentativeIndex)
+	}
+}
+
+func TestTraceProfileGenerator_RetriesEmbedding(t *testing.T) {
+	originalBackoff := traceProfileEmbeddingRetryBackoff
+	traceProfileEmbeddingRetryBackoff = func(attempt int) time.Duration { return 0 }
+	defer func() { traceProfileEmbeddingRetryBackoff = originalBackoff }()
+
+	var embeddingAttempts atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/chat/completions":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"choices": []map[string]any{
+					{"message": map[string]string{"content": `{"topic":"入职等待","summary":"用户记录了入职前等待反馈的状态。","keywords":["入职","反馈"],"emotions":["紧张"],"scenes":["工作"],"central_pattern":"等待入职流程反馈","pattern_tags":["新开始","等待反馈"],"representative_moment_index":1}`}},
+				},
+				"usage": map[string]int{"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30},
+			})
+		case "/embeddings":
+			attempt := embeddingAttempts.Add(1)
+			if attempt == 1 {
+				http.Error(w, "temporary unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"data": []map[string]any{
+					{"embedding": []float32{0.1, 0.2}},
+				},
+				"model": "embed-test",
+				"usage": map[string]int{"prompt_tokens": 5, "total_tokens": 5},
+			})
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	client := platformai.NewClient(platformai.Config{
+		EmbeddingAPIKey:  "test-key",
+		EmbeddingBaseURL: server.URL,
+		EmbeddingModel:   "embed-test",
+		ChatAPIKey:       "test-key",
+		ChatBaseURL:      server.URL,
+		ChatModel:        "chat-test",
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	generator := NewTraceProfileGenerator(client)
+
+	trace := writingdomain.Trace{ID: "trace-1", UserID: "user-1"}
+	moments := []writingdomain.Moment{{ID: "moment-1", TraceID: trace.ID, UserID: trace.UserID, Content: "还在等入职反馈。"}}
+
+	profile, vector, err := generator.Generate(context.Background(), trace, moments)
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	if profile.Status != starmapdomain.TraceProfileStatusReady {
+		t.Fatalf("profile status = %q, want ready", profile.Status)
+	}
+	if vector == nil || vector.Model != "embed-test" || vector.Dim != 2 {
+		t.Fatalf("vector = %#v, want embed-test dim 2", vector)
+	}
+	if got := embeddingAttempts.Load(); got != 2 {
+		t.Fatalf("embedding attempts = %d, want 2", got)
+	}
+}
+
+func TestTraceProfileGenerator_EmbeddingFailureMarksProfileFailed(t *testing.T) {
+	originalBackoff := traceProfileEmbeddingRetryBackoff
+	traceProfileEmbeddingRetryBackoff = func(attempt int) time.Duration { return 0 }
+	defer func() { traceProfileEmbeddingRetryBackoff = originalBackoff }()
+
+	var embeddingAttempts atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/chat/completions":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"choices": []map[string]any{
+					{"message": map[string]string{"content": `{"topic":"入职等待","summary":"用户记录了入职前等待反馈的状态。","keywords":["入职"],"emotions":[],"scenes":["工作"],"central_pattern":"","pattern_tags":["等待反馈"],"representative_moment_index":1}`}},
+				},
+				"usage": map[string]int{"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30},
+			})
+		case "/embeddings":
+			embeddingAttempts.Add(1)
+			http.Error(w, "temporary unavailable", http.StatusServiceUnavailable)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	client := platformai.NewClient(platformai.Config{
+		EmbeddingAPIKey:  "test-key",
+		EmbeddingBaseURL: server.URL,
+		EmbeddingModel:   "embed-test",
+		ChatAPIKey:       "test-key",
+		ChatBaseURL:      server.URL,
+		ChatModel:        "chat-test",
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	generator := NewTraceProfileGenerator(client)
+
+	trace := writingdomain.Trace{ID: "trace-1", UserID: "user-1"}
+	moments := []writingdomain.Moment{{ID: "moment-1", TraceID: trace.ID, UserID: trace.UserID, Content: "还在等入职反馈。"}}
+
+	profile, vector, err := generator.Generate(context.Background(), trace, moments)
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	if vector != nil {
+		t.Fatalf("vector = %#v, want nil", vector)
+	}
+	if profile.Status != starmapdomain.TraceProfileStatusFailed {
+		t.Fatalf("profile status = %q, want failed", profile.Status)
+	}
+	if !strings.Contains(profile.LastError, "embedding:") {
+		t.Fatalf("last_error = %q, want embedding error", profile.LastError)
+	}
+	if got := embeddingAttempts.Load(); got != traceProfileEmbeddingMaxAttempts {
+		t.Fatalf("embedding attempts = %d, want %d", got, traceProfileEmbeddingMaxAttempts)
 	}
 }

@@ -108,9 +108,9 @@ P7 后当前模块装配默认走 `clusterWithProfileAsync(trace, star, moments)
 clusterWithProfileAsync
   -> adapter/ai.TraceProfileGenerator.Generate(trace, moments)
        -> LLM 生成结构化 TraceProfile
-       -> 生成失败时应用层最多尝试 3 次
+       -> LLM JSON 生成在 generator 内最多尝试 3 次
        -> 生成器内部仍保留 minimal profile 兜底
-       -> embedding(profile_text)
+       -> embedding(profile_text) 在 generator 内最多尝试 3 次
   -> adapter/postgres.TraceProfileRepository.Upsert(profile, vector)
   -> adapter/postgres.ConstellationProfileRepository.FindCandidates(...)
   -> rankConstellationCandidates(...)
@@ -165,9 +165,9 @@ Star <-> Constellation
 
 更完整的设计和实现记录见 `docs/matching-optimization/constellation-profile-design.md` 与 `docs/matching-optimization/constellation-matching-design.md`。
 
-### P7.1 / P7.2 聚合优化
+### P7.1 / P7.2 / P7.3 聚合优化
 
-基于真实测试数据，P7 第一版存在偏向创建新星座的问题。目前已拆为两步优化：
+基于真实测试数据，P7 第一版存在偏向创建新星座的问题。目前已拆为多步优化：
 
 ```text
 P7.1:
@@ -181,12 +181,20 @@ P7.2:
   -> 已在 ConstellationProfile 中持久化 theme codebook
   -> 已仅对边界候选触发 top3 LLM 判断
   -> LLM 在候选星座 theme_code 中选择 use_existing，或返回 suggest_new
-  -> use_existing 需通过 confidence、candidate id、theme_code、shared_situation、match_dimensions 门控
+  -> use_existing 需通过 confidence、candidate id、theme_code、shared theme、match_dimensions 门控
   -> 强匹配、无候选、明显无关场景不调用 LLM
-  -> ES sparse 召回延后到 P7.3
+
+P7.3:
+  -> 已将边界 LLM 升级为统一归属裁判
+  -> LLM 一次返回 primary 和可选 secondary
+  -> 强匹配仍直接写 primary，不调用 LLM
+  -> 0.30 <= score < 0.68 的边界候选交由 LLM 判断是否自然归属
+  -> secondary 不再要求达到旧 middle threshold，但必须通过 confidence 和证据门控
+  -> 新建 primary 时只接受 LLM 明确给出的 secondary
+  -> ES sparse 召回延后到 P7.4
 ```
 
-P7.1 / P7.2 实现与 P7.3 设计详见 `docs/matching-optimization/constellation-matching-design.md`。
+P7.1 / P7.2 / P7.3 实现与 P7.4 设计详见 `docs/matching-optimization/constellation-matching-design.md`。
 
 ### Trace.stashed 写入说明
 
@@ -305,12 +313,12 @@ Now 页会把 prompt 放进输入框 hint，并不会把 constellation ID 或 mo
 | 单个已有星座 embedding 失败 | 跳过该星座 |
 | 资产 Chat/JSON 失败 | 使用 fallback 默认资产 |
 | 资产 topic embedding 失败 | 无缓存 embedding，仍创建/更新星座 |
-| TraceProfile LLM 失败 | 最多重试 2 次，仍失败则生成 fallback profile |
-| TraceProfile embedding 失败 | 写入 `status=failed` profile，不写 vector，不影响当前星座聚类 |
+| TraceProfile LLM 失败 | generator 内最多 3 次尝试，仍失败则生成 fallback profile |
+| TraceProfile embedding 失败 | generator 内最多 3 次尝试，仍失败则写入 `status=failed` profile，不写 vector，不影响当前星座聚类 |
 | TraceProfile 持久化失败 | 只记日志，不影响当前星座聚类 |
 | 后台任一步骤返回 hard error | 只记日志，Star 可能长期停留在未聚类/合成单星状态 |
 
-当前没有任务队列、重试机制、dead-letter 或后台 reconciliation。服务重启会丢失正在执行的 goroutine；失败的 Star 后续会持续以合成单星星座出现，直到人工修复或未来补偿任务处理。
+当前没有任务队列、dead-letter 或后台 reconciliation。服务重启会丢失正在执行的 goroutine；失败的 Star 后续会持续以合成单星星座出现，直到人工修复或未来补偿任务处理。
 
 ## 当前限制
 

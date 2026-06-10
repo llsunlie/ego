@@ -12,50 +12,118 @@ import (
 )
 
 const constellationBorderlineJudgeSystemPrompt = `
-你是 ego 星座聚合算法中的“边界裁判”。
+你是 ego 的星座归属判断器。
 
-你的任务不是给用户建议，也不是重新总结内容，而是判断当前 trace 是否应该并入候选星座中的某一个长期主题。
+你的任务是判断：当前这条 trace，放进哪个候选星座里，用户回头看时会觉得最自然。
 
-判断原则：
-- 不要因为场景相同就合并，例如都和“工作”有关并不等于同一主题。
-- 不要因为情绪相同就合并，例如都“心烦”并不等于同一主题。
-- 不要因为关键词相同就合并，例如都提到“对方”“上班”“申请”并不等于同一主题。
-- 只有当当前 trace 和候选星座共享一个稳定的长期主题时，才选择 use_existing。
-- 长期主题可以是反复出现的处境、自我反应模式、关系位置、身份状态，或同一种内在需要与顾虑。
-- 如果只是一次性事件、具体任务相似、场景相似、情绪相似，或者共同主题说不清楚，选择 suggest_new。
-- 优先保护已有星座的边界；不确定时选择 suggest_new。
-- constellation_id 只能使用输入候选中的 id；不能编造 id。
-- theme_code 如果选择 use_existing，必须使用候选中的 theme_code。
+星座不是精细分类标签，而是用户一段时间里反复出现、自然连在一起的主题。判断时优先站在用户视角，而不是站在数据库分类或事件流程拆解的视角。
 
-返回严格 JSON，不要包含 markdown：
+你要回答的问题是：
+“如果用户以后打开星图，看到这些内容被放在同一个星座里，会不会觉得：对，这些说的是同一件事 / 同一段处境 / 同一种状态？”
+
+如果答案是是，选择 use_existing。
+如果答案是否，选择 suggest_new。
+
+判断粒度要求：
+- 不要拆得太细。
+- 同一段连续经历里的不同阶段，通常应该归在一起。
+- 同一个自然主题下的不同表达角度，通常应该归在一起。
+- 用户会自然放在一起回看的内容，应该归在一起。
+- 只有当合并后主题会变得很泛、很乱、失去辨识度时，才新建。
+
+例如：
+入职资料被驳回、审核说资料有问题、等待审核反馈、反复补材料、入职进度卡住，通常属于同一个星座，因为用户会自然理解为“入职这件事一直不顺”。
+不要把它们拆成“入职资料问题”“审核反馈等待”“入职申请驳回”“入职流程受阻”。
+除非候选星座明显讲的是另一个主题，比如“入职后学习压力”“适应新团队”“工作内容太多”。
+
+再例如：
+说好早睡但又熬夜、第二天很累、又拖到凌晨、想调整作息但没做到，通常属于同一个星座。
+不要拆成“熬夜”“早睡失败”“作息拖延”“第二天疲惫”。
+
+再例如：
+关系里等对方主动、自己不想先开口、想被理解、反复解释很累，通常属于同一个星座。
+不要拆成“等待回应”“不想主动”“沟通疲惫”“想被理解”。
+
+primary 是用户最自然会归入的主星座。
+secondary 是另一个合理但不是主视角的星座，最多 2 个；没有就返回 []。
+不要因为候选排名第一就必须选它。如果第二或第三候选更符合用户自然主题，可以选它做 primary。
+
+选择 use_existing 的标准：
+- 当前 trace 是候选星座主题的自然延伸。
+- 当前 trace 和候选星座属于同一段用户会自然合并回看的经历。
+- 当前 trace 与候选星座虽然具体事件不同，但核心处境相同。
+- 当前 trace 加入后，星座主题仍然具体、清楚、好理解。
+- 可以用一个自然主题概括二者，例如“入职流程反复卡住”“作息又失控了”“关系里等对方主动”。
+
+选择 suggest_new 的标准：
+- 只是同属一个大场景，例如都和工作有关，但一个是入职审核，一个是团队协作压力。
+- 只是情绪相似，例如都烦，但事情本身不是同一类处境。
+- 只是词相似，例如都提到“审核”或“消息”，但用户回看时不会觉得它们是一组。
+- 合并后只能得到很泛的主题，例如“工作问题”“生活烦恼”“心情不好”。
+- 当前 trace 会让候选星座从一个清楚主题变成杂糅集合。
+
+候选星座可能已有的 topic、theme_label、theme_description 比较窄。如果当前 trace 明显是它的自然延伸，不要被旧名字限制，可以选择 use_existing，并在 shared_theme 里写出更自然、更上层但仍具体的共同主题。
+
+输出要求：
+- 只能从候选星座中选择 constellation_id。
+- 如果选择 use_existing，primary 必须填写；如果选择 suggest_new，primary 置为空对象。
+- theme_code 必须使用所选候选星座的 theme_code。
+- shared_theme 要写用户视角下的共同自然主题，不能写成“都和工作有关”“都很烦”这种泛描述。
+- reason 要说明为什么这次应该合并或新建。
+- confidence 表示你对这个判断的把握。
+- match_dimensions 只能使用：situation, self_pattern, relationship, identity, need_conflict, wording。
+- wording 只能作为辅助理由，不能单独决定合并。
+- 只返回 JSON，不要返回 markdown，不要解释 JSON 之外的内容。
+
+返回 JSON 格式：
 {
   "decision": "use_existing 或 suggest_new",
-  "constellation_id": "选择 use_existing 时填写候选 id，否则为空字符串",
-  "theme_code": "选择 use_existing 时填写候选 theme_code，否则为空字符串",
-  "confidence": 0.0,
-  "shared_situation": "一句话说明共享的长期主题；无法说明则为空字符串",
-  "match_dimensions": ["situation"],
-  "reason": "一句话说明判断原因",
+  "primary": {
+    "constellation_id": "选择 use_existing 时填写候选 id，否则为空字符串",
+    "theme_code": "选择 use_existing 时填写候选 theme_code，否则为空字符串",
+    "confidence": 0.0,
+    "shared_theme": "一句话说明用户视角下的共同自然主题；无法说明则为空字符串",
+    "match_dimensions": ["situation"],
+    "reason": "一句话说明为什么作为主星座"
+  },
+  "secondary": [
+    {
+      "constellation_id": "候选 id",
+      "theme_code": "候选 theme_code",
+      "confidence": 0.0,
+      "shared_theme": "一句话说明这个副视角",
+      "match_dimensions": ["identity"],
+      "reason": "一句话说明为什么作为副星座"
+    }
+  ],
   "suggested_theme_code": "选择 suggest_new 时给出稳定英文 snake_case 主题码，否则为空字符串",
   "suggested_theme_label": "选择 suggest_new 时给出中文主题标签，否则为空字符串",
   "suggested_theme_description": "选择 suggest_new 时说明新主题边界，否则为空字符串"
 }
-
-match_dimensions 只能从这些值中选择：situation, self_pattern, relationship, identity, need_conflict, wording。
-不要只因为 wording 匹配就选择 use_existing；wording 只能作为辅助证据。
 `
 
 type constellationBorderlineJudgeResponse struct {
-	Decision                  string   `json:"decision"`
-	ConstellationID           string   `json:"constellation_id"`
-	ThemeCode                 string   `json:"theme_code"`
-	Confidence                float64  `json:"confidence"`
-	SharedSituation           string   `json:"shared_situation"`
-	MatchDimensions           []string `json:"match_dimensions"`
-	Reason                    string   `json:"reason"`
-	SuggestedThemeCode        string   `json:"suggested_theme_code"`
-	SuggestedThemeLabel       string   `json:"suggested_theme_label"`
-	SuggestedThemeDescription string   `json:"suggested_theme_description"`
+	Decision                  string                                     `json:"decision"`
+	ConstellationID           string                                     `json:"constellation_id"`
+	ThemeCode                 string                                     `json:"theme_code"`
+	Confidence                float64                                    `json:"confidence"`
+	SharedSituation           string                                     `json:"shared_situation"`
+	MatchDimensions           []string                                   `json:"match_dimensions"`
+	Reason                    string                                     `json:"reason"`
+	SuggestedThemeCode        string                                     `json:"suggested_theme_code"`
+	SuggestedThemeLabel       string                                     `json:"suggested_theme_label"`
+	SuggestedThemeDescription string                                     `json:"suggested_theme_description"`
+	Primary                   *constellationBorderlineSelectionResponse  `json:"primary"`
+	Secondary                 []constellationBorderlineSelectionResponse `json:"secondary"`
+}
+
+type constellationBorderlineSelectionResponse struct {
+	ConstellationID string   `json:"constellation_id"`
+	ThemeCode       string   `json:"theme_code"`
+	Confidence      float64  `json:"confidence"`
+	SharedTheme     string   `json:"shared_theme"`
+	MatchDimensions []string `json:"match_dimensions"`
+	Reason          string   `json:"reason"`
 }
 
 type ConstellationBorderlineJudge struct {
@@ -93,7 +161,7 @@ func (j *ConstellationBorderlineJudge) Judge(ctx context.Context, input domain.C
 	if err != nil {
 		return nil, err
 	}
-	return &domain.ConstellationBorderlineJudgement{
+	judgement := &domain.ConstellationBorderlineJudgement{
 		Decision:                  strings.TrimSpace(resp.Decision),
 		ConstellationID:           strings.TrimSpace(resp.ConstellationID),
 		ThemeCode:                 strings.TrimSpace(resp.ThemeCode),
@@ -104,7 +172,41 @@ func (j *ConstellationBorderlineJudge) Judge(ctx context.Context, input domain.C
 		SuggestedThemeCode:        strings.TrimSpace(resp.SuggestedThemeCode),
 		SuggestedThemeLabel:       strings.TrimSpace(resp.SuggestedThemeLabel),
 		SuggestedThemeDescription: strings.TrimSpace(resp.SuggestedThemeDescription),
-	}, nil
+	}
+	if resp.Primary != nil {
+		judgement.Primary = normalizeSelectionResponse(*resp.Primary)
+	}
+	for _, secondary := range resp.Secondary {
+		if selection := normalizeSelectionResponse(secondary); selection != nil {
+			judgement.Secondary = append(judgement.Secondary, *selection)
+		}
+	}
+	if judgement.Primary == nil && judgement.ConstellationID != "" {
+		judgement.Primary = &domain.ConstellationBorderlineSelection{
+			ConstellationID: judgement.ConstellationID,
+			ThemeCode:       judgement.ThemeCode,
+			Confidence:      judgement.Confidence,
+			SharedTheme:     judgement.SharedSituation,
+			MatchDimensions: append([]string(nil), judgement.MatchDimensions...),
+			Reason:          judgement.Reason,
+		}
+	}
+	return judgement, nil
+}
+
+func normalizeSelectionResponse(resp constellationBorderlineSelectionResponse) *domain.ConstellationBorderlineSelection {
+	selection := &domain.ConstellationBorderlineSelection{
+		ConstellationID: strings.TrimSpace(resp.ConstellationID),
+		ThemeCode:       strings.TrimSpace(resp.ThemeCode),
+		Confidence:      resp.Confidence,
+		SharedTheme:     strings.TrimSpace(resp.SharedTheme),
+		MatchDimensions: normalizeJudgeStringList(resp.MatchDimensions, 6),
+		Reason:          strings.TrimSpace(resp.Reason),
+	}
+	if selection.ConstellationID == "" && selection.ThemeCode == "" && selection.SharedTheme == "" && selection.Reason == "" {
+		return nil
+	}
+	return selection
 }
 
 func buildConstellationBorderlineJudgePrompt(input domain.ConstellationBorderlineJudgeInput) string {

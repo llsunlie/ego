@@ -23,7 +23,7 @@ StashTrace
        -> upsert trace_profile_vectors（如果 embedding 成功）
 ```
 
-P4 时 TraceProfile 失败不会阻断现有星座聚合。P7 后异步聚合依赖 TraceProfile，生成失败会在应用层重试，仍失败则记录可恢复错误，后续计划由消息队列或补偿任务保证一致性。
+P4 时 TraceProfile 失败不会阻断现有星座聚合。P7 后异步聚合依赖 TraceProfile；LLM JSON 与 embedding 重试收敛在 TraceProfileGenerator 内部，仍失败则记录可恢复错误，后续计划由消息队列或补偿任务保证一致性。
 
 ## 字段设计
 

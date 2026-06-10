@@ -14,6 +14,16 @@ import (
 )
 
 const traceProfileMaxAttempts = 3
+const traceProfileEmbeddingMaxAttempts = 3
+
+var traceProfileEmbeddingRetryBackoff = func(attempt int) time.Duration {
+	switch attempt {
+	case 1:
+		return 200 * time.Millisecond
+	default:
+		return 600 * time.Millisecond
+	}
+}
 
 const traceProfileSystemPrompt = `
 你是 ego 的 TraceProfile 生成器。
@@ -182,7 +192,7 @@ func (g *TraceProfileGenerator) Generate(ctx context.Context, trace writingdomai
 		"representative_fallback", representativeFallback,
 	)
 
-	embedding, err := g.client.CreateEmbedding(ctx, profile.ProfileText)
+	embedding, err := g.createEmbeddingWithRetry(ctx, trace.ID, profile.ProfileText)
 	if err != nil {
 		profile.Status = domain.TraceProfileStatusFailed
 		profile.LastError = fmt.Sprintf("embedding: %v", err)
@@ -211,6 +221,56 @@ func (g *TraceProfileGenerator) Generate(ctx context.Context, trace writingdomai
 		"embedding_dim", vector.Dim,
 	)
 	return profile, vector, nil
+}
+
+func (g *TraceProfileGenerator) createEmbeddingWithRetry(ctx context.Context, traceID string, input string) (*platformai.EmbeddingResult, error) {
+	logger := logging.FromContext(ctx)
+	var lastErr error
+	for attempt := 1; attempt <= traceProfileEmbeddingMaxAttempts; attempt++ {
+		embedding, err := g.client.CreateEmbedding(ctx, input)
+		if err == nil {
+			if attempt > 1 {
+				logger.InfoContext(ctx, "starmap trace profile embedding retry succeeded",
+					"trace_id", traceID,
+					"attempt", attempt,
+				)
+			}
+			return embedding, nil
+		}
+		lastErr = err
+		if ctx.Err() != nil || !isRetryableEmbeddingError(err) || attempt == traceProfileEmbeddingMaxAttempts {
+			break
+		}
+		delay := traceProfileEmbeddingRetryBackoff(attempt)
+		logger.WarnContext(ctx, "starmap trace profile embedding attempt failed",
+			"trace_id", traceID,
+			"attempt", attempt,
+			"max_attempts", traceProfileEmbeddingMaxAttempts,
+			"retry_after_ms", delay.Milliseconds(),
+			"error", err,
+		)
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, ctx.Err()
+		case <-timer.C:
+		}
+	}
+	return nil, lastErr
+}
+
+func isRetryableEmbeddingError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	for _, status := range []string{" 400 ", " 401 ", " 403 ", " 404 "} {
+		if strings.Contains(msg, "ai.Embed:"+status) {
+			return false
+		}
+	}
+	return true
 }
 
 func traceProfileRetryCount(attempt int, err error) int {

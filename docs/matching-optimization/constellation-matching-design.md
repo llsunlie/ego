@@ -11,7 +11,7 @@ StashTrace
   -> create Star(topic="聚合中")
   -> mark Trace stashed
   -> async clusterWithProfileAsync
-       -> TraceProfileGenerator.Generate(trace, moments), failed attempts retry up to 3 total attempts
+       -> TraceProfileGenerator.Generate(trace, moments), LLM JSON and embedding retry inside generator
        -> upsert trace_profiles / trace_profile_vectors
        -> stars.UpdateTopic(trace_profile.topic)
        -> recall ConstellationProfile candidates
@@ -638,13 +638,76 @@ fallback_reason
 
 7. 无候选不调用 LLM，直接新建。
 
-### P7.3 预留：ConstellationProfile ES sparse 召回
+### P7.3 迭代：统一归属裁判
+
+状态：已实现。
+
+P7.3-a/b 将 P7.2 的边界 LLM 从“只兜底 primary”升级为“统一归属裁判”：
+
+```text
+确定性评分
+  -> score >= strong_threshold 直接 primary
+  -> 0.30 <= score < strong_threshold 进入 LLM
+  -> LLM 一次判断 primary + secondary
+```
+
+当前实现参数：
+
+```text
+strong_threshold = 0.68
+borderline_weak_threshold = 0.30
+llm_top_k = 3
+primary confidence >= 0.65
+secondary confidence >= 0.60
+```
+
+LLM 输出从单个 `constellation_id` 扩展为：
+
+```json
+{
+  "decision": "use_existing",
+  "primary": {
+    "constellation_id": "...",
+    "theme_code": "...",
+    "confidence": 0.82,
+    "shared_theme": "入职资料、审核和反馈反复卡住",
+    "match_dimensions": ["situation"],
+    "reason": "这是用户回看时最自然的主星座"
+  },
+  "secondary": [
+    {
+      "constellation_id": "...",
+      "theme_code": "...",
+      "confidence": 0.72,
+      "shared_theme": "也可以从被审核的位置感理解",
+      "match_dimensions": ["identity"],
+      "reason": "这是另一个合理视角"
+    }
+  ]
+}
+```
+
+落库规则：
+
+- primary 通过 LLM gate 后写入 `match_type=primary`、`weight=1.0`。
+- secondary 最多 2 个，写入 `match_type=secondary`、`weight=0.5`。
+- secondary 不再要求 `score >= middle_threshold`，但必须通过 confidence、candidate id、theme_code、shared_theme、match_dimensions gate。
+- 新建 primary 时，只接受 LLM 明确给出的 secondary；不会再用确定性分数自动挂旧候选。
+
+确定性分数现在主要承担：
+
+- 强匹配直通。
+- 候选排序。
+- 触发 LLM 的边界区判断。
+- 诊断日志和后续调参。
+
+### P7.4 预留：ConstellationProfile ES sparse 召回
 
 星座级 ES sparse 召回暂不放入 P7.2。
 
 原因：当前暴露的问题不是候选没召回，而是候选召回后确定性分数过低。ES sparse 更适合后续解决候选遗漏。
 
-预留 P7.3：
+预留 P7.4：
 
 ```text
 dense: pgvector profile_embedding topK

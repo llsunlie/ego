@@ -12,19 +12,21 @@ P6 ConstellationProfile target design is documented. The planned model keeps `Tr
 
 P7 profile-based constellation matching is implemented as the only `StashTrace` async clustering path. Runtime now generates/persists TraceProfile, recalls ConstellationProfile candidates, scores them, writes primary/secondary memberships through `constellation_stars`, syncs `constellations.star_ids` for proto compatibility, and updates ConstellationProfile stats plus centroid embedding. The old topic-based `clusterAsync` path and TopicGenerator/ConstellationMatcher fallback have been removed.
 
-P7 cleanup adds app-level TraceProfile generation retry around the async clustering path. Critical async failures log `recovery=pending_message_queue`, marking the future consistency mechanism; P8 is now reserved for ConstellationProfile merge quality and eventual-consistency design.
+P7 cleanup keeps TraceProfile AI retry inside `TraceProfileGenerator`: LLM JSON generation and profile embedding each retry locally before fallback / failed profile persistence. App-level `StashTrace` orchestration calls the generator once, then persists the resulting profile/vector. Critical async failures log `recovery=pending_message_queue`, marking the future consistency mechanism; P8 is now reserved for ConstellationProfile merge quality and eventual-consistency design.
 
 P7.1 over-splitting reduction is implemented. TraceProfile/ConstellationProfile now carry `pattern_tags`, profile text includes them, repositories persist them through JSONB, and migration `013_profile_pattern_tags.sql` backfills the column for existing local tables. Matching now uses `pattern_tags_overlap` instead of `central_pattern_overlap`, lowers deterministic thresholds to strong=0.72 / middle=0.60, avoids duplicate centroid weighting for single-trace constellations, and allows explainable middle matches when score is in [0.58, 0.60) with at least three structured evidence dimensions. Candidate logs now include matched keywords, scenes, emotions, pattern tags, score components, and threshold gaps.
 
-P7.2 theme codebook and gated borderline LLM judgement are implemented. `ConstellationProfile` now persists `theme_code`, `theme_label`, `theme_description`, and `theme_examples`; new constellations receive deterministic fallback codebook entries, and valid `suggest_new` LLM output can override them. Deterministic P7.1 scoring still runs first; middle/explainable-middle matches attach directly, while only weak-but-evidenced top3 borderline candidates call `ConstellationBorderlineJudge`. Accepted `use_existing` output must pass confidence, candidate id, theme_code, shared_situation, and match_dimensions gates before writing the primary membership. Rejected/failed judgements fall back to creating a new constellation. ConstellationProfile Elasticsearch sparse recall is split out as P7.3.
+P7.2 theme codebook and gated borderline LLM judgement are implemented. `ConstellationProfile` now persists `theme_code`, `theme_label`, `theme_description`, and `theme_examples`; new constellations receive deterministic fallback codebook entries, and valid `suggest_new` LLM output can override them. Deterministic P7.1 scoring still runs first; strong matches attach directly, while weak-but-evidenced top3 borderline candidates call `ConstellationBorderlineJudge`. Accepted output must pass confidence, candidate id, theme_code, shared theme, and match_dimensions gates. Rejected/failed judgements fall back to creating a new constellation.
+
+P7.3 unified membership judgement is implemented. The borderline LLM now judges primary and secondary constellation memberships in one call, using the product-level question "which constellation would feel natural when the user reviews this star later" instead of overly fine-grained event labels. Strong deterministic primary matches still bypass LLM. Borderline candidates in `[0.30, 0.68)` can be accepted by LLM; secondary memberships no longer require the previous middle score threshold, but must pass confidence and evidence gates. ConstellationProfile Elasticsearch sparse recall is split out as P7.4.
 
 ### Test summary
 
 | Layer | Tests | Status |
 |---|---|---|
-| `app/` | StashTrace, borderline judgement, ListConstellations, and GetConstellation coverage | All pass |
+| `app/` | StashTrace, borderline judgement, primary/secondary membership, ListConstellations, and GetConstellation coverage | All pass |
 | `adapter/grpc/` | 5 (StashTrace, StashTrace_Error, ListConstellations, GetConstellation, GetConstellation_Error) | All pass |
-| `internal/starmap/...` | TraceProfile persistence, P7 profile-based constellation matching, P7.1 pattern_tags scoring, P7.2 borderline judgement, multi-membership unique list count, and existing starmap tests | All pass |
+| `internal/starmap/...` | TraceProfile persistence, P7 profile-based constellation matching, P7.1 pattern_tags scoring, P7.2/P7.3 borderline judgement, multi-membership unique list count, and existing starmap tests | All pass |
 
 ### Completed layers
 
@@ -66,12 +68,13 @@ P7.2 theme codebook and gated borderline LLM judgement are implemented. `Constel
 12. **P7 profile matching path**: Current module wiring uses TraceProfile -> ConstellationProfile matching only. `constellation_stars` is the algorithm membership table; `constellations.star_ids` is still synchronized for compatibility.
 13. **P7.1 matching refinement**: Pattern tags and revised deterministic scoring are implemented to reduce over-splitting before broader P8 profile merge quality work.
 14. **P7.2 matching refinement**: Theme codebook and gated borderline LLM judgement are implemented to reduce over-splitting when deterministic overlap is too weak but a shared upper situation exists.
-15. **P7.3 marker**: Constellation sparse recall is separated from P7.2 and remains planned.
-16. **P8 marker**: ConstellationProfile merge quality and message-queue backed async consistency are reserved for P8 design.
+15. **P7.3 matching refinement**: Borderline LLM judgement now returns a primary selection plus optional secondary selections in one call. Direct deterministic primary attach is reserved for strong matches; secondary attach is allowed from explicit LLM evidence even when deterministic score is below the old middle threshold.
+16. **P7.4 marker**: Constellation sparse recall is separated from P7.3 and remains planned.
+17. **P8 marker**: ConstellationProfile merge quality and message-queue backed async consistency are reserved for P8 design.
 
 ### Known Issues
 
-- **Goroutine failure can leave star partially clustered**: If the async `clusterWithProfileAsync` goroutine exhausts retries or fails during profile/membership/profile-vector persistence, the star can remain with topic="聚合中" or with incomplete profile membership. Critical failures are logged with `star_id`, `trace_id`, and `recovery=pending_message_queue`; durable retry/dead-letter handling is planned for P8.
+- **Goroutine failure can leave star partially clustered**: If the async `clusterWithProfileAsync` goroutine fails during profile/membership/profile-vector persistence, the star can remain with topic="聚合中" or with incomplete profile membership. Critical failures are logged with `star_id`, `trace_id`, and `recovery=pending_message_queue`; durable retry/dead-letter handling is planned for P8.
 
 ### Reads from other modules
 

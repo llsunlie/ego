@@ -122,8 +122,23 @@
       ]
     },
     {
-      "id": "starmap.constellation_sparse_recall_p7_3",
-      "title": "P7.3 ConstellationProfile ES sparse recall",
+      "id": "starmap.constellation_unified_membership_judge_p7_3",
+      "title": "P7.3 Unified primary/secondary constellation membership judge",
+      "status": "passing",
+      "evidence": [
+        "domain/types.go",
+        "adapter/ai/constellation_borderline_judge.go",
+        "adapter/ai/constellation_borderline_judge_test.go",
+        "app/stash_trace.go",
+        "app/stash_trace_test.go",
+        "docs/matching-optimization/constellation-matching-design.md",
+        "docs/matching-optimization/optimization-plan.md",
+        "go test ./internal/starmap/..."
+      ]
+    },
+    {
+      "id": "starmap.constellation_sparse_recall_p7_4",
+      "title": "P7.4 ConstellationProfile ES sparse recall",
       "status": "planned",
       "evidence": [
         "docs/matching-optimization/constellation-matching-design.md",
