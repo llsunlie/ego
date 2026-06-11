@@ -55,6 +55,11 @@ type ConstellationBorderlineJudge interface {
 	Judge(ctx context.Context, input ConstellationBorderlineJudgeInput) (*ConstellationBorderlineJudgement, error)
 }
 
+// ConstellationProfileRefiner rewrites a mature constellation profile at count milestones.
+type ConstellationProfileRefiner interface {
+	Refine(ctx context.Context, input ConstellationProfileRefineInput) (*ConstellationProfileRefinement, error)
+}
+
 // TraceProfileRepository persists TraceProfiles and their optional vectors.
 type TraceProfileRepository interface {
 	Upsert(ctx context.Context, profile *TraceProfile, vector *TraceProfileVector) error

@@ -117,6 +117,9 @@ clusterWithProfileAsync
   -> adapter/postgres.ConstellationProfileRepository.FindCandidates(...)
   -> rankConstellationCandidates(...)
   -> createConstellationFromTraceProfile(...) 或 attachStarToConstellation(...)
+       -> attach 时先规则合并 ConstellationProfile
+       -> trace_count 命中 P8-a 里程碑时触发 LLM 精炼
+       -> 成功后刷新 profile_text / profile_embedding，失败则回退规则合并结果
 ```
 
 当前 TraceProfile 字段：
@@ -200,9 +203,17 @@ P7.4:
   -> 已通过 RRF 融合候选，融合后继续走现有评分和 P7.3 裁判
   -> ES 写入、查询或 sparse ID 回读失败只记录 warn，不阻塞聚合
   -> 不提供历史回填命令，仅保证后续 upsert 的星座画像进入 ES
+
+P8-a:
+  -> 已在加入已有星座后保留直接合并作为基础画像更新
+  -> trace_count 跨过 3 / 5 / 8 / 13 时触发 ConstellationProfile LLM 精炼
+  -> 13 之后每增加 8 个 trace 稳定触发一次：21 / 29 / 37 ...
+  -> 精炼成功后重写 topic / summary / labels / theme，并刷新 profile_embedding
+  -> centroid_embedding 仍来自实际 trace profile embedding 的加权平均
+  -> 精炼失败只记录 warn，并继续使用规则合并画像
 ```
 
-P7.1 / P7.2 / P7.3 / P7.4 实现详见 `docs/matching-optimization/constellation-matching-design.md`。
+P7.1 / P7.2 / P7.3 / P7.4 / P8-a 实现详见 `docs/matching-optimization/constellation-matching-design.md`。
 
 ### Trace.stashed 写入说明
 
@@ -212,7 +223,7 @@ P7.1 / P7.2 / P7.3 / P7.4 实现详见 `docs/matching-optimization/constellation
 
 P7 后旧 `topic -> ConstellationMatcher` 异步聚类路径已移除，不再作为 fallback。Star topic 会从 TraceProfile.topic 更新；星座归属由 TraceProfile 与 ConstellationProfile 匹配决定。
 
-当前异步聚合关键失败会记录 error 日志并带上 `recovery=pending_message_queue`。后续 P8 会设计消息队列或补偿任务，保证 TraceProfile、membership 与 ConstellationProfile 更新最终一致。
+当前异步聚合关键失败会记录 error 日志并带上 `recovery=pending_message_queue`。P8-a 已实现画像里程碑精炼，但消息队列或补偿任务仍留给 P8-b，后续用于保证 TraceProfile、membership 与 ConstellationProfile 更新最终一致。
 
 ## 星座资产生成
 

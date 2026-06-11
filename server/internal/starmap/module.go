@@ -38,6 +38,7 @@ func NewHandler(deps Deps) *starmapgrpc.Handler {
 	assetGen := starmapai.NewConstellationAssetGenerator(deps.AIClient)
 	profileGen := starmapai.NewTraceProfileGenerator(deps.AIClient)
 	borderlineJudge := starmapai.NewConstellationBorderlineJudge(deps.AIClient)
+	profileRefiner := starmapai.NewConstellationProfileRefiner(deps.AIClient)
 	profileRepo := starmappostgres.NewTraceProfileRepository(deps.DB, deps.AIEmbeddingDim)
 	constellationProfileRepo := starmappostgres.NewConstellationProfileRepository(deps.DB, deps.AIEmbeddingDim)
 	ids := starmapid.NewUUIDGenerator()
@@ -48,6 +49,7 @@ func NewHandler(deps Deps) *starmapgrpc.Handler {
 		profileGen, borderlineJudge, profileRepo, constellationProfileRepo,
 		ids,
 	)
+	stashTrace.UseConstellationProfileRefiner(profileRefiner)
 	if deps.ConstellationSparseOn && deps.ESClient != nil {
 		profileSearch := starmapes.NewConstellationProfileSearch(deps.ESClient, starmapes.DefaultConstellationProfileIndex)
 		stashTrace.UseConstellationSparseSearch(profileSearch, profileSearch, deps.ConstellationSparseTopK, deps.ConstellationHybridRRFK)

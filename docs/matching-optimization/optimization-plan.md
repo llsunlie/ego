@@ -44,7 +44,8 @@
 | P7.2 | 星座 Codebook 与边界判断 | 处理同一长期主题但确定性分数过低的候选 | theme codebook、边界 LLM、门控规则、诊断日志 | 已完成 |
 | P7.3 | 星座统一归属裁判 | 让边界 LLM 一次判断 primary + secondary，并降低确定性分数过低导致的兜底比例 | LLM primary/secondary 输出、阈值调整、secondary gate、回归测试 | 已完成 |
 | P7.4 | 星座 sparse 召回 | 降低 ConstellationProfile 候选遗漏 | ES sparse index、dense/sparse RRF 融合 | 已完成 |
-| P8 | 星座画像合并与一致性优化 | 避免画像简单合并后变长、变泛，并补齐异步一致性 | 标签权重/topN、异步画像刷新、消息队列/补偿任务设计 | 已标记待设计 |
+| P8-a | 星座画像里程碑精炼 | 避免画像简单合并后变长、变泛 | 直接合并 + trace_count 里程碑 LLM 精炼 + profile embedding 刷新 | 已完成 |
+| P8-b | 异步一致性优化 | 补齐异步聚类失败后的可恢复机制 | 消息队列/补偿任务设计与实现 | 待设计 |
 | P9 | lonely / forming / active 状态落地 | 表达星座从孤星到稳定主题的形成过程 | 状态规则、列表/详情返回兼容 | 待讨论 |
 | P10 | 观测、回归与调参 | 可观察优化效果并持续校准 | 日志、指标、离线评估脚本、回归用例 | 待设计 |
 
@@ -255,17 +256,30 @@
 - `CONSTELLATION_SPARSE_RECALL_TOP_K=10`
 - `CONSTELLATION_HYBRID_RRF_K=60`
 
-### P8. 星座画像合并与一致性优化
+### P8-a. 星座画像里程碑精炼
 
 目标：
 - 避免 `ConstellationProfile` 在持续吸收 Trace 后变长、变泛、失去辨识度。
+
+任务：
+- 暂不引入复杂统计层，继续由 `mergeConstellationProfile` 做直接合并和 topN 截断。
+- 当星座吸收后的 `trace_count` 跨过 `3 / 5 / 8 / 13` 时触发 LLM 精炼。
+- `trace_count > 13` 后按稳定节奏继续触发：`21 / 29 / 37 ...`，即每增加 8 个 trace 触发一次。
+- 精炼输入包含旧画像、规则合并后的画像、新加入的 TraceProfile 和代表性原话。
+- 精炼输出重写 topic / summary / keywords / emotions / scenes / central_pattern / pattern_tags / theme_label / theme_description / theme_examples。
+- 精炼成功后刷新 `profile_text` 和 `profile_embedding`，保留已更新的 `centroid_embedding`。
+- 精炼失败时记录 warn，并回退使用规则合并后的画像，不阻塞 Star 收进星图。
+
+暂缓：
+- keywords / emotions / scenes 的频次、权重、衰减统计。
+- 代表性 Moment 的长期选择与更新规则。
+
+### P8-b. 异步一致性优化
+
+目标：
 - 为异步聚类失败提供可恢复的一致性机制。
 
 任务：
-- 设计 keywords / emotions / scenes 的频次、权重、衰减和 topN 规则。
-- 设计过泛词过滤和代表性标签保留规则。
-- 设计加入 Trace 后的异步 LLM 画像刷新。
-- 设计代表性 Moment 的选择与更新规则。
 - 设计消息队列或补偿任务，保证 TraceProfile、membership、ConstellationProfile 更新最终一致。
 
 ### P9. lonely / forming / active 状态落地

@@ -123,6 +123,21 @@ type ConstellationProfileSparseCandidate struct {
 	Preview         string
 }
 
+type ConstellationProfileRefineInput struct {
+	Existing             ConstellationProfile
+	RuleMerged           ConstellationProfile
+	IncomingTraceProfile TraceProfile
+	RepresentativeMoment string
+	Trigger              int
+}
+
+type ConstellationProfileRefinement struct {
+	Profile          ConstellationProfile
+	Model            string
+	Dim              int
+	ProfileEmbedding []float32
+}
+
 const (
 	ConstellationBorderlineDecisionUseExisting = "use_existing"
 	ConstellationBorderlineDecisionSuggestNew  = "suggest_new"

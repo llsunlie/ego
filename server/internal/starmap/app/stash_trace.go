@@ -50,6 +50,7 @@ type StashTraceUseCase struct {
 	assetGen          domain.ConstellationAssetGenerator
 	profileGen        domain.TraceProfileGenerator
 	borderlineJudge   domain.ConstellationBorderlineJudge
+	profileRefiner    domain.ConstellationProfileRefiner
 	profileRepo       domain.TraceProfileRepository
 	constellationProf domain.ConstellationProfileRepository
 	profileIndexer    domain.ConstellationProfileSearchIndexer
@@ -118,6 +119,10 @@ func (uc *StashTraceUseCase) UseConstellationSparseSearch(indexer domain.Constel
 	if hybridRRFK > 0 {
 		uc.hybridRRFK = hybridRRFK
 	}
+}
+
+func (uc *StashTraceUseCase) UseConstellationProfileRefiner(refiner domain.ConstellationProfileRefiner) {
+	uc.profileRefiner = refiner
 }
 
 type StashTraceInput struct {
@@ -954,6 +959,7 @@ func (uc *StashTraceUseCase) attachStarToConstellation(ctx context.Context, cons
 			UpdatedAt:         now,
 		}
 	}
+	updatedProfile, updatedVector = uc.refineConstellationProfileIfNeeded(ctx, scored.candidate.Profile, updatedProfile, traceProfile, moments, updatedVector)
 	if err := uc.upsertConstellationProfile(ctx, updatedProfile, updatedVector); err != nil {
 		return fmt.Errorf("upsert constellation profile: %w", err)
 	}
@@ -972,6 +978,114 @@ func (uc *StashTraceUseCase) attachStarToConstellation(ctx context.Context, cons
 		return fmt.Errorf("add membership: %w", err)
 	}
 	return nil
+}
+
+func (uc *StashTraceUseCase) refineConstellationProfileIfNeeded(ctx context.Context, existing domain.ConstellationProfile, merged *domain.ConstellationProfile, incoming *domain.TraceProfile, moments []writingdomain.Moment, vector *domain.ConstellationProfileVector) (*domain.ConstellationProfile, *domain.ConstellationProfileVector) {
+	logger := logging.FromContext(ctx)
+	if merged == nil || incoming == nil {
+		logger.DebugContext(ctx, "starmap constellation profile refinement skipped",
+			"reason", "missing_profile",
+		)
+		return merged, vector
+	}
+	trigger, ok := constellationProfileRefinementTrigger(existing.TraceCount, merged.TraceCount)
+	if !ok {
+		logger.DebugContext(ctx, "starmap constellation profile refinement skipped",
+			"constellation_id", merged.ConstellationID,
+			"old_trace_count", existing.TraceCount,
+			"new_trace_count", merged.TraceCount,
+			"reason", "trigger_not_reached",
+		)
+		return merged, vector
+	}
+	if uc.profileRefiner == nil {
+		logger.DebugContext(ctx, "starmap constellation profile refinement skipped",
+			"constellation_id", merged.ConstellationID,
+			"old_trace_count", existing.TraceCount,
+			"new_trace_count", merged.TraceCount,
+			"trigger", trigger,
+			"reason", "refiner_not_configured",
+		)
+		return merged, vector
+	}
+	logger.DebugContext(ctx, "starmap constellation profile refinement started",
+		"constellation_id", merged.ConstellationID,
+		"old_trace_count", existing.TraceCount,
+		"new_trace_count", merged.TraceCount,
+		"trigger", trigger,
+		"topic", merged.Topic,
+	)
+	refinement, err := uc.profileRefiner.Refine(ctx, domain.ConstellationProfileRefineInput{
+		Existing:             existing,
+		RuleMerged:           *merged,
+		IncomingTraceProfile: *incoming,
+		RepresentativeMoment: representativeMomentContent(incoming.RepresentativeMomentID, moments),
+		Trigger:              trigger,
+	})
+	if err != nil {
+		logger.WarnContext(ctx, "starmap constellation profile refinement failed",
+			"constellation_id", merged.ConstellationID,
+			"old_trace_count", existing.TraceCount,
+			"new_trace_count", merged.TraceCount,
+			"trigger", trigger,
+			"fallback", "rule_merged_profile",
+			"error", err,
+		)
+		return merged, vector
+	}
+	refined := refinement.Profile
+	refined.ConstellationID = merged.ConstellationID
+	refined.UserID = merged.UserID
+	refined.TraceCount = merged.TraceCount
+	refined.MomentCount = merged.MomentCount
+	refined.Status = domain.ConstellationProfileStatusReady
+	refined.LastError = ""
+	refined.CreatedAt = merged.CreatedAt
+	refined.UpdatedAt = merged.UpdatedAt
+	if strings.TrimSpace(refined.ThemeCode) == "" {
+		refined.ThemeCode = merged.ThemeCode
+	}
+	if strings.TrimSpace(refined.ProfileText) == "" {
+		refined.ProfileText = buildConstellationProfileText(&refined)
+	}
+	if vector != nil && len(refinement.ProfileEmbedding) > 0 {
+		vector.ProfileEmbedding = refinement.ProfileEmbedding
+		vector.Model = refinement.Model
+		vector.Dim = refinement.Dim
+	}
+	logger.DebugContext(ctx, "starmap constellation profile refinement completed",
+		"constellation_id", refined.ConstellationID,
+		"trigger", trigger,
+		"topic", refined.Topic,
+		"keywords", refined.Keywords,
+		"scenes", refined.Scenes,
+		"pattern_tags", refined.PatternTags,
+		"theme_label", refined.ThemeLabel,
+		"profile_embedding_dim", len(refinement.ProfileEmbedding),
+	)
+	return &refined, vector
+}
+
+func constellationProfileRefinementTrigger(oldTraceCount float64, newTraceCount float64) (int, bool) {
+	oldFloor := int(math.Floor(oldTraceCount))
+	newFloor := int(math.Floor(newTraceCount))
+	if newFloor <= oldFloor {
+		return 0, false
+	}
+	for _, trigger := range []int{3, 5, 8, 13} {
+		if oldFloor < trigger && newFloor >= trigger {
+			return trigger, true
+		}
+	}
+	if newFloor <= 13 {
+		return 0, false
+	}
+	oldBucket := maxInt(0, (oldFloor-13)/8)
+	newBucket := maxInt(0, (newFloor-13)/8)
+	if newBucket > oldBucket {
+		return 13 + newBucket*8, true
+	}
+	return 0, false
 }
 
 func (uc *StashTraceUseCase) upsertConstellationProfile(ctx context.Context, profile *domain.ConstellationProfile, vector *domain.ConstellationProfileVector) error {

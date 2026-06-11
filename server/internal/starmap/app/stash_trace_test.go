@@ -150,6 +150,14 @@ func (m *mockConstellationProfileIndexer) IndexProfile(ctx context.Context, prof
 	return m.indexFn(ctx, profile)
 }
 
+type mockConstellationProfileRefiner struct {
+	refineFn func(ctx context.Context, input domain.ConstellationProfileRefineInput) (*domain.ConstellationProfileRefinement, error)
+}
+
+func (m *mockConstellationProfileRefiner) Refine(ctx context.Context, input domain.ConstellationProfileRefineInput) (*domain.ConstellationProfileRefinement, error) {
+	return m.refineFn(ctx, input)
+}
+
 type mockIDGen struct {
 	id string
 }
@@ -1243,5 +1251,162 @@ func TestStashTrace_WrongUser(t *testing.T) {
 	_, err := uc.Execute(ctx, StashTraceInput{TraceID: "tr-1"})
 	if !errors.Is(err, domain.ErrTraceNotFound) {
 		t.Fatalf("expected ErrTraceNotFound, got %v", err)
+	}
+}
+
+func TestConstellationProfileRefinementTrigger(t *testing.T) {
+	tests := []struct {
+		name    string
+		old     float64
+		new     float64
+		want    int
+		wantHit bool
+	}{
+		{name: "below first trigger", old: 1, new: 2, wantHit: false},
+		{name: "crosses three", old: 2.5, new: 3, want: 3, wantHit: true},
+		{name: "crosses five", old: 4.5, new: 5, want: 5, wantHit: true},
+		{name: "crosses eight", old: 7, new: 8.2, want: 8, wantHit: true},
+		{name: "crosses thirteen", old: 12.9, new: 13, want: 13, wantHit: true},
+		{name: "no repeat inside same integer", old: 21, new: 21.5, wantHit: false},
+		{name: "post thirteen stable trigger twenty one", old: 20.5, new: 21, want: 21, wantHit: true},
+		{name: "post thirteen no trigger before next bucket", old: 21, new: 28.5, wantHit: false},
+		{name: "post thirteen stable trigger twenty nine", old: 28.5, new: 29, want: 29, wantHit: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, hit := constellationProfileRefinementTrigger(tt.old, tt.new)
+			if hit != tt.wantHit {
+				t.Fatalf("hit = %v, want %v", hit, tt.wantHit)
+			}
+			if got != tt.want {
+				t.Fatalf("trigger = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRefineConstellationProfileIfNeeded_UsesRefinerAtTrigger(t *testing.T) {
+	ctx := context.Background()
+	now := time.Now()
+	existing := domain.ConstellationProfile{
+		ConstellationID: "constellation-1",
+		UserID:          "user-1",
+		Topic:           "入职等待",
+		Summary:         "用户在等待入职反馈。",
+		TraceCount:      2,
+		MomentCount:     2,
+		ThemeCode:       "work_transition",
+		CreatedAt:       now.Add(-time.Hour),
+		UpdatedAt:       now.Add(-time.Hour),
+	}
+	merged := existing
+	merged.Topic = "入职过程"
+	merged.TraceCount = 3
+	merged.MomentCount = 3
+	merged.UpdatedAt = now
+	incoming := &domain.TraceProfile{
+		TraceID:                "trace-3",
+		UserID:                 "user-1",
+		Topic:                  "入职受阻",
+		Summary:                "用户记录入职流程突然卡住。",
+		Keywords:               []string{"入职", "反馈"},
+		Scenes:                 []string{"工作"},
+		RepresentativeMomentID: "moment-1",
+	}
+	moments := []writingdomain.Moment{{ID: "moment-1", Content: "入职流程突然卡住了。"}}
+	vector := &domain.ConstellationProfileVector{
+		ConstellationID:   "constellation-1",
+		UserID:            "user-1",
+		Model:             "old-model",
+		Dim:               2,
+		ProfileEmbedding:  []float32{0.1, 0.2},
+		CentroidEmbedding: []float32{0.3, 0.4},
+		CreatedAt:         now.Add(-time.Hour),
+		UpdatedAt:         now,
+	}
+	var gotInput domain.ConstellationProfileRefineInput
+	uc := &StashTraceUseCase{}
+	uc.UseConstellationProfileRefiner(&mockConstellationProfileRefiner{
+		refineFn: func(ctx context.Context, input domain.ConstellationProfileRefineInput) (*domain.ConstellationProfileRefinement, error) {
+			gotInput = input
+			return &domain.ConstellationProfileRefinement{
+				Profile: domain.ConstellationProfile{
+					Topic:            "入职适应与流程等待",
+					Summary:          "用户持续记录入职阶段的反馈等待和流程不确定。",
+					Keywords:         []string{"入职", "反馈", "流程"},
+					Scenes:           []string{"工作"},
+					CentralPattern:   "新阶段开始前反复等待外部流程确认。",
+					ThemeLabel:       "入职过渡",
+					ThemeDescription: "围绕入职阶段的等待、确认和不确定感。",
+				},
+				Model:            "new-model",
+				Dim:              3,
+				ProfileEmbedding: []float32{0.7, 0.8, 0.9},
+			}, nil
+		},
+	})
+
+	gotProfile, gotVector := uc.refineConstellationProfileIfNeeded(ctx, existing, &merged, incoming, moments, vector)
+
+	if gotInput.Trigger != 3 {
+		t.Fatalf("trigger = %d, want 3", gotInput.Trigger)
+	}
+	if gotInput.RepresentativeMoment != "入职流程突然卡住了。" {
+		t.Fatalf("representative moment = %q", gotInput.RepresentativeMoment)
+	}
+	if gotProfile.Topic != "入职适应与流程等待" {
+		t.Fatalf("topic = %q", gotProfile.Topic)
+	}
+	if gotProfile.ConstellationID != "constellation-1" || gotProfile.UserID != "user-1" {
+		t.Fatalf("profile identity not preserved: %#v", gotProfile)
+	}
+	if gotProfile.TraceCount != 3 || gotProfile.MomentCount != 3 {
+		t.Fatalf("counts = %.1f/%.1f, want 3/3", gotProfile.TraceCount, gotProfile.MomentCount)
+	}
+	if gotProfile.ThemeCode != "work_transition" {
+		t.Fatalf("theme code = %q, want work_transition", gotProfile.ThemeCode)
+	}
+	if gotVector.Model != "new-model" || gotVector.Dim != 3 {
+		t.Fatalf("vector model/dim = %s/%d, want new-model/3", gotVector.Model, gotVector.Dim)
+	}
+	if len(gotVector.ProfileEmbedding) != 3 || gotVector.ProfileEmbedding[0] != 0.7 {
+		t.Fatalf("profile embedding = %#v", gotVector.ProfileEmbedding)
+	}
+	if len(gotVector.CentroidEmbedding) != 2 || gotVector.CentroidEmbedding[0] != 0.3 {
+		t.Fatalf("centroid embedding should be preserved, got %#v", gotVector.CentroidEmbedding)
+	}
+}
+
+func TestRefineConstellationProfileIfNeeded_FallsBackOnError(t *testing.T) {
+	ctx := context.Background()
+	existing := domain.ConstellationProfile{
+		ConstellationID: "constellation-1",
+		UserID:          "user-1",
+		Topic:           "入职等待",
+		TraceCount:      2,
+	}
+	merged := existing
+	merged.TraceCount = 3
+	merged.Topic = "入职过程"
+	incoming := &domain.TraceProfile{TraceID: "trace-3", UserID: "user-1", Topic: "入职受阻"}
+	vector := &domain.ConstellationProfileVector{Model: "old-model", ProfileEmbedding: []float32{0.1, 0.2}}
+	uc := &StashTraceUseCase{}
+	uc.UseConstellationProfileRefiner(&mockConstellationProfileRefiner{
+		refineFn: func(ctx context.Context, input domain.ConstellationProfileRefineInput) (*domain.ConstellationProfileRefinement, error) {
+			return nil, errors.New("temporary ai failure")
+		},
+	})
+
+	gotProfile, gotVector := uc.refineConstellationProfileIfNeeded(ctx, existing, &merged, incoming, nil, vector)
+
+	if gotProfile != &merged {
+		t.Fatalf("expected merged profile fallback")
+	}
+	if gotVector != vector {
+		t.Fatalf("expected original vector fallback")
+	}
+	if gotVector.Model != "old-model" {
+		t.Fatalf("vector model = %q, want old-model", gotVector.Model)
 	}
 }

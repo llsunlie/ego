@@ -730,16 +730,61 @@ CONSTELLATION_SPARSE_RECALL_TOP_K=10
 CONSTELLATION_HYBRID_RRF_K=60
 ```
 
-## P8 衔接
+## P8-a 画像里程碑精炼
 
-P7.1 引入 `pattern_tags`，P7.2 引入 theme codebook，但画像合并仍是轻量版本。P8 需要进一步解决：
+P7.1 引入 `pattern_tags`，P7.2 引入 theme codebook，P7.4 增加 ES sparse 召回。P8-a 先不引入复杂统计层，而是在现有直接合并基础上增加里程碑 LLM 精炼。
+
+触发条件：
+
+```text
+trace_count 跨过 3  -> 触发
+trace_count 跨过 5  -> 触发
+trace_count 跨过 8  -> 触发
+trace_count 跨过 13 -> 触发
+trace_count > 13 后，每增加 8 个 trace 触发一次：
+21 / 29 / 37 / ...
+```
+
+精炼输入：
+
+```text
+Existing ConstellationProfile
+RuleMerged ConstellationProfile
+Incoming TraceProfile
+RepresentativeMoment
+trigger_trace_count
+```
+
+精炼输出：
+
+```text
+topic
+summary
+keywords
+emotions
+scenes
+central_pattern
+pattern_tags
+theme_label
+theme_description
+theme_examples
+profile_embedding
+```
+
+写入策略：
+
+- `mergeConstellationProfile` 仍先执行直接合并，更新 trace_count / moment_count / labels / centroid_embedding。
+- 命中里程碑后调用 `ConstellationProfileRefiner`。
+- LLM 精炼成功时，用精炼后的文本画像刷新 `profile_text` 和 `profile_embedding`。
+- `centroid_embedding` 保留规则合并阶段基于实际 trace embedding 的加权结果。
+- LLM 或 embedding 失败时记录 warn，继续使用规则合并画像，不阻塞归属写入。
+- ES sparse index 继续在 `ConstellationProfile` upsert 后 best-effort 更新。
+
+暂不实现：
 
 - `pattern_tags`、`keywords`、`emotions`、`scenes` 的频次与权重统计。
-- `theme_examples` 的代表性更新。
-- `theme_description` 的异步重写与收敛。
-- 低辨识度标签过滤。
-- 加入新 Trace 后异步 LLM 重写 ConstellationProfile。
-- 使用消息队列或补偿任务保证 profile、membership、向量更新最终一致。
+- 代表性 Moment 的长期选择与更新规则。
+- 使用消息队列或补偿任务保证 profile、membership、向量更新最终一致。该项留给 P8-b。
 
 ## 多归属写入
 
@@ -798,7 +843,7 @@ TraceProfile
 - `constellations.star_ids` 追加当前 star。
 - `constellation_profiles` 合并 keywords / emotions / scenes。
 - `constellation_profile_vectors.centroid_embedding` 做加权平均。
-- `profile_embedding` 暂时保留已有画像 embedding，不在 P7 同步刷新 LLM 画像。
+- 命中 P8-a 里程碑时重写 ConstellationProfile，并刷新 `profile_embedding`。
 
 ## 查询兼容
 
@@ -820,15 +865,12 @@ P7 第一版暂不做：
 - 不引入 ANN index。当前 4096 维 pgvector 仍按普通排序召回。
 - 不引入消息队列保证异步一致性。当前异步聚类关键失败会记录 `recovery=pending_message_queue`，后续通过队列或补偿任务补齐。
 
-## P8 优化标记
+## P8-b 优化标记
 
-当前 `mergeConstellationProfile` 仍是第一版轻量合并：keywords / emotions / scenes 去重并保留 topN，summary / topic / central_pattern 只在为空时补齐。这能避免字段无限增长，但还不足以让星座画像长期保持辨识度。
-
-P8 需要专门设计：
+P8-a 仍是轻量实现：字段统计层没有独立持久化，标签同义词主要依赖里程碑 LLM 精炼收敛。后续 P8-b / P9 仍需继续设计：
 
 - 画像标签的频次/权重统计，而不是简单去重。
 - topN 保留和过泛词过滤。
-- 加入新 Trace 后的异步 LLM 画像刷新。
 - 代表性 Moment 选择与更新。
 - 使用消息队列或补偿任务保证 TraceProfile、membership、ConstellationProfile 更新的一致性。
 
@@ -838,6 +880,9 @@ P8 需要专门设计：
 
 - profile clustering 创建 primary constellation。
 - profile clustering 不走旧 topic generator / constellation matcher。
+- P8-a 里程碑触发规则。
+- P8-a 精炼成功后画像与 profile embedding 更新。
+- P8-a 精炼失败后回退到规则合并画像。
 - 多归属时 `ListConstellations.TotalStarCount` 按唯一 Star 计数。
 
 验证命令：
