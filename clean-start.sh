@@ -100,7 +100,9 @@ make version
 
 log "building flutter web (release)..."
 cd "$ROOT/client"
-flutter build web --release -O4 --no-source-maps --base-href /
+flutter build web --release -O4 --no-source-maps --base-href / \
+  --dart-define=SERVER_PORT="$GRPC_PORT" \
+  --dart-define=SERVER_WEB_PORT="$WEB_PORT"
 
 log "starting web server..."
 cd "$ROOT/client/build/web"
