@@ -78,7 +78,10 @@ func (g *InsightGenerator) Generate(ctx context.Context, momentID, echoID string
 		{Role: "user", Content: buildInsightUserPrompt(moment, echo)},
 	}
 
-	text, err := g.client.Chat(ctx, messages)
+	text, err := g.client.ChatWithRetry(ctx, messages, platformai.RetryOptions{
+		MaxAttempts: 2,
+		Operation:   "writing_insight",
+	})
 	if err != nil {
 		logger.ErrorContext(ctx, "insight generation failed", "error", err)
 		return nil, fmt.Errorf("insight gen: chat: %w", err)

@@ -148,7 +148,10 @@ func (j *ConstellationBorderlineJudge) Judge(ctx context.Context, input domain.C
 		"trace_id", input.TraceProfile.TraceID,
 		"messages", chatMessagesForLog(messages),
 	)
-	text, err := j.client.Chat(ctx, messages)
+	text, err := j.client.ChatWithRetry(ctx, messages, platformai.RetryOptions{
+		MaxAttempts: 2,
+		Operation:   "starmap_constellation_borderline_judgement",
+	})
 	if err != nil {
 		return nil, fmt.Errorf("chat: %w", err)
 	}

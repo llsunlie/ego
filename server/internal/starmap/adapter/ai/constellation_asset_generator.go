@@ -98,7 +98,10 @@ func (g *ConstellationAssetGenerator) Generate(ctx context.Context, moments []wr
 		"messages", chatMessagesForLog(messages),
 	)
 
-	text, err := g.client.Chat(ctx, messages)
+	text, err := g.client.ChatWithRetry(ctx, messages, platformai.RetryOptions{
+		MaxAttempts: 2,
+		Operation:   "starmap_constellation_asset",
+	})
 	if err != nil {
 		logger.ErrorContext(ctx, "starmap constellation asset chat failed", "error", err)
 		return fallbackAssets()
@@ -114,7 +117,10 @@ func (g *ConstellationAssetGenerator) Generate(ctx context.Context, moments []wr
 	}
 
 	var topicEmb []float32
-	emb, err := g.client.CreateEmbedding(ctx, topic)
+	emb, err := g.client.CreateEmbeddingWithRetry(ctx, topic, platformai.RetryOptions{
+		MaxAttempts: 3,
+		Operation:   "starmap_constellation_asset_topic",
+	})
 	if err != nil {
 		logger.WarnContext(ctx, "starmap constellation asset topic embedding failed", "error", err)
 	} else {

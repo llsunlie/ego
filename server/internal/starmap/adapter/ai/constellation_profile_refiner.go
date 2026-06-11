@@ -91,7 +91,10 @@ func (r *ConstellationProfileRefiner) Refine(ctx context.Context, input domain.C
 		"trigger", input.Trigger,
 		"messages", chatMessagesForLog(messages),
 	)
-	text, err := r.client.Chat(ctx, messages)
+	text, err := r.client.ChatWithRetry(ctx, messages, platformai.RetryOptions{
+		MaxAttempts: 2,
+		Operation:   "starmap_constellation_profile_refinement",
+	})
 	if err != nil {
 		return nil, fmt.Errorf("chat: %w", err)
 	}
@@ -104,7 +107,10 @@ func (r *ConstellationProfileRefiner) Refine(ctx context.Context, input domain.C
 		return nil, err
 	}
 	profile := applyConstellationProfileRefinement(input.RuleMerged, resp)
-	embedding, err := r.client.CreateEmbedding(ctx, profile.ProfileText)
+	embedding, err := r.client.CreateEmbeddingWithRetry(ctx, profile.ProfileText, platformai.RetryOptions{
+		MaxAttempts: 3,
+		Operation:   "starmap_constellation_profile_refinement",
+	})
 	if err != nil {
 		return nil, fmt.Errorf("embedding: %w", err)
 	}
