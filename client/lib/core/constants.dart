@@ -2,8 +2,10 @@ class AppConstants {
   // 编译时注入：本地默认 localhost，CD 工作流通过 --dart-define=SERVER_HOST=IP 传入
   static const String serverHost = String.fromEnvironment('SERVER_HOST', defaultValue: 'localhost');
   // 编译时注入：本地默认端口，CD 工作流通过 --dart-define=SERVER_PORT=xxxx 传入
-  static const int serverPort = int.fromEnvironment('SERVER_PORT', defaultValue: 9443);
+  static const int serverPort = int.fromEnvironment('SERVER_PORT', defaultValue: 9444);
   static const int serverWebPort = int.fromEnvironment('SERVER_WEB_PORT', defaultValue: 9080);
+  // 编译时注入：TLS 启用时设为 true，CD 工作流通过 --dart-define=SERVER_TLS=true 传入
+  static const bool serverTls = bool.fromEnvironment('SERVER_TLS', defaultValue: false);
 
   // Animation durations
   static const Duration animationFast = Duration(milliseconds: 200);
