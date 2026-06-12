@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	echoSimilarityThreshold = 0.65
+	echoSimilarityThreshold = 0.70
 	echoMaxMatches          = 3
 	echoScoreLogLimit       = 10
 )

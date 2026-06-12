@@ -105,13 +105,13 @@ func TestDefaultEchoMatcher_AboveThreshold_Matched(t *testing.T) {
 
 func TestDefaultEchoMatcher_SortedBySimilarityDescending(t *testing.T) {
 	matcher := NewDefaultEchoMatcher()
-	// vec=[1,0] vs [0.7,~0.714]=0.7, vs [0.8,0.6]=0.8
+	// vec=[1,0] vs [0.71,~0.704]=0.71, vs [0.8,0.6]=0.8
 	cur := &domain.Moment{ID: "m1", Embeddings: []domain.EmbeddingEntry{
 		{Model: "test", Embedding: []float32{1, 0}},
 	}}
 	history := []domain.Moment{
 		{ID: "mid", Embeddings: []domain.EmbeddingEntry{
-			{Model: "test", Embedding: []float32{0.7, 0.71414286}}, // sim = 0.7
+			{Model: "test", Embedding: []float32{0.71, 0.7042017}}, // sim = 0.71
 		}},
 		{ID: "high", Embeddings: []domain.EmbeddingEntry{
 			{Model: "test", Embedding: []float32{0.8, 0.6}}, // sim = 0.8
@@ -181,13 +181,13 @@ func TestDefaultEchoMatcher_MixedSkippedAndMatched(t *testing.T) {
 
 func TestDefaultEchoMatcher_SimilarityJustAboveThreshold(t *testing.T) {
 	matcher := NewDefaultEchoMatcher()
-	// cos(theta) is just above the 0.65 threshold.
+	// cos(theta) is just above the 0.70 threshold.
 	cur := &domain.Moment{ID: "m1", Embeddings: []domain.EmbeddingEntry{
 		{Model: "test", Embedding: []float32{1, 0}},
 	}}
 	history := []domain.Moment{
 		{ID: "threshold", Embeddings: []domain.EmbeddingEntry{
-			{Model: "test", Embedding: []float32{0.651, 0.7590771}}, // sim = 0.651
+			{Model: "test", Embedding: []float32{0.701, 0.71316197}}, // sim = 0.701
 		}},
 	}
 	matches, err := matcher.Match(context.Background(), cur, history)
@@ -195,7 +195,7 @@ func TestDefaultEchoMatcher_SimilarityJustAboveThreshold(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(matches) != 1 {
-		t.Fatalf("expected 1 match above threshold (sim >= 0.65), got %d", len(matches))
+		t.Fatalf("expected 1 match above threshold (sim >= 0.70), got %d", len(matches))
 	}
 }
 
@@ -329,10 +329,10 @@ func TestDefaultEchoMatcher_OrdersByEchoScoreAndReturnsScoreAsSimilarity(t *test
 	}
 	history := []domain.Moment{
 		{ID: "yesterday", TraceID: "t1", CreatedAt: now.Add(-24 * time.Hour), Embeddings: []domain.EmbeddingEntry{
-			{Model: "test", Embedding: []float32{0.66, 0.7510659}}, // score 0.67
+			{Model: "test", Embedding: []float32{0.71, 0.7042017}}, // score 0.72
 		}},
 		{ID: "old", TraceID: "t2", CreatedAt: now.Add(-30 * 24 * time.Hour), Embeddings: []domain.EmbeddingEntry{
-			{Model: "test", Embedding: []float32{0.68, 0.7332121}}, // score 0.685
+			{Model: "test", Embedding: []float32{0.72, 0.6939741}}, // score 0.725
 		}},
 	}
 	matches, err := matcher.Match(context.Background(), cur, history)
@@ -345,7 +345,7 @@ func TestDefaultEchoMatcher_OrdersByEchoScoreAndReturnsScoreAsSimilarity(t *test
 	if matches[0].MomentID != "old" {
 		t.Fatalf("expected old candidate first by echo_score, got %+v", matches)
 	}
-	if matches[0].Similarity < 0.68 || matches[0].Similarity > 0.69 {
-		t.Fatalf("expected returned similarity to be final echo_score around 0.685, got %f", matches[0].Similarity)
+	if matches[0].Similarity < 0.72 || matches[0].Similarity > 0.73 {
+		t.Fatalf("expected returned similarity to be final echo_score around 0.725, got %f", matches[0].Similarity)
 	}
 }

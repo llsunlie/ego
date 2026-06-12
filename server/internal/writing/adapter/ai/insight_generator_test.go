@@ -222,7 +222,7 @@ func TestBuildInsightUserPrompt_WithEcho(t *testing.T) {
 	if !strings.Contains(result, "当前想法：\n今天感到特别焦虑") {
 		t.Fatalf("expected moment content in prompt, got %q", result)
 	}
-	if !strings.Contains(result, "历史回声原文：") {
+	if !strings.Contains(result, "历史回声原文（仅供参考；如果和当前想法不相关，请忽略，不要提及它不相关）：") {
 		t.Fatalf("expected echo moment section in prompt, got %q", result)
 	}
 	if !strings.Contains(result, "每次要等回复的时候，我都很难做别的事。") {
