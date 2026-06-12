@@ -17,7 +17,7 @@ if [ -z "$GRPCURL" ]; then
     if [ -x "$p" ]; then GRPCURL="$p"; break; fi
   done
 fi
-GRPC_ADDR="localhost:9443"
+GRPC_ADDR="localhost:9444"
 DB_URL="postgres://ego:ego@localhost:5432/ego?sslmode=disable"
 
 RED="\033[31m"
@@ -116,8 +116,9 @@ pass "server built"
 info "starting server..."
 DATABASE_URL="$DB_URL" \
 JWT_SECRET="smoke-test-secret" \
-PORT="9443" \
 WEB_PORT="9080" \
+WEB_TLS_PORT="9443" \
+GRPC_PORT="9444" \
   /tmp/ego-server &
 SERVER_PID=$!
 

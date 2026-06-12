@@ -54,7 +54,7 @@ jobs:
       - name: build apk
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > client/android/app/upload-keystore.jks
-          cd client && flutter build apk --release --dart-define=SERVER_HOST=${{ secrets.TENCENT_HOST }} --dart-define=SERVER_PORT=${{ vars.SERVER_PORT }} --dart-define=SERVER_WEB_PORT=${{ vars.SERVER_WEB_PORT }}
+          cd client && flutter build apk --release --dart-define=SERVER_HOST=${{ secrets.TENCENT_HOST }} --dart-define=SERVER_PORT=${{ vars.SERVER_PORT }} --dart-define=SERVER_WEB_PORT=${{ vars.SERVER_WEB_PORT }} --dart-define=SERVER_TLS=true
         env:
           ANDROID_KEYSTORE_PATH: upload-keystore.jks
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}

@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"crypto/tls"
 	"log/slog"
 	"net"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"github.com/NYTimes/gziphandler"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"golang.org/x/crypto/acme/autocert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
@@ -21,13 +23,28 @@ import (
 )
 
 type Server struct {
-	cfg        *config.Config
-	grpcServer *grpc.Server
-	httpServer *http.Server
-	logger     *slog.Logger
+	cfg         *config.Config
+	grpcServer  *grpc.Server
+	httpHandler http.Handler
+	tlsConfig   *tls.Config
+	logger      *slog.Logger
 }
 
 func NewServer(cfg *config.Config, p *Platform, handler pb.EgoServer) *Server {
+	var tlsConfig *tls.Config
+	if cfg.TLSDomain != "" {
+		m := &autocert.Manager{
+			Cache:      autocert.DirCache("certs"),
+			HostPolicy: autocert.HostWhitelist(cfg.TLSDomain),
+			Prompt:     autocert.AcceptTOS,
+		}
+		tlsConfig = &tls.Config{
+			GetCertificate: m.GetCertificate,
+			MinVersion:     tls.VersionTLS12,
+		}
+		p.Logger.Info("TLS enabled", "domain", cfg.TLSDomain)
+	}
+
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(auth.UnaryServerInterceptor(p.JWTKey, p.Logger)),
 	)
@@ -42,44 +59,40 @@ func NewServer(cfg *config.Config, p *Platform, handler pb.EgoServer) *Server {
 	// 静态文件目录（部署时提供前端 Web 文件，本地 dev 可留空走 flutter run）
 	webDir := cfg.WebDir
 
-	httpServer := &http.Server{
-		Addr: ":" + cfg.WebPort,
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Health check — for UptimeRobot / load balancer probes.
-			if r.URL.Path == "/health" {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(`{"status":"ok"}`))
-				return
-			}
-
-			// Prometheus metrics endpoint.
-			if r.URL.Path == "/metrics" {
-				promhttp.Handler().ServeHTTP(w, r)
-				return
-			}
-
-			if wrapped.IsGrpcWebRequest(r) || wrapped.IsAcceptableGrpcCorsRequest(r) {
-				wrapped.ServeHTTP(w, r)
-				return
-			}
-			// 非 gRPC 请求：提供前端静态文件
-			if webDir != "" {
-				http.FileServer(http.Dir(webDir)).ServeHTTP(w, r)
-				return
-			}
-			w.Header().Set("Access-Control-Allow-Origin", "*")
+	var h http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Health check — for UptimeRobot / load balancer probes.
+		if r.URL.Path == "/health" {
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-		}),
-	}
+			w.Write([]byte(`{"status":"ok"}`))
+			return
+		}
+
+		// Prometheus metrics endpoint.
+		if r.URL.Path == "/metrics" {
+			promhttp.Handler().ServeHTTP(w, r)
+			return
+		}
+
+		if wrapped.IsGrpcWebRequest(r) || wrapped.IsAcceptableGrpcCorsRequest(r) {
+			wrapped.ServeHTTP(w, r)
+			return
+		}
+		// 非 gRPC 请求：提供前端静态文件
+		if webDir != "" {
+			http.FileServer(http.Dir(webDir)).ServeHTTP(w, r)
+			return
+		}
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.WriteHeader(http.StatusOK)
+	})
 
 	// Wrap with gzip compression for static assets (JS, CSS, HTML).
-	httpServer.Handler = gziphandler.GzipHandler(httpServer.Handler)
+	h = gziphandler.GzipHandler(h)
 
 	// Wrap with Prometheus HTTP metrics middleware.
-	// Save the inner handler before wrapping to avoid infinite recursion.
-	innerHandler := httpServer.Handler
-	httpServer.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	innerHandler := h
+	h = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/metrics" || r.URL.Path == "/health" {
 			innerHandler.ServeHTTP(w, r)
 			return
@@ -99,10 +112,11 @@ func NewServer(cfg *config.Config, p *Platform, handler pb.EgoServer) *Server {
 	})
 
 	return &Server{
-		cfg:        cfg,
-		grpcServer: grpcServer,
-		httpServer: httpServer,
-		logger:     p.Logger,
+		cfg:         cfg,
+		grpcServer:  grpcServer,
+		httpHandler: h,
+		tlsConfig:   tlsConfig,
+		logger:      p.Logger,
 	}
 }
 
@@ -121,19 +135,54 @@ func (r *statusRecorder) Unwrap() http.ResponseWriter {
 }
 
 func (s *Server) Serve() error {
+	// gRPC native port
 	go func() {
-		lis, err := net.Listen("tcp", ":"+s.cfg.Port)
+		addr := ":" + s.cfg.GRPCPort
+		var lis net.Listener
+		var err error
+		if s.tlsConfig != nil {
+			lis, err = tls.Listen("tcp", addr, s.tlsConfig)
+		} else {
+			lis, err = net.Listen("tcp", addr)
+		}
 		if err != nil {
 			s.logger.Error("gRPC listen failed", "error", err)
 			panic(err)
 		}
-		s.logger.Info("gRPC server listening", "port", s.cfg.Port)
+		s.logger.Info("gRPC server listening", "port", s.cfg.GRPCPort, "tls", s.tlsConfig != nil)
 		if err := s.grpcServer.Serve(lis); err != nil {
 			s.logger.Error("gRPC serve failed", "error", err)
 			panic(err)
 		}
 	}()
 
-	s.logger.Info("gRPC-web server listening", "port", s.cfg.WebPort)
-	return s.httpServer.ListenAndServe()
+	// Web plain port (always plain HTTP)
+	go func() {
+		addr := ":" + s.cfg.WebPort
+		lis, err := net.Listen("tcp", addr)
+		if err != nil {
+			s.logger.Error("web plain listen failed", "error", err)
+			panic(err)
+		}
+		s.logger.Info("web plain server listening", "port", s.cfg.WebPort)
+		if err := http.Serve(lis, s.httpHandler); err != nil {
+			s.logger.Error("web plain serve failed", "error", err)
+			panic(err)
+		}
+	}()
+
+	// Web TLS port (TLS if enabled, else plain)
+	addr := ":" + s.cfg.WebTLSPort
+	var lis net.Listener
+	var err error
+	if s.tlsConfig != nil {
+		lis, err = tls.Listen("tcp", addr, s.tlsConfig)
+	} else {
+		lis, err = net.Listen("tcp", addr)
+	}
+	if err != nil {
+		return err
+	}
+	s.logger.Info("web TLS server listening", "port", s.cfg.WebTLSPort, "tls", s.tlsConfig != nil)
+	return http.Serve(lis, s.httpHandler)
 }
