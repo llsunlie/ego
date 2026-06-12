@@ -96,7 +96,7 @@ jobs:
           source: monitoring/
           target: ${{ secrets.TENCENT_DEPLOY_PATH }}
 
-      # SSH：停止旧容器 → 清空 PG 数据 → 启动全栈服务 → 迁移 → 重启 ego-server
+      # SSH：停止旧容器 → 启动全栈服务 → 迁移 → 重启 ego-server
       - name: post-deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -109,9 +109,8 @@ jobs:
             # 停止并清理旧容器
             docker compose -f "$DEPLOY/docker-compose.yml" down 2>/dev/null || true
 
-            # 创建数据目录并清空旧 PG 数据（纯净环境，与 clean-start.sh 一致）
+            # 创建pg数据目录
             mkdir -p "$DEPLOY/data"
-            docker run --rm -v "$DEPLOY/data:/data" alpine sh -c 'rm -rf /data/*' 2>/dev/null || true
 
             # 创建日志目录供 promtail 挂载
             mkdir -p "$DEPLOY/server/.tmp/logs/server"
