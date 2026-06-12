@@ -10,8 +10,9 @@ import (
 type Config struct {
 	DatabaseURL           string
 	JWTSecret             string
-	Port                  string
 	WebPort               string
+	WebTLSPort            string
+	GRPCPort              string
 	WebDir                string
 	JWTExpHours           string
 	LogLevel              string
@@ -32,6 +33,7 @@ type Config struct {
 	AliyunSmsCodeLength   string
 	AliyunSmsValidTime    string
 	AliyunSmsInterval     string
+	TLSDomain             string
 }
 
 // getEnvWithFallback returns os.Getenv(key), or os.Getenv(fallback) if empty.
@@ -51,8 +53,9 @@ func Load() *Config {
 	return &Config{
 		DatabaseURL:           os.Getenv("DATABASE_URL"),
 		JWTSecret:             os.Getenv("JWT_SECRET"),
-		Port:                  os.Getenv("PORT"),
 		WebPort:               os.Getenv("WEB_PORT"),
+		WebTLSPort:            os.Getenv("WEB_TLS_PORT"),
+		GRPCPort:              os.Getenv("GRPC_PORT"),
 		WebDir:                os.Getenv("WEB_DIR"),
 		JWTExpHours:           os.Getenv("JWT_EXP_HOURS"),
 		LogLevel:              os.Getenv("LOG_LEVEL"),
@@ -73,6 +76,7 @@ func Load() *Config {
 		AliyunSmsCodeLength:   os.Getenv("ALIYUN_SMS_CODE_LENGTH"),
 		AliyunSmsValidTime:    os.Getenv("ALIYUN_SMS_VALID_TIME"),
 		AliyunSmsInterval:     os.Getenv("ALIYUN_SMS_INTERVAL"),
+		TLSDomain:             os.Getenv("TLS_DOMAIN"),
 	}
 }
 

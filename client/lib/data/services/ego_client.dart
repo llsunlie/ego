@@ -16,9 +16,9 @@ class EgoClient {
     final channel = GrpcOrGrpcWebClientChannel.toSeparatePorts(
       host: AppConstants.serverHost,
       grpcPort: AppConstants.serverPort,
-      grpcTransportSecure: false,
+      grpcTransportSecure: AppConstants.serverTls,
       grpcWebPort: AppConstants.serverWebPort,
-      grpcWebTransportSecure: false,
+      grpcWebTransportSecure: AppConstants.serverTls,
     );
     return EgoClient(grpc.EgoClient(channel));
   });

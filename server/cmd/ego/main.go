@@ -15,8 +15,9 @@ func main() {
 	defer p.Close()
 
 	p.Logger.Info("ego server starting",
-		"port", cfg.Port,
 		"web_port", cfg.WebPort,
+		"web_tls_port", cfg.WebTLSPort,
+		"grpc_port", cfg.GRPCPort,
 		"log_level", cfg.LogLevel,
 		"log_format", cfg.LogFormat,
 	)
