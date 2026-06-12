@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"ego-server/internal/config"
@@ -27,19 +28,21 @@ type Server struct {
 	grpcServer  *grpc.Server
 	httpHandler http.Handler
 	tlsConfig   *tls.Config
+	certManager *autocert.Manager
 	logger      *slog.Logger
 }
 
 func NewServer(cfg *config.Config, p *Platform, handler pb.EgoServer) *Server {
 	var tlsConfig *tls.Config
+	var certManager *autocert.Manager
 	if cfg.TLSDomain != "" {
-		m := &autocert.Manager{
+		certManager = &autocert.Manager{
 			Cache:      autocert.DirCache("certs"),
 			HostPolicy: autocert.HostWhitelist(cfg.TLSDomain),
 			Prompt:     autocert.AcceptTOS,
 		}
 		tlsConfig = &tls.Config{
-			GetCertificate: m.GetCertificate,
+			GetCertificate: certManager.GetCertificate,
 			MinVersion:     tls.VersionTLS12,
 		}
 		p.Logger.Info("TLS enabled", "domain", cfg.TLSDomain)
@@ -60,6 +63,14 @@ func NewServer(cfg *config.Config, p *Platform, handler pb.EgoServer) *Server {
 	webDir := cfg.WebDir
 
 	var h http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// ACME HTTP-01 challenge — Let's Encrypt domain validation.
+		// Must be checked BEFORE any other routing so autocert can respond
+		// to /.well-known/acme-challenge/ requests.
+		if certManager != nil && strings.HasPrefix(r.URL.Path, "/.well-known/acme-challenge/") {
+			certManager.HTTPHandler(nil).ServeHTTP(w, r)
+			return
+		}
+
 		// Health check — for UptimeRobot / load balancer probes.
 		if r.URL.Path == "/health" {
 			w.Header().Set("Content-Type", "application/json")
@@ -116,6 +127,7 @@ func NewServer(cfg *config.Config, p *Platform, handler pb.EgoServer) *Server {
 		grpcServer:  grpcServer,
 		httpHandler: h,
 		tlsConfig:   tlsConfig,
+		certManager: certManager,
 		logger:      p.Logger,
 	}
 }
