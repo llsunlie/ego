@@ -26,22 +26,24 @@ server/internal/
 
 ```go
 type Config struct {
-    DatabaseURL          string  // postgres://ego:ego@localhost:5432/ego?sslmode=disable
-    JWTSecret            string
-    Port                 string  // 9443
-    WebPort              string  // 9080
-    WebDir               string
-    JWTExpHours          string
-    LogLevel             string
-    LogFormat            string
-    AIAPIKey             string
-    AIBaseURL            string
-    AIEmbeddingModel     string
-    AIEmbeddingAPIKey    string
-    AIEmbeddingBaseURL   string
-    AIChatModel          string
-    AIChatAPIKey         string
-    AIChatBaseURL        string
+    DatabaseURL           string  // postgres://ego:ego@localhost:5432/ego?sslmode=disable
+    JWTSecret             string
+    WebPort               string  // 9080 (plain HTTP: gRPC-web + static files)
+    WebTLSPort            string  // 9443 (TLS HTTP when TLS_DOMAIN set)
+    GRPCPort              string  // 9444 (gRPC native, TLS when TLS_DOMAIN set)
+    TLSDomain             string  // Let's Encrypt domain, empty = TLS disabled
+    WebDir                string
+    JWTExpHours           string
+    LogLevel              string
+    LogFormat             string
+    AIAPIKey              string
+    AIBaseURL             string
+    AIEmbeddingModel      string
+    AIEmbeddingAPIKey     string
+    AIEmbeddingBaseURL    string
+    AIChatModel           string
+    AIChatAPIKey          string
+    AIChatBaseURL         string
 }
 ```
 

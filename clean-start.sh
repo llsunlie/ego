@@ -2,8 +2,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-GRPC_PORT="${PORT:-9443}"
+GRPC_PORT="${GRPC_PORT:-9444}"
 WEB_PORT="${WEB_PORT:-9080}"
+WEB_TLS_PORT="${WEB_TLS_PORT:-9443}"
 FLUTTER_PORT="${FLUTTER_PORT:-9081}"
 DATA_DIR="$ROOT/data"
 MIGRATIONS_DIR="$ROOT/server/internal/platform/postgres/migrations"
@@ -28,8 +29,8 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # ---------- kill stale ports ----------
-log "clearing ports ${GRPC_PORT} ${WEB_PORT} ${FLUTTER_PORT}..."
-for port in $GRPC_PORT $WEB_PORT $FLUTTER_PORT; do
+log "clearing ports ${GRPC_PORT} ${WEB_PORT} ${WEB_TLS_PORT} ${FLUTTER_PORT}..."
+for port in $GRPC_PORT $WEB_PORT $WEB_TLS_PORT $FLUTTER_PORT; do
     lsof -ti:"$port" 2>/dev/null | xargs -r kill -9 || true
 done
 sleep 0.5
@@ -91,12 +92,9 @@ if ! lsof -ti:"$GRPC_PORT" >/dev/null 2>&1; then
     err "backend failed to start on :$GRPC_PORT"
     exit 1
 fi
-log "backend ready  gRPC :${GRPC_PORT}  gRPC-web :${WEB_PORT}"
+log "backend ready  gRPC :${GRPC_PORT}  web :${WEB_PORT}  web-tls :${WEB_TLS_PORT}"
 
 # ---------- flutter web ----------
-log "syncing app version from git tag..."
-cd "$ROOT"
-make version
 
 log "building flutter web (release)..."
 cd "$ROOT/client"
@@ -124,9 +122,10 @@ echo ""
 echo -e "  ${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "  ${GREEN}  ego clean dev server running${NC}"
 echo ""
-echo -e "   Web UI: http://localhost:${FLUTTER_PORT}"
-echo -e "   gRPC:   localhost:${GRPC_PORT}"
-echo -e "   WebRPC: localhost:${WEB_PORT}"
+echo -e "   Web UI:    http://localhost:${FLUTTER_PORT}"
+echo -e "   gRPC:      localhost:${GRPC_PORT}"
+echo -e "   Web plain: localhost:${WEB_PORT}"
+echo -e "   Web TLS:   localhost:${WEB_TLS_PORT}"
 echo -e "  ${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
