@@ -7,6 +7,23 @@ import (
 	"strings"
 )
 
+// AllowedOrigins returns the comma-separated CORSAllowedOrigins as a slice.
+// Returns nil when the string is empty (no origins configured).
+func (c *Config) AllowedOrigins() []string {
+	if c.CORSAllowedOrigins == "" {
+		return nil
+	}
+	parts := strings.Split(c.CORSAllowedOrigins, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 type Config struct {
 	DatabaseURL           string
 	JWTSecret             string
@@ -34,6 +51,7 @@ type Config struct {
 	AliyunSmsValidTime    string
 	AliyunSmsInterval     string
 	TLSDomain             string
+	CORSAllowedOrigins    string
 }
 
 // getEnvWithFallback returns os.Getenv(key), or os.Getenv(fallback) if empty.
@@ -77,6 +95,7 @@ func Load() *Config {
 		AliyunSmsValidTime:    os.Getenv("ALIYUN_SMS_VALID_TIME"),
 		AliyunSmsInterval:     os.Getenv("ALIYUN_SMS_INTERVAL"),
 		TLSDomain:             os.Getenv("TLS_DOMAIN"),
+		CORSAllowedOrigins:    os.Getenv("CORS_ALLOWED_ORIGINS"),
 	}
 }
 
