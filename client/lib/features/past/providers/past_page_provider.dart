@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/generated/api.pb.dart' as pb;
 import '../../../data/services/ego_client.dart';
+import '../../../core/providers/grpc_error_mapper.dart';
 
 class PastPageState {
   final List<pb.Trace> traces;
@@ -77,8 +78,10 @@ class PastPageNotifier extends StateNotifier<PastPageState> {
         hasMore: res.hasMore,
         isLoading: false,
       );
+    } on GrpcError catch (e) {
+      state = state.copyWith(isLoading: false, error: grpcErrorMessage(e));
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: errorMessage(e));
     }
   }
 
@@ -97,8 +100,10 @@ class PastPageNotifier extends StateNotifier<PastPageState> {
         hasMore: res.hasMore,
         isLoadingMore: false,
       );
+    } on GrpcError catch (e) {
+      state = state.copyWith(isLoadingMore: false, error: grpcErrorMessage(e));
     } catch (e) {
-      state = state.copyWith(isLoadingMore: false, error: e.toString());
+      state = state.copyWith(isLoadingMore: false, error: errorMessage(e));
     }
   }
 

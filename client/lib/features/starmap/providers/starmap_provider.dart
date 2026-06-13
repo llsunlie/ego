@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/generated/api.pb.dart' as pb;
 import '../../../data/services/ego_client.dart';
+import '../../../core/providers/grpc_error_mapper.dart';
 
 class StarmapState {
   final List<pb.Constellation> constellations;
@@ -48,8 +49,10 @@ class StarmapNotifier extends StateNotifier<StarmapState> {
         totalStarCount: res.totalStarCount,
         isLoading: false,
       );
+    } on GrpcError catch (e) {
+      state = state.copyWith(isLoading: false, error: grpcErrorMessage(e));
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: errorMessage(e));
     }
   }
 

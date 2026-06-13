@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/colors.dart';
+import '../../core/providers/grpc_error_mapper.dart';
 import '../../data/services/ego_client.dart';
 import '../now/widgets/starry_background.dart';
 
@@ -57,10 +58,15 @@ class _FeedbackPageState extends ConsumerState<FeedbackPage> {
         ),
       );
       context.pop();
+    } on GrpcError catch (e) {
+      setState(() {
+        _state = _FeedbackState.error;
+        _errorMsg = grpcErrorMessage(e);
+      });
     } catch (e) {
       setState(() {
         _state = _FeedbackState.error;
-        _errorMsg = e.toString();
+        _errorMsg = errorMessage(e);
       });
     }
   }

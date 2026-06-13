@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/generated/api.pb.dart' as pb;
 import '../../../data/services/ego_client.dart';
+import '../../../core/providers/grpc_error_mapper.dart';
 
 enum NowPageStatus { idle, writing, echoing, stashing }
 
@@ -101,10 +102,15 @@ class NowPageNotifier extends StateNotifier<NowPageState> {
       if (echo != null && echo.matchedMomentIds.isNotEmpty) {
         _fetchMatchedMoments(echo.matchedMomentIds);
       }
+    } on GrpcError catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: grpcErrorMessage(e),
+      );
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: errorMessage(e),
       );
     }
   }

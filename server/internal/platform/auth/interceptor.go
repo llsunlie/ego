@@ -14,16 +14,17 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var preAuthMethods = map[string]bool{
-	"Login":                 true,
-	"CheckPhone":            true,
-	"SendVerificationCode":  true,
-	"Register":              true,
-	"ResetPassword":         true,
+// PreAuthMethods lists RPC method names that do not require JWT authentication.
+var PreAuthMethods = map[string]bool{
+	"Login":                true,
+	"CheckPhone":           true,
+	"SendVerificationCode": true,
+	"Register":             true,
+	"ResetPassword":        true,
 }
 
 func isPreAuthMethod(fullMethod string) bool {
-	for m := range preAuthMethods {
+	for m := range PreAuthMethods {
 		if strings.Contains(fullMethod, m) {
 			return true
 		}
