@@ -78,6 +78,24 @@ server/internal/bootstrap/   ← 依赖注入, composite handler
 
 每节展示后等待用户确认，不要一次性展示全部。
 
+### 功能拆分评估
+
+**设计定稿后，必须与用户一同评估是否要拆分 feature。** 改动越多，影响面越广，bug 更多。
+
+如需拆分，给出拆分后的多条独立指令，格式：
+
+```
+建议拆分为 N 个子 feature，按顺序执行：
+
+1. /ego-feature <子需求1>
+2. /ego-feature <子需求2>
+...
+```
+
+提示用户 clear 会话后重新使用 `/ego-feature <指令>` 逐个执行。
+
+**用户确认拆分方案或决定不拆分后，才进入 Phase 3。**
+
 ---
 
 ## Phase 3: 实现计划
@@ -120,10 +138,10 @@ server/internal/bootstrap/   ← 依赖注入, composite handler
 
 ### 提交策略
 
-**严禁每个 task commit 一次。** 中间 task 的变更会导致代码无法编译或测试失败，产生 broken commit。
+**一次 ego-feature 只有一次 commit。** 中间 task 的变更会导致代码无法编译或测试失败，产生 broken commit。
 
 - 所有代码变更累积在 working tree 中
-- 仅在 **全部 task 完成 + 全部检查通过 + 真机测试通过** 后进行 **一次** commit
+- **commit 时机**：Phase 4 编码 + Phase 5 全部检查通过 + 真机测试通过 + Phase 6 skill 回写完成 → 以上全部完成后才执行 **一次** `git commit`
 - 特殊情况（如 proto 生成、sqlc 生成等纯无副作用步骤）可在确认生成正确后单独 commit
 
 ### 提交前必检清单
@@ -136,6 +154,16 @@ server/internal/bootstrap/   ← 依赖注入, composite handler
 4. **Smoke 测试**: `bash smoke.sh`（agent 执行，端到端 grpcurl 测试）
 5. **真机测试**: 运行 `bash clean-start.sh`，按手动测试清单逐项验证（用户执行）
 6. **sqlc 副作用检查**: `make sqlc` 后检查 `git diff --stat`，如果 `server/internal/platform/postgres/sqlc/` 下出现 features 无关的变更，需 `git checkout` 还原（agent 执行）
+
+### 核心改动逻辑简述
+
+**全部 task 编码完成后，必须向用户简述本次 feature 的核心改动逻辑**，包括：
+
+1. **数据流**：请求/数据从头到尾经过哪些关键节点（如 interceptor → handler → repo → DB）
+2. **关键设计决策**：为什么这样设计（如拦截器顺序、key 格式、error 映射策略）
+3. **影响面**：改动了哪些文件、影响了哪些现有功能
+
+此简述放在提测之前，帮助用户在真机测试时理解预期行为。
 
 ### 真机测试硬阻断规则
 
@@ -206,7 +234,8 @@ flutter run -d <device_id>
 2. 读取对应的 `client.md` / `server.md`
 3. 更新：路由、新 RPC、新文件、改动后的数据流、架构变更
 4. 如果 `SKILL.md` 中的快速文件索引有变化，一并更新
-5. 提交 skill 更新
+
+**skill 回写与实现代码一起提交，不单独 commit。** 
 
 ---
 

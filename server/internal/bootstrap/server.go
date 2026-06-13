@@ -12,6 +12,7 @@ import (
 	"ego-server/internal/config"
 	"ego-server/internal/platform/auth"
 	"ego-server/internal/platform/metrics"
+	"ego-server/internal/platform/ratelimit"
 
 	"github.com/NYTimes/gziphandler"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
@@ -48,8 +49,12 @@ func NewServer(cfg *config.Config, p *Platform, handler pb.EgoServer) *Server {
 		p.Logger.Info("TLS enabled", "domain", cfg.TLSDomain)
 	}
 
+	rateLimiter := ratelimit.New(cfg, p.Logger)
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(auth.UnaryServerInterceptor(p.JWTKey, p.Logger)),
+		grpc.ChainUnaryInterceptor(
+			auth.UnaryServerInterceptor(p.JWTKey, p.Logger),
+			ratelimit.UnaryServerInterceptor(rateLimiter),
+		),
 	)
 	pb.RegisterEgoServer(grpcServer, handler)
 	reflection.Register(grpcServer)

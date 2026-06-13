@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/colors.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/providers/grpc_error_mapper.dart';
 import '../../data/generated/api.pb.dart' as pb;
 import '../../data/services/ego_client.dart';
 import '../../data/services/interceptors/auth_interceptor.dart';
@@ -51,9 +52,14 @@ class _ConstellationDetailPageState
         _stars = res.stars;
         _loading = false;
       });
+    } on GrpcError catch (e) {
+      setState(() {
+        _error = grpcErrorMessage(e);
+        _loading = false;
+      });
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _error = errorMessage(e);
         _loading = false;
       });
     }

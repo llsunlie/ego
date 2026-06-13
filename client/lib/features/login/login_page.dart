@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:grpc/grpc_or_grpcweb.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/providers/grpc_error_mapper.dart';
 import '../../core/theme/colors.dart';
 import '../now/widgets/starry_background.dart';
 import '../../data/services/ego_client.dart';
@@ -70,16 +70,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           if (!mounted) return;
           setState(() { _loading = false; _step = 2; _countdown = 60; _codeSentPhone = phone; _agreedToTerms = false; });
           _startCountdown();
-        } catch (_) {
+        } catch (e) {
           if (!mounted) return;
           setState(() => _loading = false);
-          _setError('发送验证码失败，请稍后重试');
+          _setError(errorMessage(e, fallback: '发送验证码失败，请稍后重试'));
         }
       }
     } catch (e) {
       if (mounted) {
         setState(() => _loading = false);
-        _setError('网络错误，请稍后重试');
+        _setError(errorMessage(e, fallback: '网络错误，请稍后重试'));
       }
     }
   }
@@ -93,10 +93,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       if (!mounted) return;
       setState(() { _loading = false; _countdown = 60; _codeSentPhone = _phoneCtrl.text.trim(); });
       _startCountdown();
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      _setError('发送验证码失败，请稍后重试');
+      _setError(errorMessage(e, fallback: '发送验证码失败，请稍后重试'));
     }
   }
 
@@ -127,17 +127,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     } on GrpcError catch (e) {
       if (mounted) {
         setState(() => _loading = false);
-        if (e.code == StatusCode.unauthenticated) {
-          _setError('密码错误');
-        } else if (e.code == StatusCode.notFound) {
-          _setError('用户不存在');
-        } else {
-          _setError('登录失败，请稍后重试');
-        }
+        _setError(grpcErrorMessage(e));
       }
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
-      _setError('登录失败，请稍后重试');
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        _setError(errorMessage(e, fallback: '登录失败，请稍后重试'));
+      }
     }
   }
 
@@ -173,17 +169,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     } on GrpcError catch (e) {
       if (mounted) {
         setState(() => _loading = false);
-        if (e.code == StatusCode.unauthenticated) {
-          _setError('验证码错误');
-        } else if (e.code == StatusCode.alreadyExists) {
-          _setError('该手机号已注册，请返回登录');
-        } else {
-          _setError('注册失败，请稍后重试');
-        }
+        _setError(grpcErrorMessage(e));
       }
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
-      _setError('注册失败，请稍后重试');
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        _setError(errorMessage(e, fallback: '注册失败，请稍后重试'));
+      }
     }
   }
 
@@ -212,10 +204,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       if (!mounted) return;
       setState(() { _loading = false; _step = 3; _countdown = 60; _codeSentPhone = phone; });
       _startCountdown();
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      _setError('发送验证码失败，请稍后重试');
+      _setError(errorMessage(e, fallback: '发送验证码失败，请稍后重试'));
     }
   }
 
@@ -247,11 +239,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     } on GrpcError catch (e) {
       if (mounted) {
         setState(() => _loading = false);
-        _setError(e.message ?? '重置密码失败，请稍后重试');
+        _setError(grpcErrorMessage(e));
       }
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
-      _setError('重置密码失败，请稍后重试');
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        _setError(errorMessage(e, fallback: '重置密码失败，请稍后重试'));
+      }
     }
   }
 

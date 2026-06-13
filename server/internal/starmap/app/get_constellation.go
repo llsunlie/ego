@@ -51,6 +51,7 @@ func (uc *GetConstellationUseCase) Execute(ctx context.Context, input GetConstel
 		}
 		s := stars[0]
 		now := s.CreatedAt
+		ms, _ := uc.traceReader.ListMomentsByTraceID(ctx, s.TraceID)
 		return &GetConstellationOutput{
 			Constellation: domain.Constellation{
 				ID:                   s.ID,
@@ -62,7 +63,7 @@ func (uc *GetConstellationUseCase) Execute(ctx context.Context, input GetConstel
 				UpdatedAt:            now,
 			},
 			Stars:   []domain.Star{s},
-			Moments: nil,
+			Moments: ms,
 		}, nil
 	}
 	if c.UserID != userID {
