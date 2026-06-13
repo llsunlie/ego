@@ -26,7 +26,7 @@ func newTestClient(t *testing.T) *ai.Client {
 	return ai.NewClient(ai.Config{
 		EmbeddingAPIKey:  apiKey,
 		EmbeddingBaseURL: baseURL,
-		EmbeddingModel:   envOrDefault("AI_EMBEDDING_MODEL", "Qwen/Qwen3-VL-Embedding-8B"),
+		EmbeddingModel:   envOrDefault("AI_EMBEDDING_MODEL", "BAAI/bge-m3"),
 		ChatAPIKey:       apiKey,
 		ChatBaseURL:      baseURL,
 		ChatModel:        envOrDefault("AI_CHAT_MODEL", "deepseek-ai/DeepSeek-V3"),

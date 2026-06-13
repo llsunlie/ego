@@ -75,7 +75,7 @@ func Load() *Config {
 		AIAPIKey:                   os.Getenv("AI_API_KEY"),
 		AIBaseURL:                  os.Getenv("AI_BASE_URL"),
 		AIEmbeddingModel:           os.Getenv("AI_EMBEDDING_MODEL"),
-		AIEmbeddingDim:             getEnvDefault("AI_EMBEDDING_DIM", "4096"),
+		AIEmbeddingDim:             getEnvDefault("AI_EMBEDDING_DIM", "1024"),
 		AIEmbeddingAPIKey:          getEnvWithFallback("AI_EMBEDDING_API_KEY", "AI_API_KEY"),
 		AIEmbeddingBaseURL:         getEnvWithFallback("AI_EMBEDDING_BASE_URL", "AI_BASE_URL"),
 		AIChatModel:                os.Getenv("AI_CHAT_MODEL"),

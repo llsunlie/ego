@@ -2,8 +2,21 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-GRPC_PORT="${PORT:-9443}"
+
+env_value() {
+    local key="$1"
+    local file="$ROOT/server/.env"
+    if [ -f "$file" ]; then
+        awk -F= -v key="$key" '$1 == key { print substr($0, index($0, "=") + 1); exit }' "$file"
+    fi
+}
+
+GRPC_PORT="${GRPC_PORT:-$(env_value GRPC_PORT)}"
+GRPC_PORT="${GRPC_PORT:-9444}"
+WEB_PORT="${WEB_PORT:-$(env_value WEB_PORT)}"
 WEB_PORT="${WEB_PORT:-9080}"
+WEB_TLS_PORT="${WEB_TLS_PORT:-$(env_value WEB_TLS_PORT)}"
+WEB_TLS_PORT="${WEB_TLS_PORT:-9443}"
 FLUTTER_PORT="${FLUTTER_PORT:-9081}"
 REACT_PORT="${REACT_PORT:-5173}"
 ES_URL="${ELASTICSEARCH_URL:-http://localhost:9200}"
@@ -95,8 +108,8 @@ trap 'cleanup_on_signal; exit 130' INT
 trap 'cleanup_on_signal; exit 143' TERM
 
 # ── kill stale ports ────────────────────────────────────────────────
-log "clearing ports ${GRPC_PORT} ${WEB_PORT} ${FLUTTER_PORT} ${REACT_PORT}..."
-for port in $GRPC_PORT $WEB_PORT $FLUTTER_PORT $REACT_PORT; do
+log "clearing ports ${GRPC_PORT} ${WEB_PORT} ${WEB_TLS_PORT} ${FLUTTER_PORT} ${REACT_PORT}..."
+for port in $GRPC_PORT $WEB_PORT $WEB_TLS_PORT $FLUTTER_PORT $REACT_PORT; do
     kill_port "$port"
 done
 sleep 0.5
@@ -151,7 +164,7 @@ if ! curl -fsS "http://localhost:${WEB_PORT}/health" >/dev/null 2>&1; then
     tail -n 80 "$BACKEND_ERR" || true
     exit 1
 fi
-log "backend ready  gRPC :${GRPC_PORT}  gRPC-web :${WEB_PORT}"
+log "backend ready  gRPC :${GRPC_PORT}  gRPC-web :${WEB_PORT}  web TLS :${WEB_TLS_PORT}"
 
 # ── flutter web ─────────────────────────────────────────────────────
 log "starting flutter web-server..."
@@ -163,15 +176,17 @@ FLUTTER_ERR="$LOG_DIR/flutter.err.log"
 nohup flutter run -d web-server --web-port "$FLUTTER_PORT" --web-hostname 0.0.0.0 >> "$FLUTTER_OUT" 2>> "$FLUTTER_ERR" < /dev/null &
 FLUTTER_PID=$!
 
-for i in $(seq 1 30); do
+for i in $(seq 1 120); do
     if curl -s -o /dev/null "http://localhost:${FLUTTER_PORT}" 2>/dev/null; then break; fi
     sleep 1
 done
 
 if ! curl -s -o /dev/null "http://localhost:${FLUTTER_PORT}" 2>/dev/null; then
     err "flutter web-server failed to start on :$FLUTTER_PORT"
+    err "flutter stdout:"
+    tail -n 120 "$FLUTTER_OUT" || true
     err "flutter stderr:"
-    tail -n 80 "$FLUTTER_ERR" || true
+    tail -n 120 "$FLUTTER_ERR" || true
     exit 1
 fi
 log "flutter ready  http://localhost:${FLUTTER_PORT}"

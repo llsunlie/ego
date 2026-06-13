@@ -2,8 +2,22 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-GRPC_PORT="${PORT:-9443}"
+
+env_value() {
+    local key="$1"
+    local file="$ROOT/server/.env"
+    if [ -f "$file" ]; then
+        awk -F= -v key="$key" '$1 == key { print substr($0, index($0, "=") + 1); exit }' "$file"
+    fi
+}
+
+GRPC_PORT="${GRPC_PORT:-$(env_value GRPC_PORT)}"
+GRPC_PORT="${GRPC_PORT:-9444}"
+WEB_PORT="${WEB_PORT:-$(env_value WEB_PORT)}"
 WEB_PORT="${WEB_PORT:-9080}"
+WEB_TLS_PORT="${WEB_TLS_PORT:-$(env_value WEB_TLS_PORT)}"
+WEB_TLS_PORT="${WEB_TLS_PORT:-9443}"
+DATABASE_URL="${DATABASE_URL:-$(env_value DATABASE_URL)}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -97,9 +111,20 @@ kill_port() {
 }
 
 # ── kill old ─────────────────────────────────────────────────────────
-log "clearing ports $GRPC_PORT $WEB_PORT..."
+log "clearing ports $GRPC_PORT $WEB_PORT $WEB_TLS_PORT..."
 kill_port "$GRPC_PORT"
 kill_port "$WEB_PORT"
+if [ "$WEB_TLS_PORT" != "$WEB_PORT" ] && [ "$WEB_TLS_PORT" != "$GRPC_PORT" ]; then
+    kill_port "$WEB_TLS_PORT"
+fi
+
+if [[ "$DATABASE_URL" == *"localhost:5432"* ]] || [[ "$DATABASE_URL" == *"127.0.0.1:5432"* ]]; then
+    if command -v nc >/dev/null 2>&1 && ! nc -z localhost 5432; then
+        err "database is not reachable on localhost:5432"
+        echo "  start it with: docker compose up -d postgres"
+        exit 1
+    fi
+fi
 
 # ── build ────────────────────────────────────────────────────────────
 log "building backend..."

@@ -6,7 +6,7 @@ CREATE TABLE moment_embedding_vectors (
   trace_id   UUID NOT NULL,
   model      TEXT NOT NULL,
   dim        INT NOT NULL,
-  embedding  VECTOR(4096) NOT NULL,
+  embedding  VECTOR(1024) NOT NULL,
   created_at TIMESTAMPTZ NOT NULL,
   PRIMARY KEY (moment_id, model)
 );

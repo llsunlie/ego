@@ -25,10 +25,15 @@ CREATE TABLE trace_profile_vectors (
   user_id    UUID NOT NULL,
   model      TEXT NOT NULL,
   dim        INT NOT NULL,
-  embedding  VECTOR(4096) NOT NULL,
+  embedding  VECTOR(1024) NOT NULL,
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL
 );
 
 CREATE INDEX idx_trace_profile_vectors_user_model
 ON trace_profile_vectors(user_id, model);
+
+CREATE INDEX idx_trace_profile_vectors_embedding_hnsw
+ON trace_profile_vectors
+USING hnsw (embedding vector_cosine_ops)
+WITH (m = 16, ef_construction = 64);
