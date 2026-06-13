@@ -125,14 +125,26 @@ ratelimit/
 - 鉴权 RPC → per-IP + per-user_id 双维度独立令牌桶，任一耗尽即拒绝
 - 拒绝返回 `RESOURCE_EXHAUSTED`，message 为中文「请求过于频繁，请稍后再试」
 
-**配置**（`.env`，无默认值，不设则使用内部回退值 10/20/10/30/500）：
-```
-RATELIMIT_AUTH_RATE=10       # 鉴权接口 tokens/sec
-RATELIMIT_AUTH_BURST=20      # 鉴权接口 桶容量
-RATELIMIT_PREAUTH_RATE=10    # 免鉴权接口 tokens/sec
-RATELIMIT_PREAUTH_BURST=30   # 免鉴权接口 桶容量
-RATELIMIT_MAX_BUCKETS=500    # 最大桶对象数
-```
+**配置**（`.env`，无默认值，不设则使用内部回退值）：
+
+| 参数 | 回退值 | 说明 |
+|------|--------|------|
+| `RATELIMIT_AUTH_RATE` | 10 | 鉴权接口 tokens/sec |
+| `RATELIMIT_AUTH_BURST` | 20 | 鉴权接口 桶容量 |
+| `RATELIMIT_PREAUTH_RATE` | 10 | 免鉴权接口 tokens/sec |
+| `RATELIMIT_PREAUTH_BURST` | 30 | 免鉴权接口 桶容量 |
+| `RATELIMIT_MAX_BUCKETS` | 500 | 最大桶对象数，超限 fail-open |
+| `RATELIMIT_CLEANUP_INTERVAL` | 60 | 桶清理间隔（秒） |
+| `RATELIMIT_BUCKET_TTL` | 300 | 空闲桶过期时间（秒） |
+
+**日志**（结构化 slog）：
+
+| 事件 | 级别 | 内容 |
+|------|------|------|
+| 启动 | INFO | `ratelimit started` — 全部 config 参数 |
+| 限流拒绝 | WARN | `ratelimit denied` — method, ip, user_id, dim |
+| 桶超限放行 | WARN | `ratelimit fail-open` — max, current, key |
+| 定时清理 | INFO | `ratelimit cleanup` — removed, remaining（仅清理数 >0） |
 
 **拦截器链顺序**（`bootstrap/server.go`）：`auth → ratelimit`。
 ratelimit 在 auth 之后，利用 auth 注入的 `user_id` 做 per-phone 限流。
