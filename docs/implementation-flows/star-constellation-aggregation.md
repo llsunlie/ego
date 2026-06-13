@@ -215,6 +215,16 @@ P8-a:
 
 P7.1 / P7.2 / P7.3 / P7.4 / P8-a 实现详见 `docs/matching-optimization/constellation-matching-design.md`。
 
+画像向量召回使用当前全局 embedding 配置：
+
+| 表 | 向量列 | 维度 | 索引 |
+|---|---|---:|---|
+| `trace_profile_vectors` | `embedding` | 1024 | `idx_trace_profile_vectors_embedding_hnsw` |
+| `constellation_profile_vectors` | `profile_embedding` | 1024 | `idx_constellation_profile_vectors_profile_embedding_hnsw` |
+| `constellation_profile_vectors` | `centroid_embedding` | 1024 | 暂不做 topK 召回 |
+
+当前默认模型为 `BAAI/bge-m3`，`AI_EMBEDDING_DIM=1024`。TraceProfile 与 ConstellationProfile 都会持久化 `model` 和 `dim`；切换为不同输出维度的 embedding 模型时，需要同步调整 pgvector migration、回填脚本和历史向量数据。
+
 ### Trace.stashed 写入说明
 
 项目设计上 Writing 拥有 `traces` 表，但当前实现中 `starmap/adapter/postgres.TraceStasher` 会直接更新 `traces.stashed=true`。这是当前代码里的跨模块写入例外，文档和后续重构应将它视为需要特别留意的边界点。

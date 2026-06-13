@@ -862,7 +862,7 @@ P7 第一版暂不做：
 - 不做异步 LLM 刷新 ConstellationProfile。
 - 不做 `centroid_embedding` 的 pgvector topK 第二路召回。
 - 不做 `constellations.star_ids` 查询时聚合替换；当前仍同步维护数组。
-- 不引入 ANN index。当前 4096 维 pgvector 仍按普通排序召回。
+- 已为当前 1024 维 profile embedding 建立 HNSW 索引；`centroid_embedding` 暂不做 pgvector topK 第二路召回。
 - 不引入消息队列保证异步一致性。当前异步聚类关键失败会记录 `recovery=pending_message_queue`，后续通过队列或补偿任务补齐。
 
 ## P8-b 优化标记

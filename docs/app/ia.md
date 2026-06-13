@@ -521,7 +521,7 @@ lib/
 ├── data/
 │   ├── models/                        # 所有实体类（freezed），与 proto message 对应
 │   ├── repositories/
-│   │   └── local_store.dart           # Hive 本地持久化（token 缓存、moment 缓存）
+│   │   └── local_store.dart           # Token 持久化（Native: secure storage，Web: Hive）+ settings
 │   ├── services/
 │   │   ├── ego_client.dart            # gRPC 客户端封装 + JWT metadata 注入
 │   │   └── interceptors/

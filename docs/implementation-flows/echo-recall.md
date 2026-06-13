@@ -124,11 +124,11 @@ user_id
 trace_id
 model
 dim
-embedding VECTOR(4096)
+embedding VECTOR(1024)
 created_at
 ```
 
-该表用于 pgvector/HNSW topK 候选召回。`moments.embeddings` JSONB 长期保留，用于兼容现有领域模型和跨模块读取。
+该表用于 pgvector/HNSW topK 候选召回，索引为 `idx_moment_embedding_vectors_embedding_hnsw`。当前默认 embedding 模型为 `BAAI/bge-m3`，输出维度通过 `AI_EMBEDDING_DIM` 配置，默认 `1024`。`moments.embeddings` JSONB 长期保留，用于兼容现有领域模型和跨模块读取。
 
 ### ES sparse recall
 
@@ -300,6 +300,7 @@ proto 中注释过 AI 超时策略，但当前 `CreateMomentUseCase`、`Generate
 ## 当前限制
 
 - 当前只使用每个 Moment 的第一个 embedding。
+- 当前向量表和 HNSW 索引按 1024 维 `BAAI/bge-m3` 配置；更换为不同维度模型时需要同步数据库迁移和历史向量回填。
 - 当前已引入 Elasticsearch sparse search；Echo 候选由 pgvector dense topK 与 ES BM25/IK + ngram sparse topK 通过 RRF 融合后进入 EchoMatcher 规则排序。
 - `CreateMoment` 不是完整数据库事务：新建 Trace 后 Moment 失败会回滚 Trace，但 Moment 保存后 Echo 阶段失败不会回滚 Moment。
 - `CreateMomentReq` 没有 motivation 字段，因此从星座话题引子回到 Now 页时，前端只能把 prompt 当输入提示，无法把 Trace motivation 标记为 `constellation:<id>`。

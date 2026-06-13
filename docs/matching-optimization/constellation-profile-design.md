@@ -130,7 +130,7 @@ updated_at
 
 ### constellation_profile_vectors
 
-向量表。向量独立存放，避免把 4096 维数据混入常规列表查询表。
+向量表。向量独立存放，避免把 1024 维 embedding 数据混入常规列表查询表。当前默认模型为 `BAAI/bge-m3`。
 
 ```text
 constellation_id

@@ -16,7 +16,7 @@
 4. proto 暂不修改。
 5. 前端继续展示当前 Echo 的 similarity 数值。
 6. P1 以效率优化为主，不改变 Echo 的产品语义判断。
-7. 当前 active embedding 模型向量维度为 4096。
+7. 当前 active embedding 模型为 `BAAI/bge-m3`，向量维度为 1024。
 8. 接受新增独立表 `moment_embedding_vectors`。
 9. 接受 `moments.embeddings` JSONB 与 pgvector 表长期并存。
 10. 新增 `ECHO_RECALL_TOP_K` 配置，默认值为 10。
@@ -100,7 +100,7 @@ CREATE TABLE moment_embedding_vectors (
   trace_id   UUID NOT NULL,
   model      TEXT NOT NULL,
   dim        INT NOT NULL,
-  embedding  VECTOR(4096) NOT NULL,
+  embedding  VECTOR(1024) NOT NULL,
   created_at TIMESTAMPTZ NOT NULL,
   PRIMARY KEY (moment_id, model)
 );
@@ -118,12 +118,12 @@ CREATE TABLE moment_embedding_vectors (
 
 ### 维度处理
 
-pgvector HNSW 索引要求稳定维度。当前 active embedding 模型维度已确认为 4096。
+pgvector HNSW 索引要求稳定维度。当前 active embedding 模型为 `BAAI/bge-m3`，维度已确认为 1024。
 
 处理方式：
 
-1. 在迁移中写死 `VECTOR(4096)`。
-2. 新增 `AI_EMBEDDING_DIM` 配置，默认值为 4096。
+1. 在迁移中写死 `VECTOR(1024)`。
+2. 新增 `AI_EMBEDDING_DIM` 配置，默认值为 1024。
 3. 在应用启动或 embedding 写入时校验实际维度与配置维度一致。
 4. 如果未来更换不同维度模型，新增迁移或新表版本，不在同一 HNSW 索引中混用不同维度。
 
@@ -423,7 +423,7 @@ P1 完成后应满足：
 
 | 问题 | 决策 |
 |---|---|
-| 当前 active embedding 模型向量维度 | 4096 |
+| 当前 active embedding 模型向量维度 | `BAAI/bge-m3` / 1024 |
 | 是否接受新增独立表 `moment_embedding_vectors` | 是 |
 | 是否接受 `moments.embeddings` JSONB 与 pgvector 表长期并存 | 是 |
 | `ECHO_RECALL_TOP_K` 默认值 | 10 |

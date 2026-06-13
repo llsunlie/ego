@@ -55,12 +55,12 @@ trace_id primary key
 user_id
 model
 dim
-embedding vector(4096)
+embedding vector(1024)
 created_at
 updated_at
 ```
 
-P4 只负责存储 profile embedding，不建立 ANN 索引。当前 active embedding 是 4096 维，pgvector HNSW 对该维度形态有限制；后续 P5/P6 设计正式匹配流程时再决定降维、halfvec、模型切换或其他索引策略。
+P4 最初只负责存储 profile embedding；当前实现已使用 `BAAI/bge-m3` / 1024 维，并为 `trace_profile_vectors.embedding` 建立 HNSW 索引，供后续画像召回链路使用。
 
 ## 字段语义
 
