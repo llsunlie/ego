@@ -239,6 +239,79 @@ func TestTraceProfileGenerator_RetriesEmbedding(t *testing.T) {
 	}
 }
 
+func TestTraceProfileGenerator_RetriesInvalidJSONWithFailureReason(t *testing.T) {
+	var chatAttempts atomic.Int32
+	var sawRepairPrompt atomic.Bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/chat/completions":
+			attempt := chatAttempts.Add(1)
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("read chat body: %v", err)
+			}
+			if attempt == 2 {
+				if !strings.Contains(string(body), "失败原因") || !strings.Contains(string(body), "上一次原始返回") {
+					t.Fatalf("repair request missing failure context: %s", string(body))
+				}
+				sawRepairPrompt.Store(true)
+			}
+			content := `{"topic":"","summary":"","keywords":[],"emotions":[],"scenes":[],"central_pattern":"","pattern_tags":[],"representative_moment_index":1}`
+			if attempt == 2 {
+				content = `{"topic":"入职等待","summary":"用户记录了入职前等待反馈的状态。","keywords":["入职"],"emotions":[],"scenes":["工作"],"central_pattern":"等待入职反馈","pattern_tags":["等待反馈"],"representative_moment_index":1}`
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"choices": []map[string]any{
+					{"message": map[string]string{"content": content}},
+				},
+				"usage": map[string]int{"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30},
+			})
+		case "/embeddings":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"data": []map[string]any{
+					{"embedding": []float32{0.1, 0.2}},
+				},
+				"model": "embed-test",
+				"usage": map[string]int{"prompt_tokens": 5, "total_tokens": 5},
+			})
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	client := platformai.NewClient(platformai.Config{
+		EmbeddingAPIKey:  "test-key",
+		EmbeddingBaseURL: server.URL,
+		EmbeddingModel:   "embed-test",
+		ChatAPIKey:       "test-key",
+		ChatBaseURL:      server.URL,
+		ChatModel:        "chat-test",
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	generator := NewTraceProfileGenerator(client)
+
+	trace := writingdomain.Trace{ID: "trace-1", UserID: "user-1"}
+	moments := []writingdomain.Moment{{ID: "moment-1", TraceID: trace.ID, UserID: trace.UserID, Content: "还在等入职反馈。"}}
+	profile, vector, err := generator.Generate(context.Background(), trace, moments)
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	if profile.Topic != "入职等待" || profile.RetryCount != 1 {
+		t.Fatalf("topic/retry_count = %q/%d, want 入职等待/1", profile.Topic, profile.RetryCount)
+	}
+	if vector == nil {
+		t.Fatal("expected vector")
+	}
+	if chatAttempts.Load() != 2 {
+		t.Fatalf("chat attempts = %d, want 2", chatAttempts.Load())
+	}
+	if !sawRepairPrompt.Load() {
+		t.Fatal("expected repair prompt on second attempt")
+	}
+}
+
 func TestTraceProfileGenerator_EmbeddingFailureMarksProfileFailed(t *testing.T) {
 	originalBackoff := traceProfileEmbeddingRetryBackoff
 	traceProfileEmbeddingRetryBackoff = func(attempt int) time.Duration { return 0 }

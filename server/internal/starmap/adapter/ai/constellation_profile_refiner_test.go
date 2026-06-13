@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	platformai "ego-server/internal/platform/ai"
@@ -123,5 +124,93 @@ func TestConstellationProfileRefiner_RefinesAndEmbedsProfile(t *testing.T) {
 		if !strings.Contains(embeddingInput, want) {
 			t.Fatalf("embedding input missing %q: %s", want, embeddingInput)
 		}
+	}
+}
+
+func TestConstellationProfileRefiner_RetriesInvalidJSONWithFailureReason(t *testing.T) {
+	var chatAttempts atomic.Int32
+	var sawRepairPrompt atomic.Bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/chat/completions":
+			attempt := chatAttempts.Add(1)
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("read chat body: %v", err)
+			}
+			if attempt == 2 {
+				if !strings.Contains(string(body), "失败原因") || !strings.Contains(string(body), "上一次原始返回") {
+					t.Fatalf("repair request missing failure context: %s", string(body))
+				}
+				sawRepairPrompt.Store(true)
+			}
+			content := `{"topic":"入职适应","summary":"","keywords":["入职"],"emotions":[],"scenes":["工作"],"central_pattern":"","pattern_tags":["等待确认"],"theme_label":"入职过渡","theme_description":"","theme_examples":[]}`
+			if attempt == 2 {
+				content = `{"topic":"入职适应","summary":"用户持续记录入职阶段的等待和流程不确定。","keywords":["入职","反馈"],"emotions":[],"scenes":["工作"],"central_pattern":"新阶段开始前等待外部流程确认。","pattern_tags":["新阶段过渡","等待确认"],"theme_label":"入职过渡","theme_description":"包括入职前后的流程等待和反馈不确定。","theme_examples":["等待入职反馈"]}`
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"choices": []map[string]any{
+					{"message": map[string]string{"content": content}},
+				},
+				"usage": map[string]int{"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30},
+			})
+		case "/embeddings":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"data": []map[string]any{
+					{"embedding": []float32{0.1, 0.2, 0.3}},
+				},
+				"model": "embed-test",
+				"usage": map[string]int{"prompt_tokens": 5, "total_tokens": 5},
+			})
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	client := platformai.NewClient(platformai.Config{
+		EmbeddingAPIKey:  "test-key",
+		EmbeddingBaseURL: server.URL,
+		EmbeddingModel:   "embed-test",
+		ChatAPIKey:       "test-key",
+		ChatBaseURL:      server.URL,
+		ChatModel:        "chat-test",
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	refiner := NewConstellationProfileRefiner(client)
+
+	result, err := refiner.Refine(context.Background(), domain.ConstellationProfileRefineInput{
+		Existing: domain.ConstellationProfile{
+			ConstellationID: "constellation-1",
+			UserID:          "user-1",
+			Topic:           "入职等待",
+			Summary:         "用户在等待入职反馈。",
+		},
+		RuleMerged: domain.ConstellationProfile{
+			ConstellationID: "constellation-1",
+			UserID:          "user-1",
+			Topic:           "入职过程",
+			Summary:         "用户记录入职阶段的等待和流程不确定。",
+		},
+		IncomingTraceProfile: domain.TraceProfile{
+			TraceID: "trace-3",
+			UserID:  "user-1",
+			Topic:   "入职受阻",
+			Summary: "入职流程突然卡住。",
+		},
+		Trigger: 3,
+	})
+	if err != nil {
+		t.Fatalf("Refine() error = %v", err)
+	}
+	if result.Profile.Topic != "入职适应" {
+		t.Fatalf("topic = %q, want 入职适应", result.Profile.Topic)
+	}
+	if chatAttempts.Load() != 2 {
+		t.Fatalf("chat attempts = %d, want 2", chatAttempts.Load())
+	}
+	if !sawRepairPrompt.Load() {
+		t.Fatal("expected repair prompt on second attempt")
 	}
 }

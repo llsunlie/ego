@@ -56,6 +56,15 @@ const constellationProfileRefinerSystemPrompt = `
 - theme_examples：最多 3 条，每条不超过 40 字。
 `
 
+const constellationProfileRefinerJSONMaxAttempts = 2
+
+const constellationProfileRefinerJSONRepairInstruction = `请基于同一份星座画像输入重新生成 ConstellationProfile 精炼结果。
+要求：
+- 必须包含非空 topic 和 summary。
+- keywords、emotions、scenes、pattern_tags、theme_examples 必须是数组；没有明确依据时输出 []。
+- theme_label 和 theme_description 如果能从输入中稳定概括，应尽量给出。
+- 格式必须是：{"topic":"稳定主题","summary":"一句话摘要","keywords":["关键词"],"emotions":["情绪"],"scenes":["场景"],"central_pattern":"核心模式","pattern_tags":["模式标签"],"theme_label":"中文主题标签","theme_description":"主题边界","theme_examples":["代表例子"]}`
+
 type ConstellationProfileRefiner struct {
 	client *platformai.Client
 }
@@ -86,23 +95,17 @@ func (r *ConstellationProfileRefiner) Refine(ctx context.Context, input domain.C
 		{Role: "system", Content: constellationProfileRefinerSystemPrompt},
 		{Role: "user", Content: buildConstellationProfileRefinePrompt(input)},
 	}
-	logger.DebugContext(ctx, "starmap constellation profile refinement ai request",
-		"constellation_id", input.RuleMerged.ConstellationID,
-		"trigger", input.Trigger,
-		"messages", chatMessagesForLog(messages),
-	)
-	text, err := r.client.ChatWithRetry(ctx, messages, platformai.RetryOptions{
-		MaxAttempts: 2,
-		Operation:   "starmap_constellation_profile_refinement",
-	})
-	if err != nil {
-		return nil, fmt.Errorf("chat: %w", err)
-	}
-	logger.DebugContext(ctx, "starmap constellation profile refinement ai response",
-		"constellation_id", input.RuleMerged.ConstellationID,
-		"raw_response", text,
-	)
-	resp, err := parseConstellationProfileRefineJSON(text)
+	resp, err := chatAndParseJSONWithRepair(ctx, logger, r.client, messages, jsonRepairOptions{
+		Operation:          "starmap_constellation_profile_refinement",
+		JSONMaxAttempts:    constellationProfileRefinerJSONMaxAttempts,
+		ChatRetryOptions:   platformai.RetryOptions{MaxAttempts: 2, Operation: "starmap_constellation_profile_refinement"},
+		RequestLogMessage:  "starmap constellation profile refinement ai request",
+		ResponseLogMessage: "starmap constellation profile refinement ai response",
+		FailureLogMessage:  "starmap constellation profile refinement json validation failed",
+		ExhaustLogMessage:  "starmap constellation profile refinement json retry exhausted",
+		RepairInstruction:  constellationProfileRefinerJSONRepairInstruction,
+		LogAttrs:           []any{"constellation_id", input.RuleMerged.ConstellationID, "trigger", input.Trigger},
+	}, parseConstellationProfileRefineJSON)
 	if err != nil {
 		return nil, err
 	}

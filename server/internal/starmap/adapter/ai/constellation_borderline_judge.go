@@ -102,6 +102,17 @@ secondary 是另一个合理但不是主视角的星座，最多 2 个；没有�
 }
 `
 
+const constellationBorderlineJudgeJSONMaxAttempts = 2
+
+const constellationBorderlineJudgeJSONRepairInstruction = `请基于同一份 TraceProfile 和候选星座重新生成归属判断。
+要求：
+- decision 只能是 "use_existing" 或 "suggest_new"。
+- 如果 decision 是 "use_existing"，primary 必须填写候选中的 constellation_id、theme_code、confidence、shared_theme、match_dimensions、reason。
+- 如果 decision 是 "suggest_new"，primary 置为空对象或空值，并填写 suggested_theme_code、suggested_theme_label、suggested_theme_description。
+- secondary 必须是数组；没有副星座时输出 []。
+- 只能使用输入中给出的候选 constellation_id 和 theme_code。
+- 格式必须是：{"decision":"use_existing 或 suggest_new","primary":{"constellation_id":"候选 id","theme_code":"候选 theme_code","confidence":0.0,"shared_theme":"共同主题","match_dimensions":["situation"],"reason":"原因"},"secondary":[],"suggested_theme_code":"","suggested_theme_label":"","suggested_theme_description":""}`
+
 type constellationBorderlineJudgeResponse struct {
 	Decision                  string                                     `json:"decision"`
 	ConstellationID           string                                     `json:"constellation_id"`
@@ -143,24 +154,24 @@ func (j *ConstellationBorderlineJudge) Judge(ctx context.Context, input domain.C
 		{Role: "system", Content: constellationBorderlineJudgeSystemPrompt},
 		{Role: "user", Content: buildConstellationBorderlineJudgePrompt(input)},
 	}
-	logger.DebugContext(ctx, "starmap borderline judgement ai request",
-		"candidate_count", len(input.Candidates),
-		"trace_id", input.TraceProfile.TraceID,
-		"messages", chatMessagesForLog(messages),
-	)
-	text, err := j.client.ChatWithRetry(ctx, messages, platformai.RetryOptions{
-		MaxAttempts: 2,
-		Operation:   "starmap_constellation_borderline_judgement",
-	})
-	if err != nil {
-		return nil, fmt.Errorf("chat: %w", err)
+	parse := func(text string) (constellationBorderlineJudgeResponse, error) {
+		resp, err := parseConstellationBorderlineJudgeJSON(text)
+		if err != nil {
+			return constellationBorderlineJudgeResponse{}, err
+		}
+		return validateConstellationBorderlineJudgeResponse(resp, input)
 	}
-	logger.DebugContext(ctx, "starmap borderline judgement ai response",
-		"candidate_count", len(input.Candidates),
-		"trace_id", input.TraceProfile.TraceID,
-		"raw_response", text,
-	)
-	resp, err := parseConstellationBorderlineJudgeJSON(text)
+	resp, err := chatAndParseJSONWithRepair(ctx, logger, j.client, messages, jsonRepairOptions{
+		Operation:          "starmap_constellation_borderline_judgement",
+		JSONMaxAttempts:    constellationBorderlineJudgeJSONMaxAttempts,
+		ChatRetryOptions:   platformai.RetryOptions{MaxAttempts: 2, Operation: "starmap_constellation_borderline_judgement"},
+		RequestLogMessage:  "starmap borderline judgement ai request",
+		ResponseLogMessage: "starmap borderline judgement ai response",
+		FailureLogMessage:  "starmap borderline judgement json validation failed",
+		ExhaustLogMessage:  "starmap borderline judgement json retry exhausted",
+		RepairInstruction:  constellationBorderlineJudgeJSONRepairInstruction,
+		LogAttrs:           []any{"candidate_count", len(input.Candidates), "trace_id", input.TraceProfile.TraceID},
+	}, parse)
 	if err != nil {
 		return nil, err
 	}
@@ -265,6 +276,71 @@ func parseConstellationBorderlineJudgeJSON(text string) (constellationBorderline
 		return constellationBorderlineJudgeResponse{}, fmt.Errorf("json unmarshal: %w", err)
 	}
 	return resp, nil
+}
+
+func validateConstellationBorderlineJudgeResponse(resp constellationBorderlineJudgeResponse, input domain.ConstellationBorderlineJudgeInput) (constellationBorderlineJudgeResponse, error) {
+	resp.Decision = strings.TrimSpace(resp.Decision)
+	switch resp.Decision {
+	case "use_existing":
+		selection := resp.Primary
+		if selection == nil && strings.TrimSpace(resp.ConstellationID) != "" {
+			selection = &constellationBorderlineSelectionResponse{
+				ConstellationID: strings.TrimSpace(resp.ConstellationID),
+				ThemeCode:       strings.TrimSpace(resp.ThemeCode),
+				Confidence:      resp.Confidence,
+				SharedTheme:     strings.TrimSpace(resp.SharedSituation),
+				MatchDimensions: resp.MatchDimensions,
+				Reason:          strings.TrimSpace(resp.Reason),
+			}
+		}
+		if selection == nil {
+			return resp, fmt.Errorf("use_existing missing primary")
+		}
+		if err := validateConstellationBorderlineSelection(*selection, input); err != nil {
+			return resp, fmt.Errorf("invalid primary: %w", err)
+		}
+	case "suggest_new":
+		if strings.TrimSpace(resp.SuggestedThemeCode) == "" || strings.TrimSpace(resp.SuggestedThemeLabel) == "" {
+			return resp, fmt.Errorf("suggest_new missing suggested theme code or label")
+		}
+	default:
+		return resp, fmt.Errorf("invalid decision: %q", resp.Decision)
+	}
+	for i, secondary := range resp.Secondary {
+		if err := validateConstellationBorderlineSelection(secondary, input); err != nil {
+			return resp, fmt.Errorf("invalid secondary[%d]: %w", i, err)
+		}
+	}
+	return resp, nil
+}
+
+func validateConstellationBorderlineSelection(selection constellationBorderlineSelectionResponse, input domain.ConstellationBorderlineJudgeInput) error {
+	constellationID := strings.TrimSpace(selection.ConstellationID)
+	themeCode := strings.TrimSpace(selection.ThemeCode)
+	if constellationID == "" {
+		return fmt.Errorf("missing constellation_id")
+	}
+	if themeCode == "" {
+		return fmt.Errorf("missing theme_code")
+	}
+	if strings.TrimSpace(selection.SharedTheme) == "" {
+		return fmt.Errorf("missing shared_theme")
+	}
+	if strings.TrimSpace(selection.Reason) == "" {
+		return fmt.Errorf("missing reason")
+	}
+	if len(normalizeJudgeStringList(selection.MatchDimensions, 6)) == 0 {
+		return fmt.Errorf("missing match_dimensions")
+	}
+	for _, candidate := range input.Candidates {
+		if candidate.ConstellationID == constellationID {
+			if candidate.ThemeCode != "" && candidate.ThemeCode != themeCode {
+				return fmt.Errorf("theme_code %q does not match candidate %q", themeCode, constellationID)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("constellation_id %q is not in candidates", constellationID)
 }
 
 func normalizeJudgeStringList(values []string, limit int) []string {

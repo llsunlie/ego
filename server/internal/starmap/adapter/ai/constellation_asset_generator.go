@@ -6,13 +6,19 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/uuid"
-
 	platformai "ego-server/internal/platform/ai"
 	"ego-server/internal/platform/logging"
 	"ego-server/internal/starmap/domain"
 	writingdomain "ego-server/internal/writing/domain"
 )
+
+const assetJSONMaxAttempts = 2
+
+const assetJSONRepairInstruction = `请基于同一批用户原文重新生成星座资产。
+要求：
+- 必须包含非空 topic、name、insight。
+- prompts 必须是 2 到 3 个非空字符串。
+- 格式必须是：{"topic":"星座主题","name":"星座名","insight":"洞察文本","prompts":["引导1","引导2"]}`
 
 const assetSystemPrompt = `
 你是 ego 中的“星座资产生成器”。
@@ -94,27 +100,20 @@ func (g *ConstellationAssetGenerator) Generate(ctx context.Context, moments []wr
 		{Role: "system", Content: assetSystemPrompt},
 		{Role: "user", Content: buildAssetUserPrompt(moments)},
 	}
-	logger.DebugContext(ctx, "starmap constellation asset ai request",
-		"messages", chatMessagesForLog(messages),
-	)
-
-	text, err := g.client.ChatWithRetry(ctx, messages, platformai.RetryOptions{
-		MaxAttempts: 2,
-		Operation:   "starmap_constellation_asset",
-	})
+	resp, err := chatAndParseJSONWithRepair(ctx, logger, g.client, messages, jsonRepairOptions{
+		Operation:          "starmap_constellation_asset",
+		JSONMaxAttempts:    assetJSONMaxAttempts,
+		ChatRetryOptions:   platformai.RetryOptions{MaxAttempts: 2, Operation: "starmap_constellation_asset"},
+		RequestLogMessage:  "starmap constellation asset ai request",
+		ResponseLogMessage: "starmap constellation asset ai response",
+		FailureLogMessage:  "starmap constellation asset json validation failed",
+		ExhaustLogMessage:  "starmap constellation asset json retry exhausted",
+		RepairInstruction:  assetJSONRepairInstruction,
+	}, parseAssetJSON)
 	if err != nil {
-		logger.ErrorContext(ctx, "starmap constellation asset chat failed", "error", err)
 		return fallbackAssets()
 	}
-	logger.DebugContext(ctx, "starmap constellation asset ai response",
-		"raw_response", text,
-	)
-
-	topic, name, insight, prompts, err := parseAssetJSON(text)
-	if err != nil {
-		logger.WarnContext(ctx, "starmap constellation asset json parse failed", "error", err)
-		return fallbackAssets()
-	}
+	topic, name, insight, prompts := resp.Topic, resp.Name, resp.Insight, resp.Prompts
 
 	var topicEmb []float32
 	emb, err := g.client.CreateEmbeddingWithRetry(ctx, topic, platformai.RetryOptions{
@@ -150,7 +149,7 @@ func buildAssetUserPrompt(moments []writingdomain.Moment) string {
 	return b.String()
 }
 
-func parseAssetJSON(text string) (string, string, string, []string, error) {
+func parseAssetJSON(text string) (constellationAssetResponse, error) {
 	cleaned := strings.TrimSpace(text)
 	cleaned = strings.TrimPrefix(cleaned, "```json")
 	cleaned = strings.TrimPrefix(cleaned, "```")
@@ -159,7 +158,7 @@ func parseAssetJSON(text string) (string, string, string, []string, error) {
 
 	var resp constellationAssetResponse
 	if err := json.Unmarshal([]byte(cleaned), &resp); err != nil {
-		return "", "", "", nil, fmt.Errorf("json unmarshal: %w", err)
+		return constellationAssetResponse{}, fmt.Errorf("json unmarshal: %w", err)
 	}
 
 	topic := strings.TrimSpace(resp.Topic)
@@ -195,14 +194,31 @@ func parseAssetJSON(text string) (string, string, string, []string, error) {
 	if topic == "" {
 		topic = name
 	}
+	if topic == "" {
+		return constellationAssetResponse{}, fmt.Errorf("asset missing topic")
+	}
+	if name == "" {
+		return constellationAssetResponse{}, fmt.Errorf("asset missing name")
+	}
+	if insight == "" {
+		return constellationAssetResponse{}, fmt.Errorf("asset missing insight")
+	}
+	if len(filtered) < 2 {
+		return constellationAssetResponse{}, fmt.Errorf("asset prompts too few: %d", len(filtered))
+	}
 
-	return topic, name, insight, filtered, nil
+	return constellationAssetResponse{
+		Topic:   topic,
+		Name:    name,
+		Insight: insight,
+		Prompts: filtered,
+	}, nil
 }
 
 func fallbackAssets() (string, []float32, string, string, []string, error) {
 	return "未命名的星座",
 		nil,
-		"星座" + uuid.New().String()[:8],
+		"",
 		"这些话语之间似乎有着某种共鸣。随着你写下更多，它们之间的联系会变得越来越清晰。",
 		[]string{"关于这个主题，还有什么想说的吗？", "换个角度再看一看？"},
 		nil

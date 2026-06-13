@@ -16,6 +16,13 @@ import (
 const traceProfileMaxAttempts = 3
 const traceProfileEmbeddingMaxAttempts = 3
 
+const traceProfileJSONRepairInstruction = `请基于同一条 trace 重新生成 TraceProfile。
+要求：
+- 必须包含非空 topic 和 summary。
+- representative_moment_index 必须是输入 moments 的序号数字，从 1 开始。
+- keywords、emotions、scenes、pattern_tags 必须是数组；没有明确依据时输出 []。
+- 格式必须是：{"topic":"稳定主题","summary":"整体摘要","keywords":["关键词"],"emotions":["情绪"],"scenes":["场景"],"central_pattern":"核心模式或关注点","pattern_tags":["模式标签"],"representative_moment_index":1}`
+
 var traceProfileEmbeddingRetryBackoff = func(attempt int) time.Duration {
 	switch attempt {
 	case 1:
@@ -129,17 +136,7 @@ func (g *TraceProfileGenerator) Generate(ctx context.Context, trace writingdomai
 		err     error
 		attempt int
 	)
-	for attempt = 0; attempt < traceProfileMaxAttempts; attempt++ {
-		resp, err = g.generateOnce(ctx, trace, moments)
-		if err == nil {
-			break
-		}
-		logger.WarnContext(ctx, "starmap trace profile generation attempt failed",
-			"trace_id", trace.ID,
-			"attempt", attempt+1,
-			"error", err,
-		)
-	}
+	resp, attempt, err = g.generateOnce(ctx, trace, moments)
 
 	now := time.Now()
 	status := domain.TraceProfileStatusReady
@@ -235,35 +232,29 @@ func traceProfileRetryCount(attempt int, err error) int {
 	if err != nil {
 		return traceProfileMaxAttempts - 1
 	}
-	return attempt
+	if attempt <= 0 {
+		return 0
+	}
+	return attempt - 1
 }
 
-func (g *TraceProfileGenerator) generateOnce(ctx context.Context, trace writingdomain.Trace, moments []writingdomain.Moment) (traceProfileResponse, error) {
+func (g *TraceProfileGenerator) generateOnce(ctx context.Context, trace writingdomain.Trace, moments []writingdomain.Moment) (traceProfileResponse, int, error) {
 	logger := logging.FromContext(ctx)
 	messages := []platformai.ChatMessage{
 		{Role: "system", Content: traceProfileSystemPrompt},
 		{Role: "user", Content: buildTraceProfileUserPrompt(trace, moments)},
 	}
-	logger.DebugContext(ctx, "starmap trace profile ai request",
-		"trace_id", trace.ID,
-		"messages", chatMessagesForLog(messages),
-	)
-	text, err := g.client.Chat(ctx, messages)
-	if err != nil {
-		return traceProfileResponse{}, fmt.Errorf("chat: %w", err)
-	}
-	logger.DebugContext(ctx, "starmap trace profile ai response",
-		"trace_id", trace.ID,
-		"raw_response", text,
-	)
-	resp, err := parseTraceProfileJSON(text)
-	if err != nil {
-		return traceProfileResponse{}, err
-	}
-	if strings.TrimSpace(resp.Topic) == "" || strings.TrimSpace(resp.Summary) == "" {
-		return traceProfileResponse{}, fmt.Errorf("profile missing topic or summary")
-	}
-	return resp, nil
+	return chatAndParseJSONWithRepairCount(ctx, logger, g.client, messages, jsonRepairOptions{
+		Operation:          "starmap_trace_profile",
+		JSONMaxAttempts:    traceProfileMaxAttempts,
+		ChatRetryOptions:   platformai.RetryOptions{MaxAttempts: 2, Operation: "starmap_trace_profile"},
+		RequestLogMessage:  "starmap trace profile ai request",
+		ResponseLogMessage: "starmap trace profile ai response",
+		FailureLogMessage:  "starmap trace profile json validation failed",
+		ExhaustLogMessage:  "starmap trace profile json retry exhausted",
+		RepairInstruction:  traceProfileJSONRepairInstruction,
+		LogAttrs:           []any{"trace_id", trace.ID},
+	}, parseTraceProfileJSON)
 }
 
 func buildTraceProfileUserPrompt(trace writingdomain.Trace, moments []writingdomain.Moment) string {
@@ -295,6 +286,9 @@ func parseTraceProfileJSON(text string) (traceProfileResponse, error) {
 	var resp traceProfileResponse
 	if err := json.Unmarshal([]byte(cleaned), &resp); err != nil {
 		return traceProfileResponse{}, fmt.Errorf("json unmarshal: %w", err)
+	}
+	if strings.TrimSpace(resp.Topic) == "" || strings.TrimSpace(resp.Summary) == "" {
+		return traceProfileResponse{}, fmt.Errorf("profile missing topic or summary")
 	}
 	return resp, nil
 }
