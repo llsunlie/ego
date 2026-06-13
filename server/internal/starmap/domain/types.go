@@ -136,6 +136,7 @@ type ConstellationProfileRefinement struct {
 	Model            string
 	Dim              int
 	ProfileEmbedding []float32
+	DisplayName      string
 }
 
 const (

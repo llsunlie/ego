@@ -1292,29 +1292,29 @@ func TestRefineConstellationProfileIfNeeded_UsesRefinerAtTrigger(t *testing.T) {
 	existing := domain.ConstellationProfile{
 		ConstellationID: "constellation-1",
 		UserID:          "user-1",
-		Topic:           "入职等待",
-		Summary:         "用户在等待入职反馈。",
+		Topic:           "样例等待",
+		Summary:         "测试主体在等待节点确认。",
 		TraceCount:      2,
 		MomentCount:     2,
-		ThemeCode:       "work_transition",
+		ThemeCode:       "sample_transition",
 		CreatedAt:       now.Add(-time.Hour),
 		UpdatedAt:       now.Add(-time.Hour),
 	}
 	merged := existing
-	merged.Topic = "入职过程"
+	merged.Topic = "样例流程"
 	merged.TraceCount = 3
 	merged.MomentCount = 3
 	merged.UpdatedAt = now
 	incoming := &domain.TraceProfile{
 		TraceID:                "trace-3",
 		UserID:                 "user-1",
-		Topic:                  "入职受阻",
-		Summary:                "用户记录入职流程突然卡住。",
-		Keywords:               []string{"入职", "反馈"},
-		Scenes:                 []string{"工作"},
+		Topic:                  "流程节点停住",
+		Summary:                "测试主体记录样例流程节点停住。",
+		Keywords:               []string{"样例流程", "节点确认"},
+		Scenes:                 []string{"测试场景"},
 		RepresentativeMomentID: "moment-1",
 	}
-	moments := []writingdomain.Moment{{ID: "moment-1", Content: "入职流程突然卡住了。"}}
+	moments := []writingdomain.Moment{{ID: "moment-1", Content: "样例流程在节点B停住了。"}}
 	vector := &domain.ConstellationProfileVector{
 		ConstellationID:   "constellation-1",
 		UserID:            "user-1",
@@ -1332,30 +1332,35 @@ func TestRefineConstellationProfileIfNeeded_UsesRefinerAtTrigger(t *testing.T) {
 			gotInput = input
 			return &domain.ConstellationProfileRefinement{
 				Profile: domain.ConstellationProfile{
-					Topic:            "入职适应与流程等待",
-					Summary:          "用户持续记录入职阶段的反馈等待和流程不确定。",
-					Keywords:         []string{"入职", "反馈", "流程"},
-					Scenes:           []string{"工作"},
-					CentralPattern:   "新阶段开始前反复等待外部流程确认。",
-					ThemeLabel:       "入职过渡",
-					ThemeDescription: "围绕入职阶段的等待、确认和不确定感。",
+					Topic:            "样例流程整理",
+					Summary:          "测试主体持续记录样例流程中的节点确认状态。",
+					Keywords:         []string{"样例流程", "节点确认", "流程"},
+					Scenes:           []string{"测试场景"},
+					CentralPattern:   "流程推进前反复等待外部节点确认。",
+					ThemeLabel:       "流程过渡",
+					ThemeDescription: "围绕样例流程中的等待和确认状态。",
 				},
 				Model:            "new-model",
 				Dim:              3,
 				ProfileEmbedding: []float32{0.7, 0.8, 0.9},
+				DisplayName:      "节点停住",
 			}, nil
 		},
 	})
 
-	gotProfile, gotVector := uc.refineConstellationProfileIfNeeded(ctx, existing, &merged, incoming, moments, vector)
+	gotResult := uc.refineConstellationProfileIfNeeded(ctx, existing, &merged, incoming, moments, vector)
+	gotProfile, gotVector := gotResult.Profile, gotResult.Vector
 
 	if gotInput.Trigger != 3 {
 		t.Fatalf("trigger = %d, want 3", gotInput.Trigger)
 	}
-	if gotInput.RepresentativeMoment != "入职流程突然卡住了。" {
+	if !gotResult.Refined || gotResult.Trigger != 3 || gotResult.DisplayName != "节点停住" {
+		t.Fatalf("refine result = %#v", gotResult)
+	}
+	if gotInput.RepresentativeMoment != "样例流程在节点B停住了。" {
 		t.Fatalf("representative moment = %q", gotInput.RepresentativeMoment)
 	}
-	if gotProfile.Topic != "入职适应与流程等待" {
+	if gotProfile.Topic != "样例流程整理" {
 		t.Fatalf("topic = %q", gotProfile.Topic)
 	}
 	if gotProfile.ConstellationID != "constellation-1" || gotProfile.UserID != "user-1" {
@@ -1364,8 +1369,8 @@ func TestRefineConstellationProfileIfNeeded_UsesRefinerAtTrigger(t *testing.T) {
 	if gotProfile.TraceCount != 3 || gotProfile.MomentCount != 3 {
 		t.Fatalf("counts = %.1f/%.1f, want 3/3", gotProfile.TraceCount, gotProfile.MomentCount)
 	}
-	if gotProfile.ThemeCode != "work_transition" {
-		t.Fatalf("theme code = %q, want work_transition", gotProfile.ThemeCode)
+	if gotProfile.ThemeCode != "sample_transition" {
+		t.Fatalf("theme code = %q, want sample_transition", gotProfile.ThemeCode)
 	}
 	if gotVector.Model != "new-model" || gotVector.Dim != 3 {
 		t.Fatalf("vector model/dim = %s/%d, want new-model/3", gotVector.Model, gotVector.Dim)
@@ -1383,13 +1388,13 @@ func TestRefineConstellationProfileIfNeeded_FallsBackOnError(t *testing.T) {
 	existing := domain.ConstellationProfile{
 		ConstellationID: "constellation-1",
 		UserID:          "user-1",
-		Topic:           "入职等待",
+		Topic:           "样例等待",
 		TraceCount:      2,
 	}
 	merged := existing
 	merged.TraceCount = 3
-	merged.Topic = "入职过程"
-	incoming := &domain.TraceProfile{TraceID: "trace-3", UserID: "user-1", Topic: "入职受阻"}
+	merged.Topic = "样例流程"
+	incoming := &domain.TraceProfile{TraceID: "trace-3", UserID: "user-1", Topic: "流程节点停住"}
 	vector := &domain.ConstellationProfileVector{Model: "old-model", ProfileEmbedding: []float32{0.1, 0.2}}
 	uc := &StashTraceUseCase{}
 	uc.UseConstellationProfileRefiner(&mockConstellationProfileRefiner{
@@ -1398,15 +1403,46 @@ func TestRefineConstellationProfileIfNeeded_FallsBackOnError(t *testing.T) {
 		},
 	})
 
-	gotProfile, gotVector := uc.refineConstellationProfileIfNeeded(ctx, existing, &merged, incoming, nil, vector)
+	gotResult := uc.refineConstellationProfileIfNeeded(ctx, existing, &merged, incoming, nil, vector)
+	gotProfile, gotVector := gotResult.Profile, gotResult.Vector
 
 	if gotProfile != &merged {
 		t.Fatalf("expected merged profile fallback")
+	}
+	if gotResult.Refined {
+		t.Fatalf("expected no refined result: %#v", gotResult)
 	}
 	if gotVector != vector {
 		t.Fatalf("expected original vector fallback")
 	}
 	if gotVector.Model != "old-model" {
 		t.Fatalf("vector model = %q, want old-model", gotVector.Model)
+	}
+}
+
+func TestShouldUpdateConstellationName(t *testing.T) {
+	tests := []struct {
+		name      string
+		current   string
+		suggested string
+		trigger   int
+		want      bool
+		reason    string
+	}{
+		{name: "empty suggested", current: "流程", suggested: "", trigger: 3, want: false, reason: "empty_suggested_name"},
+		{name: "fallback uuid", current: "星座abcdef12", suggested: "样例节点", trigger: 21, want: true, reason: "current_name_fallback"},
+		{name: "fallback empty", current: "", suggested: "样例节点", trigger: 21, want: true, reason: "current_name_fallback"},
+		{name: "trigger three updates", current: "流程", suggested: "节点停住", trigger: 3, want: true, reason: "first_mature_trigger"},
+		{name: "trigger eight keeps specific", current: "节点停住", suggested: "流程确认", trigger: 8, want: false, reason: "current_name_specific_at_later_trigger"},
+		{name: "trigger eight updates generic", current: "工作", suggested: "流程确认", trigger: 8, want: true, reason: "current_name_generic_at_later_trigger"},
+		{name: "post thirteen stable", current: "节点停住", suggested: "流程确认", trigger: 21, want: false, reason: "post_thirteen_name_stable"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, reason := shouldUpdateConstellationName(tt.current, tt.suggested, tt.trigger)
+			if got != tt.want || reason != tt.reason {
+				t.Fatalf("shouldUpdateConstellationName() = %v/%s, want %v/%s", got, reason, tt.want, tt.reason)
+			}
+		})
 	}
 }

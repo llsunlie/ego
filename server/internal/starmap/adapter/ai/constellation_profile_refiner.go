@@ -32,6 +32,7 @@ const constellationProfileRefinerSystemPrompt = `
 输出只能是严格 JSON，不要 markdown：
 {
   "topic": "稳定主题",
+  "display_name": "给用户看的星座名",
   "summary": "一句话摘要",
   "keywords": ["关键词"],
   "emotions": ["情绪"],
@@ -45,6 +46,7 @@ const constellationProfileRefinerSystemPrompt = `
 
 字段约束：
 - topic：4 到 16 个中文字符，直接、稳定，不诗化。
+- display_name：不超过 8 个中文字符；给用户看的星座名，日常、具体、自然，尽量贴近用户原话；如果当前名字已经合适，可以为空字符串。
 - summary：不超过 100 字。
 - keywords：最多 8 个。
 - emotions：最多 6 个。
@@ -61,9 +63,10 @@ const constellationProfileRefinerJSONMaxAttempts = 2
 const constellationProfileRefinerJSONRepairInstruction = `请基于同一份星座画像输入重新生成 ConstellationProfile 精炼结果。
 要求：
 - 必须包含非空 topic 和 summary。
+- display_name 是用户可见星座名，不超过 8 个中文字符；当前名字已经合适时可以输出空字符串。
 - keywords、emotions、scenes、pattern_tags、theme_examples 必须是数组；没有明确依据时输出 []。
 - theme_label 和 theme_description 如果能从输入中稳定概括，应尽量给出。
-- 格式必须是：{"topic":"稳定主题","summary":"一句话摘要","keywords":["关键词"],"emotions":["情绪"],"scenes":["场景"],"central_pattern":"核心模式","pattern_tags":["模式标签"],"theme_label":"中文主题标签","theme_description":"主题边界","theme_examples":["代表例子"]}`
+- 格式必须是：{"topic":"稳定主题","display_name":"展示名","summary":"一句话摘要","keywords":["关键词"],"emotions":["情绪"],"scenes":["场景"],"central_pattern":"核心模式","pattern_tags":["模式标签"],"theme_label":"中文主题标签","theme_description":"主题边界","theme_examples":["代表例子"]}`
 
 type ConstellationProfileRefiner struct {
 	client *platformai.Client
@@ -71,6 +74,7 @@ type ConstellationProfileRefiner struct {
 
 type constellationProfileRefineResponse struct {
 	Topic            string   `json:"topic"`
+	DisplayName      string   `json:"display_name"`
 	Summary          string   `json:"summary"`
 	Keywords         []string `json:"keywords"`
 	Emotions         []string `json:"emotions"`
@@ -122,6 +126,7 @@ func (r *ConstellationProfileRefiner) Refine(ctx context.Context, input domain.C
 		Model:            embedding.Model,
 		Dim:              len(embedding.Embedding),
 		ProfileEmbedding: embedding.Embedding,
+		DisplayName:      truncateRunes(strings.TrimSpace(resp.DisplayName), 8),
 	}, nil
 }
 

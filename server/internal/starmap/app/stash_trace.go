@@ -60,6 +60,14 @@ type StashTraceUseCase struct {
 	ids               IDGenerator
 }
 
+type constellationProfileRefineResult struct {
+	Profile     *domain.ConstellationProfile
+	Vector      *domain.ConstellationProfileVector
+	Trigger     int
+	DisplayName string
+	Refined     bool
+}
+
 func NewStashTraceUseCase(
 	traceReader domain.TraceReader,
 	traceStasher domain.TraceStasher,
@@ -959,7 +967,27 @@ func (uc *StashTraceUseCase) attachStarToConstellation(ctx context.Context, cons
 			UpdatedAt:         now,
 		}
 	}
-	updatedProfile, updatedVector = uc.refineConstellationProfileIfNeeded(ctx, scored.candidate.Profile, updatedProfile, traceProfile, moments, updatedVector)
+	refineResult := uc.refineConstellationProfileIfNeeded(ctx, scored.candidate.Profile, updatedProfile, traceProfile, moments, updatedVector)
+	updatedProfile, updatedVector = refineResult.Profile, refineResult.Vector
+	if refineResult.Refined {
+		accepted, reason := shouldUpdateConstellationName(c.Name, refineResult.DisplayName, refineResult.Trigger)
+		logger := logging.FromContext(ctx)
+		logger.DebugContext(ctx, "starmap constellation name refinement decided",
+			"constellation_id", constellationID,
+			"trigger", refineResult.Trigger,
+			"current_name", c.Name,
+			"suggested_name", refineResult.DisplayName,
+			"accepted", accepted,
+			"reason", reason,
+		)
+		if accepted {
+			c.Name = truncateRunes(strings.TrimSpace(refineResult.DisplayName), 8)
+			c.UpdatedAt = now
+			if err := uc.constellations.Update(ctx, c); err != nil {
+				return fmt.Errorf("update constellation name: %w", err)
+			}
+		}
+	}
 	if err := uc.upsertConstellationProfile(ctx, updatedProfile, updatedVector); err != nil {
 		return fmt.Errorf("upsert constellation profile: %w", err)
 	}
@@ -980,13 +1008,14 @@ func (uc *StashTraceUseCase) attachStarToConstellation(ctx context.Context, cons
 	return nil
 }
 
-func (uc *StashTraceUseCase) refineConstellationProfileIfNeeded(ctx context.Context, existing domain.ConstellationProfile, merged *domain.ConstellationProfile, incoming *domain.TraceProfile, moments []writingdomain.Moment, vector *domain.ConstellationProfileVector) (*domain.ConstellationProfile, *domain.ConstellationProfileVector) {
+func (uc *StashTraceUseCase) refineConstellationProfileIfNeeded(ctx context.Context, existing domain.ConstellationProfile, merged *domain.ConstellationProfile, incoming *domain.TraceProfile, moments []writingdomain.Moment, vector *domain.ConstellationProfileVector) constellationProfileRefineResult {
 	logger := logging.FromContext(ctx)
+	result := constellationProfileRefineResult{Profile: merged, Vector: vector}
 	if merged == nil || incoming == nil {
 		logger.DebugContext(ctx, "starmap constellation profile refinement skipped",
 			"reason", "missing_profile",
 		)
-		return merged, vector
+		return result
 	}
 	trigger, ok := constellationProfileRefinementTrigger(existing.TraceCount, merged.TraceCount)
 	if !ok {
@@ -996,8 +1025,9 @@ func (uc *StashTraceUseCase) refineConstellationProfileIfNeeded(ctx context.Cont
 			"new_trace_count", merged.TraceCount,
 			"reason", "trigger_not_reached",
 		)
-		return merged, vector
+		return result
 	}
+	result.Trigger = trigger
 	if uc.profileRefiner == nil {
 		logger.DebugContext(ctx, "starmap constellation profile refinement skipped",
 			"constellation_id", merged.ConstellationID,
@@ -1006,7 +1036,7 @@ func (uc *StashTraceUseCase) refineConstellationProfileIfNeeded(ctx context.Cont
 			"trigger", trigger,
 			"reason", "refiner_not_configured",
 		)
-		return merged, vector
+		return result
 	}
 	logger.DebugContext(ctx, "starmap constellation profile refinement started",
 		"constellation_id", merged.ConstellationID,
@@ -1031,7 +1061,7 @@ func (uc *StashTraceUseCase) refineConstellationProfileIfNeeded(ctx context.Cont
 			"fallback", "rule_merged_profile",
 			"error", err,
 		)
-		return merged, vector
+		return result
 	}
 	refined := refinement.Profile
 	refined.ConstellationID = merged.ConstellationID
@@ -1062,8 +1092,13 @@ func (uc *StashTraceUseCase) refineConstellationProfileIfNeeded(ctx context.Cont
 		"pattern_tags", refined.PatternTags,
 		"theme_label", refined.ThemeLabel,
 		"profile_embedding_dim", len(refinement.ProfileEmbedding),
+		"display_name", refinement.DisplayName,
 	)
-	return &refined, vector
+	result.Profile = &refined
+	result.Vector = vector
+	result.DisplayName = refinement.DisplayName
+	result.Refined = true
+	return result
 }
 
 func constellationProfileRefinementTrigger(oldTraceCount float64, newTraceCount float64) (int, bool) {
@@ -1086,6 +1121,73 @@ func constellationProfileRefinementTrigger(oldTraceCount float64, newTraceCount 
 		return 13 + newBucket*8, true
 	}
 	return 0, false
+}
+
+func shouldUpdateConstellationName(currentName string, suggestedName string, trigger int) (bool, string) {
+	currentName = strings.TrimSpace(currentName)
+	suggestedName = truncateRunes(strings.TrimSpace(suggestedName), 8)
+	if suggestedName == "" {
+		return false, "empty_suggested_name"
+	}
+	if currentName == suggestedName {
+		return false, "same_name"
+	}
+	if isFallbackConstellationName(currentName) {
+		return true, "current_name_fallback"
+	}
+	if trigger == 3 {
+		return true, "first_mature_trigger"
+	}
+	if trigger == 5 {
+		if isGenericConstellationName(currentName) {
+			return true, "current_name_generic_at_five"
+		}
+		return false, "current_name_specific_at_five"
+	}
+	if trigger == 8 || trigger == 13 {
+		if isGenericConstellationName(currentName) {
+			return true, "current_name_generic_at_later_trigger"
+		}
+		return false, "current_name_specific_at_later_trigger"
+	}
+	if trigger > 13 {
+		return false, "post_thirteen_name_stable"
+	}
+	return false, "unsupported_trigger"
+}
+
+func isFallbackConstellationName(name string) bool {
+	name = strings.TrimSpace(name)
+	if name == "" || name == "未命名的星座" {
+		return true
+	}
+	if strings.HasPrefix(name, "星座") {
+		suffix := strings.TrimPrefix(name, "星座")
+		return len([]rune(suffix)) >= 6 && isHexPrefix(suffix)
+	}
+	return false
+}
+
+func isHexPrefix(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, r := range value {
+		if (r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F') {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func isGenericConstellationName(name string) bool {
+	switch strings.TrimSpace(name) {
+	case "工作", "生活", "心情", "天气", "入职", "关系", "日常", "烦恼", "想法":
+		return true
+	default:
+		return false
+	}
 }
 
 func (uc *StashTraceUseCase) upsertConstellationProfile(ctx context.Context, profile *domain.ConstellationProfile, vector *domain.ConstellationProfileVector) error {
@@ -1251,6 +1353,18 @@ func maxInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func truncateRunes(value string, limit int) string {
+	value = strings.TrimSpace(value)
+	if limit <= 0 {
+		return value
+	}
+	runes := []rune(value)
+	if len(runes) <= limit {
+		return value
+	}
+	return string(runes[:limit])
 }
 
 func borderlineSelectionLogSummary(selection *domain.ConstellationBorderlineSelection) map[string]any {
