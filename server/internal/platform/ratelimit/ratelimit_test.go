@@ -153,11 +153,13 @@ func TestExtractMethodName(t *testing.T) {
 
 func newTestLimiter() *Limiter {
 	return &Limiter{
-		authRate:     10,
-		authBurst:    20,
-		preAuthRate:  10,
-		preAuthBurst: 30,
-		maxBuckets:   500,
-		logger:       logging.NewNop(),
+		authRate:        10,
+		authBurst:       20,
+		preAuthRate:     10,
+		preAuthBurst:    30,
+		maxBuckets:      500,
+		cleanupInterval: time.Minute,
+		bucketTTL:       5 * time.Minute,
+		logger:          logging.NewNop(),
 	}
 }

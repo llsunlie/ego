@@ -53,11 +53,13 @@ type Config struct {
 	TLSDomain             string
 	CORSAllowedOrigins    string
 	// Rate limit
-	RateLimitAuthRate     string
-	RateLimitAuthBurst    string
-	RateLimitPreAuthRate  string
-	RateLimitPreAuthBurst string
-	RateLimitMaxBuckets   string
+	RateLimitAuthRate        string
+	RateLimitAuthBurst       string
+	RateLimitPreAuthRate     string
+	RateLimitPreAuthBurst    string
+	RateLimitMaxBuckets      string
+	RateLimitCleanupInterval string // seconds between cleanup runs
+	RateLimitBucketTTL       string // seconds before an idle bucket is removed
 }
 
 // getEnvWithFallback returns os.Getenv(key), or os.Getenv(fallback) if empty.
@@ -103,11 +105,13 @@ func Load() *Config {
 		TLSDomain:             os.Getenv("TLS_DOMAIN"),
 		CORSAllowedOrigins:    os.Getenv("CORS_ALLOWED_ORIGINS"),
 		// Rate limit
-		RateLimitAuthRate:     os.Getenv("RATELIMIT_AUTH_RATE"),
-		RateLimitAuthBurst:    os.Getenv("RATELIMIT_AUTH_BURST"),
-		RateLimitPreAuthRate:  os.Getenv("RATELIMIT_PREAUTH_RATE"),
-		RateLimitPreAuthBurst: os.Getenv("RATELIMIT_PREAUTH_BURST"),
-		RateLimitMaxBuckets:   os.Getenv("RATELIMIT_MAX_BUCKETS"),
+		RateLimitAuthRate:        os.Getenv("RATELIMIT_AUTH_RATE"),
+		RateLimitAuthBurst:       os.Getenv("RATELIMIT_AUTH_BURST"),
+		RateLimitPreAuthRate:     os.Getenv("RATELIMIT_PREAUTH_RATE"),
+		RateLimitPreAuthBurst:    os.Getenv("RATELIMIT_PREAUTH_BURST"),
+		RateLimitMaxBuckets:      os.Getenv("RATELIMIT_MAX_BUCKETS"),
+		RateLimitCleanupInterval: os.Getenv("RATELIMIT_CLEANUP_INTERVAL"),
+		RateLimitBucketTTL:       os.Getenv("RATELIMIT_BUCKET_TTL"),
 	}
 }
 
