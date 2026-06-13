@@ -27,13 +27,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  void login(String token) {
-    LocalStore.setToken(token);
+  Future<void> login(String token) async {
+    await LocalStore.setToken(token);
     state = AuthState(token: token, isLoggedIn: true);
   }
 
-  void logout() {
-    LocalStore.clearToken();
+  Future<void> logout() async {
+    await LocalStore.clearToken();
     state = const AuthState();
   }
 }
