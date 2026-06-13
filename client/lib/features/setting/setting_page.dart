@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/providers/grpc_error_mapper.dart';
 import '../../core/theme/colors.dart';
 import '../../core/version.dart';
 import '../../data/services/ego_client.dart';
@@ -37,9 +38,14 @@ class _SettingPageState extends ConsumerState<SettingPage> {
         _rawPhone = res.phone;
         _loading = false;
       });
+    } on GrpcError catch (e) {
+      setState(() {
+        _error = grpcErrorMessage(e);
+        _loading = false;
+      });
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _error = errorMessage(e);
         _loading = false;
       });
     }

@@ -15,9 +15,10 @@ server/internal/
 ├── platform/            # 基础设施
 │   ├── postgres/        # 数据库连接 + sqlc 生成代码
 │   ├── ai/              # AI API 客户端
-│   ├── auth/            # JWT + bcrypt
+│   ├── auth/            # JWT + bcrypt + gRPC 拦截器
 │   ├── logging/         # 结构化日志
-│   └── metrics/         # Prometheus 指标
+│   ├── metrics/         # Prometheus 指标
+│   └── ratelimit/       # API 令牌桶限流（per-IP + per-user）
 ├── bootstrap/           # 启动组装（依赖注入）
 └── shared/              # 共享工具
 ```
@@ -47,7 +48,8 @@ type Config struct {
 }
 ```
 
-从 `.env` 文件加载（`loadEnvFile()` — 从 CWD 向上搜索 `.env`）。OS 环境变量优先级高于 `.env`。
+从 `.env` 文件加载（`loadEnvFile()` — 从 CWD 向上搜索 `.env`）。支持行内 `#` 注释。OS 环境变量优先级高于 `.env`。
+另有 `RateLimitAuthRate/Burst/PreAuthRate/PreAuthBurst/MaxBuckets` 字段（见 ratelimit 节）。
 
 ## platform/postgres (`server/internal/platform/postgres/`)
 
@@ -108,6 +110,33 @@ func New(cfg Config) (*slog.Logger, error)
 ## platform/metrics (`server/internal/platform/metrics/`)
 
 Prometheus 指标注册和 HTTP handler。
+
+## platform/ratelimit (`server/internal/platform/ratelimit/`)
+
+```
+ratelimit/
+├── ratelimit.go         # Limiter — 令牌桶管理 + atomic 计数 + 后台清理
+├── ratelimit_test.go    # 单元测试
+└── interceptor.go       # gRPC UnaryServerInterceptor + IP 提取
+```
+
+**限流策略**：
+- preAuth RPC（Login/CheckPhone/SendVerificationCode/Register/ResetPassword）→ 仅按 IP 限流
+- 鉴权 RPC → per-IP + per-user_id 双维度独立令牌桶，任一耗尽即拒绝
+- 拒绝返回 `RESOURCE_EXHAUSTED`，message 为中文「请求过于频繁，请稍后再试」
+
+**配置**（`.env`，无默认值，不设则使用内部回退值 10/20/10/30/500）：
+```
+RATELIMIT_AUTH_RATE=10       # 鉴权接口 tokens/sec
+RATELIMIT_AUTH_BURST=20      # 鉴权接口 桶容量
+RATELIMIT_PREAUTH_RATE=10    # 免鉴权接口 tokens/sec
+RATELIMIT_PREAUTH_BURST=30   # 免鉴权接口 桶容量
+RATELIMIT_MAX_BUCKETS=500    # 最大桶对象数
+```
+
+**拦截器链顺序**（`bootstrap/server.go`）：`auth → ratelimit`。
+ratelimit 在 auth 之后，利用 auth 注入的 `user_id` 做 per-phone 限流。
+拦截器同时将客户端 IP 注入 request logger（`"ip"` 字段）。
 
 ## bootstrap (`server/internal/bootstrap/`)
 

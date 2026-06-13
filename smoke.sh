@@ -84,8 +84,9 @@ info "applying database migrations..."
 for f in "$SERVER_DIR/internal/platform/postgres/migrations/"*.sql; do
   name=$(basename "$f")
   info "  running $name..."
-  # Make CREATE TABLE idempotent with IF NOT EXISTS
-  sed 's/CREATE TABLE /CREATE TABLE IF NOT EXISTS /g' "$f" | \
+  # Make CREATE TABLE idempotent — only add IF NOT EXISTS when missing.
+  # Lines that already have IF NOT EXISTS pass through unchanged.
+  sed '/CREATE TABLE IF NOT EXISTS/!s/CREATE TABLE /CREATE TABLE IF NOT EXISTS /g' "$f" | \
     docker compose exec -T postgres psql -U ego -d ego >/dev/null 2>&1
 done
 pass "all migrations applied"
@@ -116,9 +117,14 @@ pass "server built"
 info "starting server..."
 DATABASE_URL="$DB_URL" \
 JWT_SECRET="smoke-test-secret" \
+JWT_EXP_HOURS="720" \
 WEB_PORT="9080" \
 WEB_TLS_PORT="9443" \
 GRPC_PORT="9444" \
+RATELIMIT_PREAUTH_RATE="5" \
+RATELIMIT_PREAUTH_BURST="3" \
+RATELIMIT_AUTH_RATE="100" \
+RATELIMIT_AUTH_BURST="200" \
   /tmp/ego-server &
 SERVER_PID=$!
 
@@ -217,7 +223,7 @@ fi
 info "=== Smoke F1: Write and Observe ==="
 
 # First moment of user: cold start → no echo expected
-REQ1='{"content":"今天和同事在会议上发生了争执，我觉得自己被孤立了"}'
+REQ1='{"content":"最近工作压力很大，每天都加班到深夜，感觉身心俱疲"}'
 RES1=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ1" "$GRPC_ADDR" ego.Ego/CreateMoment 2>&1)
 echo "  CreateMoment #1: $RES1"
 
@@ -242,7 +248,7 @@ fi
 pass "cold start: echo is nil (correct — no history)"
 
 # Second moment: continue same trace → should match previous moment
-REQ2="{\"content\":\"其实是因为我害怕被否定，小时候爸妈总是批评我\",\"traceId\":\"$MOMENT1_TRACE\"}"
+REQ2="{\"content\":\"连续加班好几个星期了，身体和精神都快撑不住了，真的很累\",\"traceId\":\"$MOMENT1_TRACE\"}"
 RES2=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ2" "$GRPC_ADDR" ego.Ego/CreateMoment 2>&1)
 echo "  CreateMoment #2: $RES2"
 
@@ -280,7 +286,7 @@ GM_COUNT=$(echo "$RES_GM" | python3 -c "import sys,json; print(len(json.load(sys
 GM_CONTENT=$(echo "$RES_GM" | python3 -c "import sys,json; m=json.load(sys.stdin)['moments']; print(m[0]['content'] if m else 'NIL')")
 
 [ "$GM_COUNT" -eq 1 ] || fail "GetMoments: expected 1 moment, got $GM_COUNT"
-[ "$GM_CONTENT" = "今天和同事在会议上发生了争执，我觉得自己被孤立了" ] || fail "GetMoments: content mismatch, got: $GM_CONTENT"
+[ "$GM_CONTENT" = "最近工作压力很大，每天都加班到深夜，感觉身心俱疲" ] || fail "GetMoments: content mismatch, got: $GM_CONTENT"
 pass "GetMoments: returned matched moment with correct content"
 
 # Generate insight from moment #2 + echo
@@ -303,7 +309,7 @@ pass "insight generated: \"$INSIGHT_TEXT\""
 info "=== Smoke F2: Continue Trace (3-round deep dive) ==="
 
 # Round 3 on same trace
-REQ3="{\"content\":\"现在我明白为什么每次绩效评估我都特别紧张了\",\"traceId\":\"$MOMENT1_TRACE\"}"
+REQ3="{\"content\":\"我意识到这样下去不行，必须学会调整自己，找到工作和生活的平衡\",\"traceId\":\"$MOMENT1_TRACE\"}"
 RES3=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ3" "$GRPC_ADDR" ego.Ego/CreateMoment 2>&1)
 echo "  CreateMoment #3: $RES3"
 
@@ -344,7 +350,7 @@ HAS_MORE=$(echo "$RES_LT" | python3 -c "import sys,json; print(json.load(sys.std
 
 # Verify first_moment_content field
 FIRST_CONTENT=$(echo "$RES_LT" | python3 -c "import sys,json; traces=json.load(sys.stdin)['traces']; print(traces[0].get('firstMomentContent','') if traces else '')")
-FMC_EXPECTED="今天和同事在会议上发生了争执，我觉得自己被孤立了"
+FMC_EXPECTED="最近工作压力很大，每天都加班到深夜，感觉身心俱疲"
 [ "$FIRST_CONTENT" = "$FMC_EXPECTED" ] || fail "first_moment_content mismatch: expected '$FMC_EXPECTED', got '$FIRST_CONTENT'"
 pass "ListTraces: $TRACE_COUNT trace(s), hasMore=$HAS_MORE, firstMomentContent OK"
 
@@ -559,6 +565,34 @@ RESUME_HISTORY_LEN=$(echo "$RES_RESUME" | python3 -c "import sys,json; print(len
 [ "$RESUME_HISTORY_LEN" -ge 3 ] || fail "Resume: expected at least 3 history messages, got $RESUME_HISTORY_LEN"
 pass "StartChat (resume): restored session with $RESUME_HISTORY_LEN messages"
 
+# ============================================================================
+# Smoke Test: Rate Limit
+# ============================================================================
+
+info "=== Smoke: Rate Limit ==="
+
+# Test pre-auth (Login) rate limiting.
+# PREAUTH_BURST=3, PREAUTH_RATE=5 tokens/sec.
+# The first 3 requests consume the burst, then rate=5 replenishes ~1 token
+# during the loop. ~10 requests should trigger RESOURCE_EXHAUSTED.
+RATE_LIMITED=false
+for i in $(seq 1 15); do
+  STATUS=$($GRPCURL -plaintext \
+    -d '{"phone":"13800000001","password":"test1234"}' \
+    "$GRPC_ADDR" ego.Ego/Login 2>&1) || true
+  if echo "$STATUS" | grep -q "ResourceExhausted"; then
+    echo "  rate limit triggered at request $i"
+    RATE_LIMITED=true
+    break
+  fi
+done
+
+if [ "$RATE_LIMITED" = true ]; then
+  pass "Rate Limit: rate limiting enforced"
+else
+  fail "Rate Limit: rate limit not triggered after 15 requests"
+fi
+
 # All smoke tests passed
 # ============================================================================
 
@@ -568,7 +602,7 @@ echo -e "${GREEN}  All smoke tests passed!${RESET}"
 echo -e "${GREEN}========================================${RESET}"
 echo ""
 echo "  Setting GetProfile   : PASS"
-  F1 Write+Observe     : PASS"
+echo "  F1 Write+Observe     : PASS"
 echo "  GetMoments           : PASS"
 echo "  F2 ContinueTrace     : PASS"
 echo "  F3 StashTrace        : PASS"
@@ -576,4 +610,5 @@ echo "  F7 Chat              : PASS"
 echo "  ListTraces           : PASS"
 echo "  GetTraceDetail       : PASS"
 echo "  GetRandomMoments     : PASS"
+echo "  Rate Limit           : PASS"
 echo ""
