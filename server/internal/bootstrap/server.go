@@ -55,7 +55,7 @@ func NewServer(cfg *config.Config, p *Platform, handler pb.EgoServer) *Server {
 	reflection.Register(grpcServer)
 
 	wrapped := grpcweb.WrapServer(grpcServer,
-		grpcweb.WithOriginFunc(func(origin string) bool { return true }),
+		grpcweb.WithOriginFunc(makeOriginChecker(cfg)),
 		grpcweb.WithCorsForRegisteredEndpointsOnly(false),
 	)
 
@@ -94,7 +94,9 @@ func NewServer(cfg *config.Config, p *Platform, handler pb.EgoServer) *Server {
 			http.FileServer(http.Dir(webDir)).ServeHTTP(w, r)
 			return
 		}
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		if origin := r.Header.Get("Origin"); isOriginAllowed(origin, cfg) {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		}
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -144,6 +146,40 @@ func (r *statusRecorder) WriteHeader(code int) {
 
 func (r *statusRecorder) Unwrap() http.ResponseWriter {
 	return r.ResponseWriter
+}
+
+// makeOriginChecker returns a grpcweb origin-check function that allows
+// requests from configured origins and localhost (in dev mode).
+func makeOriginChecker(cfg *config.Config) func(string) bool {
+	return func(origin string) bool {
+		return isOriginAllowed(origin, cfg)
+	}
+}
+
+// isOriginAllowed returns true if the origin is allowed.
+// Empty origin (same-origin request) is always allowed.
+// In dev mode (TLS_DOMAIN empty), localhost origins are allowed.
+// Otherwise the origin must be in the configured whitelist.
+// An empty whitelist denies all cross-origin requests in production.
+func isOriginAllowed(origin string, cfg *config.Config) bool {
+	if origin == "" {
+		return true
+	}
+	if cfg.TLSDomain == "" && isLocalhost(origin) {
+		return true
+	}
+	for _, a := range cfg.AllowedOrigins() {
+		if a == origin {
+			return true
+		}
+	}
+	return false
+}
+
+// isLocalhost returns true if the origin URL uses a localhost hostname.
+func isLocalhost(origin string) bool {
+	return strings.Contains(origin, "://localhost:") ||
+		strings.Contains(origin, "://127.0.0.1:")
 }
 
 func (s *Server) Serve() error {
