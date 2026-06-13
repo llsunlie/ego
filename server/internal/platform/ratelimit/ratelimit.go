@@ -16,14 +16,16 @@ import (
 
 // Limiter holds token buckets per dimension and enforces rate limits.
 type Limiter struct {
-	authRate     rate.Limit
-	authBurst    int
-	preAuthRate  rate.Limit
-	preAuthBurst int
-	maxBuckets   int
-	buckets      sync.Map     // string → *rateLimiterEntry
-	bucketCount  atomic.Int64 // approximate live entry count
-	logger       *slog.Logger
+	authRate        rate.Limit
+	authBurst       int
+	preAuthRate     rate.Limit
+	preAuthBurst    int
+	maxBuckets      int
+	cleanupInterval time.Duration
+	bucketTTL       time.Duration
+	buckets         sync.Map     // string → *rateLimiterEntry
+	bucketCount     atomic.Int64 // approximate live entry count
+	logger          *slog.Logger
 
 	stopCh chan struct{}
 	doneCh chan struct{}
@@ -42,6 +44,8 @@ func New(cfg *config.Config, logger *slog.Logger) *Limiter {
 	preAuthRate, _ := strconv.ParseFloat(cfg.RateLimitPreAuthRate, 64)
 	preAuthBurst, _ := strconv.Atoi(cfg.RateLimitPreAuthBurst)
 	maxBuckets, _ := strconv.Atoi(cfg.RateLimitMaxBuckets)
+	cleanupSec, _ := strconv.Atoi(cfg.RateLimitCleanupInterval)
+	ttlSec, _ := strconv.Atoi(cfg.RateLimitBucketTTL)
 
 	if authRate <= 0 {
 		authRate = 10
@@ -58,16 +62,27 @@ func New(cfg *config.Config, logger *slog.Logger) *Limiter {
 	if maxBuckets <= 0 {
 		maxBuckets = 500
 	}
+	if cleanupSec <= 0 {
+		cleanupSec = 60
+	}
+	if ttlSec <= 0 {
+		ttlSec = 300
+	}
+
+	cleanupInterval := time.Duration(cleanupSec) * time.Second
+	bucketTTL := time.Duration(ttlSec) * time.Second
 
 	l := &Limiter{
-		authRate:     rate.Limit(authRate),
-		authBurst:    authBurst,
-		preAuthRate:  rate.Limit(preAuthRate),
-		preAuthBurst: preAuthBurst,
-		maxBuckets:   maxBuckets,
-		logger:       logger,
-		stopCh:       make(chan struct{}),
-		doneCh:       make(chan struct{}),
+		authRate:        rate.Limit(authRate),
+		authBurst:       authBurst,
+		preAuthRate:     rate.Limit(preAuthRate),
+		preAuthBurst:    preAuthBurst,
+		maxBuckets:      maxBuckets,
+		cleanupInterval: cleanupInterval,
+		bucketTTL:       bucketTTL,
+		logger:          logger,
+		stopCh:          make(chan struct{}),
+		doneCh:          make(chan struct{}),
 	}
 
 	logger.Info("ratelimit started",
@@ -76,6 +91,8 @@ func New(cfg *config.Config, logger *slog.Logger) *Limiter {
 		"preauth_rate", preAuthRate,
 		"preauth_burst", preAuthBurst,
 		"max_buckets", maxBuckets,
+		"cleanup_interval_s", cleanupSec,
+		"bucket_ttl_s", ttlSec,
 	)
 	go l.cleanupLoop()
 	return l
@@ -159,6 +176,11 @@ func (l *Limiter) allowKey(key string, r rate.Limit, burst int) bool {
 				// Fail-open: allow the request, don't store a new bucket.
 				l.buckets.Delete(key)
 				l.bucketCount.Add(-1)
+				l.logger.Warn("ratelimit fail-open: max buckets exceeded, request allowed without tracking",
+					"max", l.maxBuckets,
+					"current", l.bucketCount.Load(),
+					"key", key,
+				)
 				return true
 			}
 		}
@@ -167,10 +189,10 @@ func (l *Limiter) allowKey(key string, r rate.Limit, burst int) bool {
 	return entry.limiter.Allow()
 }
 
-// cleanupLoop runs every minute to remove buckets not used for 5 minutes.
+// cleanupLoop periodically removes buckets not used within bucketTTL.
 func (l *Limiter) cleanupLoop() {
 	defer close(l.doneCh)
-	ticker := time.NewTicker(1 * time.Minute)
+	ticker := time.NewTicker(l.cleanupInterval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -183,15 +205,23 @@ func (l *Limiter) cleanupLoop() {
 }
 
 func (l *Limiter) cleanupOnce() {
-	cutoff := time.Now().Add(-5 * time.Minute)
+	cutoff := time.Now().Add(-l.bucketTTL)
+	var removed int
 	l.buckets.Range(func(key, value any) bool {
 		entry := value.(*rateLimiterEntry)
 		if entry.lastUsed.Before(cutoff) {
 			l.buckets.Delete(key)
 			l.bucketCount.Add(-1)
+			removed++
 		}
 		return true
 	})
+	if removed > 0 {
+		l.logger.Info("ratelimit cleanup",
+			"removed", removed,
+			"remaining", l.bucketCount.Load(),
+		)
+	}
 }
 
 // extractMethodName extracts the RPC method name from a full gRPC method path.
