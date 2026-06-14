@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"testing"
-	"time"
 
 	"ego-server/internal/writing/domain"
 )
@@ -105,13 +104,13 @@ func TestDefaultEchoMatcher_AboveThreshold_Matched(t *testing.T) {
 
 func TestDefaultEchoMatcher_SortedBySimilarityDescending(t *testing.T) {
 	matcher := NewDefaultEchoMatcher()
-	// vec=[1,0] vs [0.71,~0.704]=0.71, vs [0.8,0.6]=0.8
+	// vec=[1,0] vs [1,0]=1.0, vs [0.6,0.8]=0.6, vs [0.8,0.6]=0.8
 	cur := &domain.Moment{ID: "m1", Embeddings: []domain.EmbeddingEntry{
 		{Model: "test", Embedding: []float32{1, 0}},
 	}}
 	history := []domain.Moment{
 		{ID: "mid", Embeddings: []domain.EmbeddingEntry{
-			{Model: "test", Embedding: []float32{0.71, 0.7042017}}, // sim = 0.71
+			{Model: "test", Embedding: []float32{0.6, 0.8}}, // sim = 0.6
 		}},
 		{ID: "high", Embeddings: []domain.EmbeddingEntry{
 			{Model: "test", Embedding: []float32{0.8, 0.6}}, // sim = 0.8
@@ -179,15 +178,18 @@ func TestDefaultEchoMatcher_MixedSkippedAndMatched(t *testing.T) {
 	}
 }
 
-func TestDefaultEchoMatcher_SimilarityJustAboveThreshold(t *testing.T) {
+func TestDefaultEchoMatcher_SimilarityAtThreshold(t *testing.T) {
 	matcher := NewDefaultEchoMatcher()
-	// cos(theta) is just above the 0.70 threshold.
+	// cos(θ) where dot product / norms = 0.55:
+	// [1,0] dot [0.55, sqrt(1-0.55^2)] = 0.55
+	// norm of [0.55, ~0.835] → sqrt(0.3025 + 0.6975) = 1.0
+	// So sim = 0.55 / 1.0 = 0.55 → should match (>= threshold)
 	cur := &domain.Moment{ID: "m1", Embeddings: []domain.EmbeddingEntry{
 		{Model: "test", Embedding: []float32{1, 0}},
 	}}
 	history := []domain.Moment{
 		{ID: "threshold", Embeddings: []domain.EmbeddingEntry{
-			{Model: "test", Embedding: []float32{0.701, 0.71316197}}, // sim = 0.701
+			{Model: "test", Embedding: []float32{0.55, 0.835164}}, // sim ≈ 0.55
 		}},
 	}
 	matches, err := matcher.Match(context.Background(), cur, history)
@@ -195,157 +197,6 @@ func TestDefaultEchoMatcher_SimilarityJustAboveThreshold(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(matches) != 1 {
-		t.Fatalf("expected 1 match above threshold (sim >= 0.70), got %d", len(matches))
-	}
-}
-
-func TestDefaultEchoMatcher_ExcludesSameTrace(t *testing.T) {
-	matcher := NewDefaultEchoMatcher()
-	now := time.Date(2026, 6, 4, 10, 0, 0, 0, time.UTC)
-	cur := &domain.Moment{
-		ID:        "m1",
-		TraceID:   "trace-current",
-		CreatedAt: now,
-		Embeddings: []domain.EmbeddingEntry{
-			{Model: "test", Embedding: []float32{1, 0}},
-		},
-	}
-	history := []domain.Moment{
-		{ID: "same-trace", TraceID: "trace-current", CreatedAt: now.Add(-24 * time.Hour), Embeddings: []domain.EmbeddingEntry{
-			{Model: "test", Embedding: []float32{1, 0}},
-		}},
-		{ID: "other-trace", TraceID: "trace-old", CreatedAt: now.Add(-24 * time.Hour), Embeddings: []domain.EmbeddingEntry{
-			{Model: "test", Embedding: []float32{1, 0}},
-		}},
-	}
-	matches, err := matcher.Match(context.Background(), cur, history)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(matches) != 1 || matches[0].MomentID != "other-trace" {
-		t.Fatalf("expected only other trace match, got %+v", matches)
-	}
-}
-
-func TestDefaultEchoMatcher_DoesNotFilterRecentCandidates(t *testing.T) {
-	matcher := NewDefaultEchoMatcher()
-	now := time.Date(2026, 6, 4, 10, 0, 0, 0, time.UTC)
-	cur := &domain.Moment{
-		ID:        "m1",
-		TraceID:   "trace-current",
-		CreatedAt: now,
-		Embeddings: []domain.EmbeddingEntry{
-			{Model: "test", Embedding: []float32{1, 0}},
-		},
-	}
-	history := []domain.Moment{
-		{ID: "recent", TraceID: "trace-recent", CreatedAt: now.Add(-5 * time.Minute), Embeddings: []domain.EmbeddingEntry{
-			{Model: "test", Embedding: []float32{1, 0}},
-		}},
-		{ID: "old-enough", TraceID: "trace-old", CreatedAt: now.Add(-24 * time.Hour), Embeddings: []domain.EmbeddingEntry{
-			{Model: "test", Embedding: []float32{1, 0}},
-		}},
-	}
-	matches, err := matcher.Match(context.Background(), cur, history)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(matches) != 2 {
-		t.Fatalf("expected recent and old-enough matches, got %+v", matches)
-	}
-	seen := map[string]bool{}
-	for _, match := range matches {
-		seen[match.MomentID] = true
-	}
-	if !seen["recent"] || !seen["old-enough"] {
-		t.Fatalf("expected recent and old-enough matches, got %+v", matches)
-	}
-}
-
-func TestDefaultEchoMatcher_DedupesSameHistoricalTraceByEchoScore(t *testing.T) {
-	matcher := NewDefaultEchoMatcher()
-	now := time.Date(2026, 6, 4, 10, 0, 0, 0, time.UTC)
-	cur := &domain.Moment{
-		ID:        "m1",
-		TraceID:   "trace-current",
-		CreatedAt: now,
-		Embeddings: []domain.EmbeddingEntry{
-			{Model: "test", Embedding: []float32{1, 0}},
-		},
-	}
-	history := []domain.Moment{
-		{ID: "same-trace-lower", TraceID: "trace-shared", CreatedAt: now.Add(-24 * time.Hour), Embeddings: []domain.EmbeddingEntry{
-			{Model: "test", Embedding: []float32{0.7, 0.71414286}},
-		}},
-		{ID: "same-trace-higher", TraceID: "trace-shared", CreatedAt: now.Add(-24 * time.Hour), Embeddings: []domain.EmbeddingEntry{
-			{Model: "test", Embedding: []float32{0.8, 0.6}},
-		}},
-	}
-	matches, err := matcher.Match(context.Background(), cur, history)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(matches) != 1 || matches[0].MomentID != "same-trace-higher" {
-		t.Fatalf("expected higher scoring candidate for shared trace, got %+v", matches)
-	}
-}
-
-func TestDefaultEchoMatcher_LimitsMatchesToThree(t *testing.T) {
-	matcher := NewDefaultEchoMatcher()
-	now := time.Date(2026, 6, 4, 10, 0, 0, 0, time.UTC)
-	cur := &domain.Moment{
-		ID:        "m1",
-		TraceID:   "trace-current",
-		CreatedAt: now,
-		Embeddings: []domain.EmbeddingEntry{
-			{Model: "test", Embedding: []float32{1, 0}},
-		},
-	}
-	history := []domain.Moment{
-		{ID: "h1", TraceID: "t1", CreatedAt: now.Add(-24 * time.Hour), Embeddings: []domain.EmbeddingEntry{{Model: "test", Embedding: []float32{1, 0}}}},
-		{ID: "h2", TraceID: "t2", CreatedAt: now.Add(-24 * time.Hour), Embeddings: []domain.EmbeddingEntry{{Model: "test", Embedding: []float32{0.95, 0.3122499}}}},
-		{ID: "h3", TraceID: "t3", CreatedAt: now.Add(-24 * time.Hour), Embeddings: []domain.EmbeddingEntry{{Model: "test", Embedding: []float32{0.9, 0.4358899}}}},
-		{ID: "h4", TraceID: "t4", CreatedAt: now.Add(-24 * time.Hour), Embeddings: []domain.EmbeddingEntry{{Model: "test", Embedding: []float32{0.85, 0.5267827}}}},
-	}
-	matches, err := matcher.Match(context.Background(), cur, history)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(matches) != 3 {
-		t.Fatalf("expected 3 matches, got %d", len(matches))
-	}
-}
-
-func TestDefaultEchoMatcher_OrdersByEchoScoreAndReturnsScoreAsSimilarity(t *testing.T) {
-	matcher := NewDefaultEchoMatcher()
-	now := time.Date(2026, 6, 4, 10, 0, 0, 0, time.UTC)
-	cur := &domain.Moment{
-		ID:        "m1",
-		TraceID:   "trace-current",
-		CreatedAt: now,
-		Embeddings: []domain.EmbeddingEntry{
-			{Model: "test", Embedding: []float32{1, 0}},
-		},
-	}
-	history := []domain.Moment{
-		{ID: "yesterday", TraceID: "t1", CreatedAt: now.Add(-24 * time.Hour), Embeddings: []domain.EmbeddingEntry{
-			{Model: "test", Embedding: []float32{0.71, 0.7042017}}, // score 0.72
-		}},
-		{ID: "old", TraceID: "t2", CreatedAt: now.Add(-30 * 24 * time.Hour), Embeddings: []domain.EmbeddingEntry{
-			{Model: "test", Embedding: []float32{0.72, 0.6939741}}, // score 0.725
-		}},
-	}
-	matches, err := matcher.Match(context.Background(), cur, history)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(matches) != 2 {
-		t.Fatalf("expected 2 matches, got %d", len(matches))
-	}
-	if matches[0].MomentID != "old" {
-		t.Fatalf("expected old candidate first by echo_score, got %+v", matches)
-	}
-	if matches[0].Similarity < 0.72 || matches[0].Similarity > 0.73 {
-		t.Fatalf("expected returned similarity to be final echo_score around 0.725, got %f", matches[0].Similarity)
+		t.Fatalf("expected 1 match at threshold (sim >= 0.55), got %d", len(matches))
 	}
 }

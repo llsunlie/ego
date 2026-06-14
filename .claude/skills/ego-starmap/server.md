@@ -79,28 +79,12 @@ type Deps struct {
 - `writing/adapter/postgres` — `EchoRepository`, `InsightRepository`
 - `platform/ai` — AI Client（用于星座匹配、名称生成、话题生成）
 
-## Profile 向量召回
-
-星座聚合已升级为 TraceProfile -> ConstellationProfile 的画像匹配。画像向量使用全局 embedding 配置，当前默认 `BAAI/bge-m3` / `AI_EMBEDDING_DIM=1024`。
-
-| 表 | 向量列 | 维度 | 索引 |
-|---|---|---:|---|
-| `trace_profile_vectors` | `embedding` | 1024 | `idx_trace_profile_vectors_embedding_hnsw` |
-| `constellation_profile_vectors` | `profile_embedding` | 1024 | `idx_constellation_profile_vectors_profile_embedding_hnsw` |
-| `constellation_profile_vectors` | `centroid_embedding` | 1024 | 暂不做 topK 召回 |
-
-候选召回时以 ConstellationProfile 的 `profile_embedding` 做 pgvector/HNSW dense topK，同时可用 Elasticsearch sparse 召回补足中文短语、标签和场景词命中，再通过 RRF 融合候选。`centroid_embedding` 仍维护为实际 TraceProfile embedding 的加权平均，当前主要用于画像统计和后续评分扩展。
-
 ## 相关文件
 
 | 文件 | 说明 |
 |------|------|
 | `server/internal/platform/ai/client.go` | AI API 客户端 |
 | `server/internal/writing/adapter/postgres/reader.go` | Moment/Trace Reader |
-| `server/internal/starmap/adapter/postgres/trace_profile_repo.go` | TraceProfile 持久化 + vector 写入 |
-| `server/internal/starmap/adapter/postgres/constellation_profile_repo.go` | ConstellationProfile 持久化 + pgvector 候选召回 |
-| `server/internal/platform/postgres/migrations/011_trace_profiles.sql` | TraceProfile 迁移，`VECTOR(1024)` + HNSW |
-| `server/internal/platform/postgres/migrations/012_constellation_profiles.sql` | ConstellationProfile 迁移，`VECTOR(1024)` + HNSW |
 | `server/internal/platform/postgres/sqlc/stars.sql.go` | sqlc star 查询 |
 | `server/internal/platform/postgres/sqlc/constellations.sql.go` | sqlc constellation 查询 |
 | `server/internal/bootstrap/starmap.go` | 顶层 wiring |

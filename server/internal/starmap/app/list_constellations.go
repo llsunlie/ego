@@ -35,8 +35,10 @@ func (uc *ListConstellationsUseCase) Execute(ctx context.Context) (*ListConstell
 		return nil, fmt.Errorf("list constellations: %w", err)
 	}
 
+	var totalStars int32
 	clusteredStarIDs := make(map[string]bool)
 	for _, c := range all {
+		totalStars += int32(len(c.StarIDs))
 		for _, sid := range c.StarIDs {
 			clusteredStarIDs[sid] = true
 		}
@@ -62,11 +64,11 @@ func (uc *ListConstellationsUseCase) Execute(ctx context.Context) (*ListConstell
 			CreatedAt:            s.CreatedAt,
 			UpdatedAt:            s.CreatedAt,
 		})
-		clusteredStarIDs[s.ID] = true
+		totalStars++
 	}
 
 	return &ListConstellationsOutput{
 		Constellations: all,
-		TotalStarCount: int32(len(clusteredStarIDs)),
+		TotalStarCount: totalStars,
 	}, nil
 }

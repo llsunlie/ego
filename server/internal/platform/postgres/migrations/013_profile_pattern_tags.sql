@@ -1,5 +1,0 @@
-ALTER TABLE trace_profiles
-ADD COLUMN IF NOT EXISTS pattern_tags JSONB NOT NULL DEFAULT '[]'::JSONB;
-
-ALTER TABLE constellation_profiles
-ADD COLUMN IF NOT EXISTS pattern_tags JSONB NOT NULL DEFAULT '[]'::JSONB;
