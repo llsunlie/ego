@@ -79,22 +79,6 @@ func (m *mockConstellationRepo) FindByStarID(ctx context.Context, starID string)
 	return nil, nil
 }
 
-type mockTopicGen struct {
-	generateFn func(ctx context.Context, moments []writingdomain.Moment) (string, error)
-}
-
-func (m *mockTopicGen) Generate(ctx context.Context, moments []writingdomain.Moment) (string, error) {
-	return m.generateFn(ctx, moments)
-}
-
-type mockConstellationMat struct {
-	findMatchFn func(ctx context.Context, topic string, existing []domain.Constellation) (string, error)
-}
-
-func (m *mockConstellationMat) FindMatch(ctx context.Context, topic string, existing []domain.Constellation) (string, error) {
-	return m.findMatchFn(ctx, topic, existing)
-}
-
 type mockAssetGen struct {
 	generateFn func(ctx context.Context, moments []writingdomain.Moment) (string, []float32, string, string, []string, error)
 }
@@ -103,11 +87,111 @@ func (m *mockAssetGen) Generate(ctx context.Context, moments []writingdomain.Mom
 	return m.generateFn(ctx, moments)
 }
 
+type mockTraceProfileGen struct {
+	generateFn func(ctx context.Context, trace writingdomain.Trace, moments []writingdomain.Moment) (*domain.TraceProfile, *domain.TraceProfileVector, error)
+}
+
+func (m *mockTraceProfileGen) Generate(ctx context.Context, trace writingdomain.Trace, moments []writingdomain.Moment) (*domain.TraceProfile, *domain.TraceProfileVector, error) {
+	return m.generateFn(ctx, trace, moments)
+}
+
+type mockBorderlineJudge struct {
+	judgeFn func(ctx context.Context, input domain.ConstellationBorderlineJudgeInput) (*domain.ConstellationBorderlineJudgement, error)
+}
+
+func (m *mockBorderlineJudge) Judge(ctx context.Context, input domain.ConstellationBorderlineJudgeInput) (*domain.ConstellationBorderlineJudgement, error) {
+	return m.judgeFn(ctx, input)
+}
+
+type mockTraceProfileRepo struct {
+	upsertFn func(ctx context.Context, profile *domain.TraceProfile, vector *domain.TraceProfileVector) error
+}
+
+func (m *mockTraceProfileRepo) Upsert(ctx context.Context, profile *domain.TraceProfile, vector *domain.TraceProfileVector) error {
+	return m.upsertFn(ctx, profile, vector)
+}
+
+type mockConstellationProfileRepo struct {
+	findCandidatesFn      func(ctx context.Context, userID string, embedding []float32, limit int) ([]domain.ConstellationProfileCandidate, error)
+	findCandidatesByIDsFn func(ctx context.Context, userID string, constellationIDs []string) ([]domain.ConstellationProfileCandidate, error)
+	upsertFn              func(ctx context.Context, profile *domain.ConstellationProfile, vector *domain.ConstellationProfileVector) error
+	addMembershipFn       func(ctx context.Context, membership domain.ConstellationMembership) error
+}
+
+func (m *mockConstellationProfileRepo) FindCandidates(ctx context.Context, userID string, embedding []float32, limit int) ([]domain.ConstellationProfileCandidate, error) {
+	return m.findCandidatesFn(ctx, userID, embedding, limit)
+}
+func (m *mockConstellationProfileRepo) FindCandidatesByIDs(ctx context.Context, userID string, constellationIDs []string) ([]domain.ConstellationProfileCandidate, error) {
+	if m.findCandidatesByIDsFn == nil {
+		return nil, nil
+	}
+	return m.findCandidatesByIDsFn(ctx, userID, constellationIDs)
+}
+func (m *mockConstellationProfileRepo) Upsert(ctx context.Context, profile *domain.ConstellationProfile, vector *domain.ConstellationProfileVector) error {
+	return m.upsertFn(ctx, profile, vector)
+}
+func (m *mockConstellationProfileRepo) AddMembership(ctx context.Context, membership domain.ConstellationMembership) error {
+	return m.addMembershipFn(ctx, membership)
+}
+
+type mockConstellationProfileSparseReader struct {
+	searchFn func(ctx context.Context, profile domain.TraceProfile, limit int) ([]domain.ConstellationProfileSparseCandidate, error)
+}
+
+func (m *mockConstellationProfileSparseReader) SearchCandidates(ctx context.Context, profile domain.TraceProfile, limit int) ([]domain.ConstellationProfileSparseCandidate, error) {
+	return m.searchFn(ctx, profile, limit)
+}
+
+type mockConstellationProfileIndexer struct {
+	indexFn func(ctx context.Context, profile domain.ConstellationProfile) error
+}
+
+func (m *mockConstellationProfileIndexer) IndexProfile(ctx context.Context, profile domain.ConstellationProfile) error {
+	return m.indexFn(ctx, profile)
+}
+
+type mockConstellationProfileRefiner struct {
+	refineFn func(ctx context.Context, input domain.ConstellationProfileRefineInput) (*domain.ConstellationProfileRefinement, error)
+}
+
+func (m *mockConstellationProfileRefiner) Refine(ctx context.Context, input domain.ConstellationProfileRefineInput) (*domain.ConstellationProfileRefinement, error) {
+	return m.refineFn(ctx, input)
+}
+
 type mockIDGen struct {
 	id string
 }
 
 func (m *mockIDGen) New() string { return m.id }
+
+type mockSeqIDGen struct {
+	ids []string
+}
+
+func (m *mockSeqIDGen) New() string {
+	id := m.ids[0]
+	m.ids = m.ids[1:]
+	return id
+}
+
+func testConstellationProfileCandidate(id string, embedding []float32) domain.ConstellationProfileCandidate {
+	return domain.ConstellationProfileCandidate{
+		Profile: domain.ConstellationProfile{
+			ConstellationID: id,
+			UserID:          "user-1",
+			Topic:           id,
+			TraceCount:      1,
+		},
+		Vector: domain.ConstellationProfileVector{
+			ConstellationID:   id,
+			UserID:            "user-1",
+			Model:             "test",
+			Dim:               len(embedding),
+			ProfileEmbedding:  embedding,
+			CentroidEmbedding: embedding,
+		},
+	}
+}
 
 // --- tests ---
 
@@ -167,20 +251,7 @@ func TestStashTrace_Success(t *testing.T) {
 			if len(c.StarIDs) != 1 {
 				t.Errorf("expected 1 star in constellation, got %d", len(c.StarIDs))
 			}
-			close(done)
 			return nil
-		},
-	}
-
-	topicGen := &mockTopicGen{
-		generateFn: func(ctx context.Context, moments []writingdomain.Moment) (string, error) {
-			return "关于一些内容…", nil
-		},
-	}
-
-	constellationMat := &mockConstellationMat{
-		findMatchFn: func(ctx context.Context, topic string, existing []domain.Constellation) (string, error) {
-			return "", nil // no match → lone-star constellation
 		},
 	}
 
@@ -190,11 +261,43 @@ func TestStashTrace_Success(t *testing.T) {
 		},
 	}
 
-	idGen := &mockIDGen{id: "star-1"}
+	profileGen := &mockTraceProfileGen{
+		generateFn: func(ctx context.Context, trace writingdomain.Trace, moments []writingdomain.Moment) (*domain.TraceProfile, *domain.TraceProfileVector, error) {
+			return &domain.TraceProfile{
+					TraceID:     trace.ID,
+					UserID:      trace.UserID,
+					Topic:       "关于自我探索",
+					Summary:     "用户记录了一些自我探索相关内容。",
+					ProfileText: "主题：关于自我探索",
+					Status:      domain.TraceProfileStatusReady,
+				},
+				&domain.TraceProfileVector{TraceID: trace.ID, UserID: trace.UserID, Model: "test", Dim: 2, Embedding: []float32{0.1, 0.2}},
+				nil
+		},
+	}
+	profileRepo := &mockTraceProfileRepo{
+		upsertFn: func(ctx context.Context, profile *domain.TraceProfile, vector *domain.TraceProfileVector) error {
+			return nil
+		},
+	}
+	constellationProfileRepo := &mockConstellationProfileRepo{
+		findCandidatesFn: func(ctx context.Context, userID string, embedding []float32, limit int) ([]domain.ConstellationProfileCandidate, error) {
+			return nil, nil
+		},
+		upsertFn: func(ctx context.Context, profile *domain.ConstellationProfile, vector *domain.ConstellationProfileVector) error {
+			return nil
+		},
+		addMembershipFn: func(ctx context.Context, membership domain.ConstellationMembership) error {
+			close(done)
+			return nil
+		},
+	}
 
-	uc := NewStashTraceUseCase(
+	uc := NewStashTraceUseCaseWithTraceProfile(
 		traceReader, traceStasher, starRepo, constellationRepo,
-		topicGen, constellationMat, assetGen, idGen,
+		assetGen,
+		profileGen, nil, profileRepo, constellationProfileRepo,
+		&mockSeqIDGen{ids: []string{"star-1", "constellation-1"}},
 	)
 
 	star, err := uc.Execute(ctx, StashTraceInput{TraceID: "tr-1"})
@@ -220,6 +323,870 @@ func TestStashTrace_Success(t *testing.T) {
 	}
 }
 
+func TestStashTrace_GeneratesTraceProfileAsync(t *testing.T) {
+	ctx := context.WithValue(context.Background(), "user_id", "user-1")
+	now := time.Now()
+
+	trace := &writingdomain.Trace{
+		ID: "tr-1", UserID: "user-1", Motivation: "direct",
+		Stashed: false, CreatedAt: now,
+	}
+	moments := []writingdomain.Moment{
+		{ID: "mom-1", TraceID: "tr-1", UserID: "user-1", Content: "搬进了自己的出租屋", CreatedAt: now},
+	}
+
+	profileDone := make(chan struct{})
+	membershipDone := make(chan struct{})
+
+	traceReader := &mockTraceReader{
+		getByIDFn: func(ctx context.Context, id string) (*writingdomain.Trace, error) {
+			return trace, nil
+		},
+		listMomentsByTraceIDFn: func(ctx context.Context, traceID string) ([]writingdomain.Moment, error) {
+			return moments, nil
+		},
+	}
+	traceStasher := &mockTraceStasher{
+		markStashedFn: func(ctx context.Context, traceID string) error { return nil },
+	}
+	starRepo := &mockStarRepo{
+		createFn:      func(ctx context.Context, star *domain.Star) error { return nil },
+		updateTopicFn: func(ctx context.Context, starID string, topic string) error { return nil },
+	}
+	constellationRepo := &mockConstellationRepo{
+		createFn: func(ctx context.Context, c *domain.Constellation) error {
+			return nil
+		},
+	}
+	assetGen := &mockAssetGen{
+		generateFn: func(ctx context.Context, moments []writingdomain.Moment) (string, []float32, string, string, []string, error) {
+			return "独立生活", []float32{0.1}, "独立生活", "你正在进入新的生活阶段。", []string{"还有什么想说？"}, nil
+		},
+	}
+	profileGen := &mockTraceProfileGen{
+		generateFn: func(ctx context.Context, trace writingdomain.Trace, moments []writingdomain.Moment) (*domain.TraceProfile, *domain.TraceProfileVector, error) {
+			return &domain.TraceProfile{
+					TraceID: trace.ID,
+					UserID:  trace.UserID,
+					Topic:   "独立生活",
+					Status:  domain.TraceProfileStatusReady,
+				},
+				&domain.TraceProfileVector{TraceID: trace.ID, UserID: trace.UserID, Model: "test", Dim: 1, Embedding: []float32{0.1}},
+				nil
+		},
+	}
+	profileRepo := &mockTraceProfileRepo{
+		upsertFn: func(ctx context.Context, profile *domain.TraceProfile, vector *domain.TraceProfileVector) error {
+			if profile.TraceID != "tr-1" {
+				t.Errorf("expected trace profile for tr-1, got %q", profile.TraceID)
+			}
+			if vector == nil {
+				t.Error("expected trace profile vector")
+			}
+			close(profileDone)
+			return nil
+		},
+	}
+	constellationProfileRepo := &mockConstellationProfileRepo{
+		findCandidatesFn: func(ctx context.Context, userID string, embedding []float32, limit int) ([]domain.ConstellationProfileCandidate, error) {
+			return nil, nil
+		},
+		upsertFn: func(ctx context.Context, profile *domain.ConstellationProfile, vector *domain.ConstellationProfileVector) error {
+			return nil
+		},
+		addMembershipFn: func(ctx context.Context, membership domain.ConstellationMembership) error {
+			close(membershipDone)
+			return nil
+		},
+	}
+
+	uc := NewStashTraceUseCaseWithTraceProfile(
+		traceReader, traceStasher, starRepo, constellationRepo,
+		assetGen,
+		profileGen, nil, profileRepo, constellationProfileRepo,
+		&mockSeqIDGen{ids: []string{"star-1", "constellation-1"}},
+	)
+
+	if _, err := uc.Execute(ctx, StashTraceInput{TraceID: "tr-1"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for name, ch := range map[string]<-chan struct{}{"profile": profileDone, "membership": membershipDone} {
+		select {
+		case <-ch:
+		case <-time.After(2 * time.Second):
+			t.Fatalf("%s async path did not complete within timeout", name)
+		}
+	}
+}
+
+func TestStashTrace_ProfileClusteringCreatesPrimaryConstellation(t *testing.T) {
+	ctx := context.WithValue(context.Background(), "user_id", "user-1")
+	now := time.Now()
+
+	trace := &writingdomain.Trace{
+		ID: "tr-1", UserID: "user-1", Motivation: "direct",
+		Stashed: false, CreatedAt: now,
+	}
+	moments := []writingdomain.Moment{
+		{ID: "mom-1", TraceID: "tr-1", UserID: "user-1", Content: "小红书的帖子挺容易让人焦虑的", CreatedAt: now},
+	}
+
+	done := make(chan struct{})
+	traceReader := &mockTraceReader{
+		getByIDFn: func(ctx context.Context, id string) (*writingdomain.Trace, error) {
+			return trace, nil
+		},
+		listMomentsByTraceIDFn: func(ctx context.Context, traceID string) ([]writingdomain.Moment, error) {
+			return moments, nil
+		},
+	}
+	traceStasher := &mockTraceStasher{
+		markStashedFn: func(ctx context.Context, traceID string) error { return nil },
+	}
+	starRepo := &mockStarRepo{
+		createFn: func(ctx context.Context, star *domain.Star) error {
+			if star.ID != "star-1" {
+				t.Errorf("expected star-1, got %q", star.ID)
+			}
+			return nil
+		},
+		updateTopicFn: func(ctx context.Context, starID string, topic string) error {
+			if topic != "小红书焦虑" {
+				t.Errorf("expected star topic from TraceProfile, got %q", topic)
+			}
+			return nil
+		},
+	}
+	constellationRepo := &mockConstellationRepo{
+		createFn: func(ctx context.Context, c *domain.Constellation) error {
+			if c.ID != "constellation-1" {
+				t.Errorf("expected constellation-1, got %q", c.ID)
+			}
+			if c.Topic != "小红书焦虑" {
+				t.Errorf("expected constellation topic from TraceProfile, got %q", c.Topic)
+			}
+			if len(c.StarIDs) != 1 || c.StarIDs[0] != "star-1" {
+				t.Errorf("expected star-1 in constellation, got %#v", c.StarIDs)
+			}
+			return nil
+		},
+	}
+	assetGen := &mockAssetGen{
+		generateFn: func(ctx context.Context, moments []writingdomain.Moment) (string, []float32, string, string, []string, error) {
+			return "旧资产主题", nil, "小红书焦虑", "这些内容都和小红书带来的焦虑有关。", []string{"什么时候最明显？"}, nil
+		},
+	}
+	profileGen := &mockTraceProfileGen{
+		generateFn: func(ctx context.Context, trace writingdomain.Trace, moments []writingdomain.Moment) (*domain.TraceProfile, *domain.TraceProfileVector, error) {
+			return &domain.TraceProfile{
+					TraceID:     trace.ID,
+					UserID:      trace.UserID,
+					Topic:       "小红书焦虑",
+					Summary:     "用户表达了小红书帖子容易引起焦虑。",
+					Keywords:    []string{"小红书", "帖子", "焦虑"},
+					Emotions:    []string{"焦虑"},
+					Scenes:      []string{"社交媒体"},
+					ProfileText: "主题：小红书焦虑",
+					Status:      domain.TraceProfileStatusReady,
+					CreatedAt:   now,
+					UpdatedAt:   now,
+				},
+				&domain.TraceProfileVector{TraceID: trace.ID, UserID: trace.UserID, Model: "test", Dim: 2, Embedding: []float32{1, 0}},
+				nil
+		},
+	}
+	profileRepo := &mockTraceProfileRepo{
+		upsertFn: func(ctx context.Context, profile *domain.TraceProfile, vector *domain.TraceProfileVector) error {
+			if profile.TraceID != "tr-1" || vector == nil {
+				t.Fatalf("unexpected trace profile upsert: %#v %#v", profile, vector)
+			}
+			return nil
+		},
+	}
+	constellationProfileRepo := &mockConstellationProfileRepo{
+		findCandidatesFn: func(ctx context.Context, userID string, embedding []float32, limit int) ([]domain.ConstellationProfileCandidate, error) {
+			if limit != constellationCandidateLimit {
+				t.Errorf("expected candidate limit %d, got %d", constellationCandidateLimit, limit)
+			}
+			return nil, nil
+		},
+		upsertFn: func(ctx context.Context, profile *domain.ConstellationProfile, vector *domain.ConstellationProfileVector) error {
+			if profile.ConstellationID != "constellation-1" {
+				t.Errorf("expected profile for constellation-1, got %q", profile.ConstellationID)
+			}
+			if vector == nil || len(vector.CentroidEmbedding) != 2 {
+				t.Errorf("expected constellation vector, got %#v", vector)
+			}
+			return nil
+		},
+		addMembershipFn: func(ctx context.Context, membership domain.ConstellationMembership) error {
+			if membership.MatchType != domain.ConstellationMatchTypePrimary {
+				t.Errorf("expected primary membership, got %q", membership.MatchType)
+			}
+			if membership.StarID != "star-1" || membership.ConstellationID != "constellation-1" {
+				t.Errorf("unexpected membership: %#v", membership)
+			}
+			close(done)
+			return nil
+		},
+	}
+
+	uc := NewStashTraceUseCaseWithTraceProfile(
+		traceReader, traceStasher, starRepo, constellationRepo,
+		assetGen,
+		profileGen, nil, profileRepo, constellationProfileRepo,
+		&mockSeqIDGen{ids: []string{"star-1", "constellation-1"}},
+	)
+
+	if _, err := uc.Execute(ctx, StashTraceInput{TraceID: "tr-1"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("profile clustering did not complete within timeout")
+	}
+}
+
+func TestMergeConstellationCandidatesRRF_PromotesCandidatesSeenByBothRetrievers(t *testing.T) {
+	dense := []domain.ConstellationProfileCandidate{
+		testConstellationProfileCandidate("dense-only", []float32{1, 0}),
+		testConstellationProfileCandidate("both", []float32{1, 0}),
+	}
+	sparse := []domain.ConstellationProfileCandidate{
+		testConstellationProfileCandidate("both", []float32{1, 0}),
+		testConstellationProfileCandidate("sparse-only", []float32{1, 0}),
+	}
+
+	got := mergeConstellationCandidatesRRF(dense, sparse, 60, 3)
+	if len(got) != 3 {
+		t.Fatalf("len = %d, want 3", len(got))
+	}
+	if got[0].Profile.ConstellationID != "both" {
+		t.Fatalf("top candidate = %q, want both", got[0].Profile.ConstellationID)
+	}
+}
+
+func TestStashTrace_ProfileClusteringUsesSparseOnlyCandidate(t *testing.T) {
+	ctx := context.WithValue(context.Background(), "user_id", "user-1")
+	now := time.Now()
+
+	trace := &writingdomain.Trace{ID: "tr-1", UserID: "user-1", Stashed: false, CreatedAt: now}
+	moments := []writingdomain.Moment{{ID: "mom-1", TraceID: trace.ID, UserID: trace.UserID, Content: "入职资料还在等反馈", CreatedAt: now}}
+	done := make(chan struct{})
+	var attached string
+
+	traceReader := &mockTraceReader{
+		getByIDFn: func(ctx context.Context, id string) (*writingdomain.Trace, error) {
+			return trace, nil
+		},
+		listMomentsByTraceIDFn: func(ctx context.Context, traceID string) ([]writingdomain.Moment, error) {
+			return moments, nil
+		},
+	}
+	traceStasher := &mockTraceStasher{markStashedFn: func(ctx context.Context, traceID string) error { return nil }}
+	starRepo := &mockStarRepo{
+		createFn:      func(ctx context.Context, star *domain.Star) error { return nil },
+		updateTopicFn: func(ctx context.Context, starID string, topic string) error { return nil },
+	}
+	constellationRepo := &mockConstellationRepo{
+		findByIDFn: func(ctx context.Context, id string) (*domain.Constellation, error) {
+			return &domain.Constellation{ID: id, UserID: trace.UserID, Topic: "入职等待", Name: "入职等待", StarIDs: []string{}, CreatedAt: now, UpdatedAt: now}, nil
+		},
+		updateFn: func(ctx context.Context, c *domain.Constellation) error { return nil },
+	}
+	assetGen := &mockAssetGen{generateFn: func(ctx context.Context, moments []writingdomain.Moment) (string, []float32, string, string, []string, error) {
+		return "入职等待", nil, "入职等待", "入职等待反馈", nil, nil
+	}}
+	profileGen := &mockTraceProfileGen{generateFn: func(ctx context.Context, trace writingdomain.Trace, moments []writingdomain.Moment) (*domain.TraceProfile, *domain.TraceProfileVector, error) {
+		return &domain.TraceProfile{
+				TraceID:     trace.ID,
+				UserID:      trace.UserID,
+				Topic:       "入职等待",
+				Summary:     "用户记录了入职资料等待反馈。",
+				Keywords:    []string{"入职", "反馈"},
+				Scenes:      []string{"工作"},
+				PatternTags: []string{"等待反馈"},
+				ProfileText: "主题：入职等待",
+				Status:      domain.TraceProfileStatusReady,
+			},
+			&domain.TraceProfileVector{TraceID: trace.ID, UserID: trace.UserID, Model: "test", Dim: 2, Embedding: []float32{1, 0}},
+			nil
+	}}
+	candidate := domain.ConstellationProfileCandidate{
+		Profile: domain.ConstellationProfile{
+			ConstellationID: "c-sparse",
+			UserID:          trace.UserID,
+			Topic:           "入职等待",
+			Summary:         "围绕入职资料与反馈等待。",
+			Keywords:        []string{"入职", "反馈"},
+			Scenes:          []string{"工作"},
+			PatternTags:     []string{"等待反馈"},
+			TraceCount:      2,
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		},
+		Vector: domain.ConstellationProfileVector{
+			ConstellationID:   "c-sparse",
+			UserID:            trace.UserID,
+			Model:             "test",
+			Dim:               2,
+			ProfileEmbedding:  []float32{1, 0},
+			CentroidEmbedding: []float32{1, 0},
+			CreatedAt:         now,
+			UpdatedAt:         now,
+		},
+	}
+	profileRepo := &mockTraceProfileRepo{upsertFn: func(ctx context.Context, profile *domain.TraceProfile, vector *domain.TraceProfileVector) error {
+		return nil
+	}}
+	constellationProfileRepo := &mockConstellationProfileRepo{
+		findCandidatesFn: func(ctx context.Context, userID string, embedding []float32, limit int) ([]domain.ConstellationProfileCandidate, error) {
+			return nil, nil
+		},
+		findCandidatesByIDsFn: func(ctx context.Context, userID string, ids []string) ([]domain.ConstellationProfileCandidate, error) {
+			if len(ids) != 1 || ids[0] != "c-sparse" {
+				t.Fatalf("sparse ids = %#v, want [c-sparse]", ids)
+			}
+			return []domain.ConstellationProfileCandidate{candidate}, nil
+		},
+		upsertFn: func(ctx context.Context, profile *domain.ConstellationProfile, vector *domain.ConstellationProfileVector) error {
+			return nil
+		},
+		addMembershipFn: func(ctx context.Context, membership domain.ConstellationMembership) error {
+			attached = membership.ConstellationID
+			close(done)
+			return nil
+		},
+	}
+	sparseReader := &mockConstellationProfileSparseReader{searchFn: func(ctx context.Context, profile domain.TraceProfile, limit int) ([]domain.ConstellationProfileSparseCandidate, error) {
+		return []domain.ConstellationProfileSparseCandidate{{ConstellationID: "c-sparse", Score: 12.3, MatchedFields: []string{"keywords"}}}, nil
+	}}
+
+	uc := NewStashTraceUseCaseWithTraceProfile(
+		traceReader, traceStasher, starRepo, constellationRepo,
+		assetGen,
+		profileGen, nil, profileRepo, constellationProfileRepo,
+		&mockSeqIDGen{ids: []string{"star-1"}},
+	)
+	uc.UseConstellationSparseSearch(nil, sparseReader, 10, 60)
+
+	if _, err := uc.Execute(ctx, StashTraceInput{TraceID: trace.ID}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("sparse-only clustering did not complete")
+	}
+	if attached != "c-sparse" {
+		t.Fatalf("attached = %q, want c-sparse", attached)
+	}
+}
+
+func TestStashTrace_BorderlineJudgementAttachesPrimaryConstellation(t *testing.T) {
+	ctx := context.WithValue(context.Background(), "user_id", "user-1")
+	now := time.Now()
+
+	trace := &writingdomain.Trace{ID: "tr-2", UserID: "user-1", Stashed: false, CreatedAt: now}
+	moments := []writingdomain.Moment{
+		{ID: "mom-2", TraceID: "tr-2", UserID: "user-1", Content: "最后跟我说可能不能入职，打乱计划，心烦", CreatedAt: now},
+	}
+
+	done := make(chan struct{})
+	judgeCalled := false
+	traceReader := &mockTraceReader{
+		getByIDFn: func(ctx context.Context, id string) (*writingdomain.Trace, error) {
+			return trace, nil
+		},
+		listMomentsByTraceIDFn: func(ctx context.Context, traceID string) ([]writingdomain.Moment, error) {
+			return moments, nil
+		},
+	}
+	traceStasher := &mockTraceStasher{markStashedFn: func(ctx context.Context, traceID string) error { return nil }}
+	starRepo := &mockStarRepo{
+		createFn:      func(ctx context.Context, star *domain.Star) error { return nil },
+		updateTopicFn: func(ctx context.Context, starID string, topic string) error { return nil },
+	}
+	constellationRepo := &mockConstellationRepo{
+		createFn: func(ctx context.Context, c *domain.Constellation) error {
+			t.Fatalf("should attach existing constellation, created %#v", c)
+			return nil
+		},
+		findByIDFn: func(ctx context.Context, id string) (*domain.Constellation, error) {
+			if id != "c-job" {
+				t.Fatalf("unexpected constellation id %q", id)
+			}
+			return &domain.Constellation{ID: "c-job", UserID: "user-1", Topic: "入职申请受阻", Name: "入职卡住", StarIDs: []string{"star-old"}}, nil
+		},
+		updateFn: func(ctx context.Context, c *domain.Constellation) error {
+			if !containsString(c.StarIDs, "star-2") {
+				t.Fatalf("expected star-2 attached, got %#v", c.StarIDs)
+			}
+			return nil
+		},
+	}
+	profileGen := &mockTraceProfileGen{
+		generateFn: func(ctx context.Context, trace writingdomain.Trace, moments []writingdomain.Moment) (*domain.TraceProfile, *domain.TraceProfileVector, error) {
+			return &domain.TraceProfile{
+					TraceID:                trace.ID,
+					UserID:                 trace.UserID,
+					Topic:                  "入职计划被打乱",
+					Summary:                "用户表达入职可能受阻，原有计划被打乱后的心烦。",
+					Keywords:               []string{"计划"},
+					Emotions:               []string{"心烦"},
+					Scenes:                 []string{"工作"},
+					CentralPattern:         "准备中的计划被外部审核结果打断",
+					PatternTags:            []string{"计划受阻"},
+					RepresentativeMomentID: "mom-2",
+					Status:                 domain.TraceProfileStatusReady,
+				},
+				&domain.TraceProfileVector{TraceID: trace.ID, UserID: trace.UserID, Model: "test", Dim: 2, Embedding: []float32{1, 0}},
+				nil
+		},
+	}
+	profileRepo := &mockTraceProfileRepo{upsertFn: func(ctx context.Context, profile *domain.TraceProfile, vector *domain.TraceProfileVector) error {
+		return nil
+	}}
+	constellationProfileRepo := &mockConstellationProfileRepo{
+		findCandidatesFn: func(ctx context.Context, userID string, embedding []float32, limit int) ([]domain.ConstellationProfileCandidate, error) {
+			return []domain.ConstellationProfileCandidate{
+				{
+					Profile: domain.ConstellationProfile{
+						ConstellationID:  "c-job",
+						UserID:           "user-1",
+						Topic:            "入职申请受阻",
+						Summary:          "入职材料和审核反复卡住，影响后续计划。",
+						Keywords:         []string{"审核"},
+						Emotions:         []string{"烦"},
+						Scenes:           []string{"工作"},
+						CentralPattern:   "入职流程被外部审核卡住",
+						PatternTags:      []string{"流程受阻"},
+						ThemeCode:        "theme_job_onboarding_blocked",
+						ThemeLabel:       "入职受阻",
+						ThemeDescription: "围绕入职、审核、计划推进被打断的反复处境。",
+						ThemeExamples:    []string{"入职申请被驳回了，审核又慢"},
+						TraceCount:       1,
+						MomentCount:      1,
+					},
+					Vector: domain.ConstellationProfileVector{
+						Model:             "test",
+						Dim:               2,
+						ProfileEmbedding:  []float32{0.4, 0.916515},
+						CentroidEmbedding: []float32{0.4, 0.916515},
+						CreatedAt:         now,
+					},
+				},
+			}, nil
+		},
+		upsertFn: func(ctx context.Context, profile *domain.ConstellationProfile, vector *domain.ConstellationProfileVector) error {
+			if profile.ConstellationID != "c-job" {
+				t.Fatalf("expected existing constellation profile update, got %q", profile.ConstellationID)
+			}
+			if profile.ThemeCode != "theme_job_onboarding_blocked" {
+				t.Fatalf("expected theme code preserved, got %q", profile.ThemeCode)
+			}
+			return nil
+		},
+		addMembershipFn: func(ctx context.Context, membership domain.ConstellationMembership) error {
+			if membership.ConstellationID != "c-job" || membership.MatchType != domain.ConstellationMatchTypePrimary {
+				t.Fatalf("unexpected membership: %#v", membership)
+			}
+			if membership.MatchScore >= constellationMiddleMatchThreshold {
+				t.Fatalf("borderline test should attach below middle threshold, score=%.3f", membership.MatchScore)
+			}
+			if membership.MatchReason != "都在表达入职推进被外部结果打断，导致原计划无法继续。" {
+				t.Fatalf("expected LLM reason, got %q", membership.MatchReason)
+			}
+			close(done)
+			return nil
+		},
+	}
+	borderlineJudge := &mockBorderlineJudge{
+		judgeFn: func(ctx context.Context, input domain.ConstellationBorderlineJudgeInput) (*domain.ConstellationBorderlineJudgement, error) {
+			judgeCalled = true
+			if len(input.Candidates) != 1 || input.Candidates[0].ConstellationID != "c-job" {
+				t.Fatalf("unexpected borderline candidates: %#v", input.Candidates)
+			}
+			return &domain.ConstellationBorderlineJudgement{
+				Decision:        domain.ConstellationBorderlineDecisionUseExisting,
+				ConstellationID: "c-job",
+				ThemeCode:       "theme_job_onboarding_blocked",
+				Confidence:      0.78,
+				SharedSituation: "入职推进被外部审核或结果打断，原计划被迫悬空。",
+				MatchDimensions: []string{"situation", "self_pattern"},
+				Reason:          "都在表达入职推进被外部结果打断，导致原计划无法继续。",
+			}, nil
+		},
+	}
+
+	uc := NewStashTraceUseCaseWithTraceProfile(
+		traceReader, traceStasher, starRepo, constellationRepo,
+		&mockAssetGen{}, profileGen, borderlineJudge, profileRepo, constellationProfileRepo,
+		&mockSeqIDGen{ids: []string{"star-2"}},
+	)
+
+	if _, err := uc.Execute(ctx, StashTraceInput{TraceID: "tr-2"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("borderline clustering did not complete within timeout")
+	}
+	if !judgeCalled {
+		t.Fatal("expected borderline judge to be called")
+	}
+}
+
+func TestStashTrace_BorderlineLowConfidenceCreatesNewConstellation(t *testing.T) {
+	ctx := context.WithValue(context.Background(), "user_id", "user-1")
+	now := time.Now()
+
+	trace := &writingdomain.Trace{ID: "tr-3", UserID: "user-1", Stashed: false, CreatedAt: now}
+	moments := []writingdomain.Moment{{ID: "mom-3", TraceID: "tr-3", UserID: "user-1", Content: "新的工作安排又变了", CreatedAt: now}}
+	done := make(chan struct{})
+	created := false
+
+	traceReader := &mockTraceReader{
+		getByIDFn: func(ctx context.Context, id string) (*writingdomain.Trace, error) { return trace, nil },
+		listMomentsByTraceIDFn: func(ctx context.Context, traceID string) ([]writingdomain.Moment, error) {
+			return moments, nil
+		},
+	}
+	traceStasher := &mockTraceStasher{markStashedFn: func(ctx context.Context, traceID string) error { return nil }}
+	starRepo := &mockStarRepo{
+		createFn:      func(ctx context.Context, star *domain.Star) error { return nil },
+		updateTopicFn: func(ctx context.Context, starID string, topic string) error { return nil },
+	}
+	constellationRepo := &mockConstellationRepo{
+		createFn: func(ctx context.Context, c *domain.Constellation) error {
+			created = true
+			if c.ID != "c-new" {
+				t.Fatalf("expected new constellation id c-new, got %q", c.ID)
+			}
+			return nil
+		},
+	}
+	assetGen := &mockAssetGen{
+		generateFn: func(ctx context.Context, moments []writingdomain.Moment) (string, []float32, string, string, []string, error) {
+			return "工作安排变化", nil, "安排变了", "工作安排发生变化。", nil, nil
+		},
+	}
+	profileGen := &mockTraceProfileGen{
+		generateFn: func(ctx context.Context, trace writingdomain.Trace, moments []writingdomain.Moment) (*domain.TraceProfile, *domain.TraceProfileVector, error) {
+			return &domain.TraceProfile{TraceID: trace.ID, UserID: trace.UserID, Topic: "工作安排变化", Summary: "工作安排变化。", Scenes: []string{"工作"}, Status: domain.TraceProfileStatusReady},
+				&domain.TraceProfileVector{TraceID: trace.ID, UserID: trace.UserID, Model: "test", Dim: 2, Embedding: []float32{1, 0}},
+				nil
+		},
+	}
+	profileRepo := &mockTraceProfileRepo{upsertFn: func(ctx context.Context, profile *domain.TraceProfile, vector *domain.TraceProfileVector) error {
+		return nil
+	}}
+	constellationProfileRepo := &mockConstellationProfileRepo{
+		findCandidatesFn: func(ctx context.Context, userID string, embedding []float32, limit int) ([]domain.ConstellationProfileCandidate, error) {
+			return []domain.ConstellationProfileCandidate{
+				{
+					Profile: domain.ConstellationProfile{
+						ConstellationID: "c-old",
+						UserID:          "user-1",
+						Topic:           "入职申请受阻",
+						Scenes:          []string{"工作"},
+						ThemeCode:       "theme_job_onboarding_blocked",
+						TraceCount:      1,
+					},
+					Vector: domain.ConstellationProfileVector{Model: "test", Dim: 2, ProfileEmbedding: []float32{0.4, 0.916515}, CentroidEmbedding: []float32{0.4, 0.916515}},
+				},
+			}, nil
+		},
+		upsertFn: func(ctx context.Context, profile *domain.ConstellationProfile, vector *domain.ConstellationProfileVector) error {
+			if profile.ConstellationID != "c-new" {
+				t.Fatalf("expected new constellation profile, got %q", profile.ConstellationID)
+			}
+			if profile.ThemeCode == "" || profile.ThemeLabel == "" {
+				t.Fatalf("expected fallback theme codebook, got %#v", profile)
+			}
+			return nil
+		},
+		addMembershipFn: func(ctx context.Context, membership domain.ConstellationMembership) error {
+			if membership.ConstellationID != "c-new" {
+				t.Fatalf("expected new membership, got %#v", membership)
+			}
+			close(done)
+			return nil
+		},
+	}
+	borderlineJudge := &mockBorderlineJudge{
+		judgeFn: func(ctx context.Context, input domain.ConstellationBorderlineJudgeInput) (*domain.ConstellationBorderlineJudgement, error) {
+			return &domain.ConstellationBorderlineJudgement{
+				Decision:        domain.ConstellationBorderlineDecisionUseExisting,
+				ConstellationID: "c-old",
+				ThemeCode:       "theme_job_onboarding_blocked",
+				Confidence:      0.42,
+				SharedSituation: "都和工作有关。",
+				MatchDimensions: []string{"situation"},
+				Reason:          "证据不足。",
+			}, nil
+		},
+	}
+
+	uc := NewStashTraceUseCaseWithTraceProfile(
+		traceReader, traceStasher, starRepo, constellationRepo,
+		assetGen, profileGen, borderlineJudge, profileRepo, constellationProfileRepo,
+		&mockSeqIDGen{ids: []string{"star-3", "c-new"}},
+	)
+
+	if _, err := uc.Execute(ctx, StashTraceInput{TraceID: "tr-3"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("new constellation clustering did not complete within timeout")
+	}
+	if !created {
+		t.Fatal("expected new constellation to be created")
+	}
+}
+
+func TestStashTrace_BorderlineJudgementAttachesPrimaryAndSecondary(t *testing.T) {
+	ctx := context.WithValue(context.Background(), "user_id", "user-1")
+	now := time.Now()
+
+	trace := &writingdomain.Trace{ID: "tr-4", UserID: "user-1", Stashed: false, CreatedAt: now}
+	moments := []writingdomain.Moment{{ID: "mom-4", TraceID: "tr-4", UserID: "user-1", Content: "入职审核让我继续等反馈，感觉一直卡着", CreatedAt: now}}
+	done := make(chan struct{})
+	memberships := make([]domain.ConstellationMembership, 0, 2)
+
+	traceReader := &mockTraceReader{
+		getByIDFn: func(ctx context.Context, id string) (*writingdomain.Trace, error) { return trace, nil },
+		listMomentsByTraceIDFn: func(ctx context.Context, traceID string) ([]writingdomain.Moment, error) {
+			return moments, nil
+		},
+	}
+	traceStasher := &mockTraceStasher{markStashedFn: func(ctx context.Context, traceID string) error { return nil }}
+	starRepo := &mockStarRepo{
+		createFn:      func(ctx context.Context, star *domain.Star) error { return nil },
+		updateTopicFn: func(ctx context.Context, starID string, topic string) error { return nil },
+	}
+	constellationRepo := &mockConstellationRepo{
+		createFn: func(ctx context.Context, c *domain.Constellation) error {
+			t.Fatalf("should not create constellation, created %#v", c)
+			return nil
+		},
+		findByIDFn: func(ctx context.Context, id string) (*domain.Constellation, error) {
+			switch id {
+			case "c-onboarding":
+				return &domain.Constellation{ID: id, UserID: "user-1", Topic: "入职流程卡住", Name: "入职卡住", StarIDs: []string{"star-old"}}, nil
+			case "c-identity":
+				return &domain.Constellation{ID: id, UserID: "user-1", Topic: "被审核感", Name: "总被确认", StarIDs: []string{"star-other"}}, nil
+			default:
+				t.Fatalf("unexpected constellation id %q", id)
+				return nil, nil
+			}
+		},
+		updateFn: func(ctx context.Context, c *domain.Constellation) error {
+			if !containsString(c.StarIDs, "star-4") {
+				t.Fatalf("expected star-4 attached, got %#v", c.StarIDs)
+			}
+			return nil
+		},
+	}
+	profileGen := &mockTraceProfileGen{
+		generateFn: func(ctx context.Context, trace writingdomain.Trace, moments []writingdomain.Moment) (*domain.TraceProfile, *domain.TraceProfileVector, error) {
+			return &domain.TraceProfile{
+					TraceID:                trace.ID,
+					UserID:                 trace.UserID,
+					Topic:                  "入职审核等待",
+					Summary:                "用户在入职审核中等待反馈，感觉流程一直卡住。",
+					Keywords:               []string{"入职", "审核", "反馈", "等待"},
+					Emotions:               []string{"无奈"},
+					Scenes:                 []string{"入职", "工作"},
+					CentralPattern:         "入职推进被审核反馈拖住，只能等待。",
+					PatternTags:            []string{"等待反馈", "流程受阻"},
+					RepresentativeMomentID: "mom-4",
+					Status:                 domain.TraceProfileStatusReady,
+				},
+				&domain.TraceProfileVector{TraceID: trace.ID, UserID: trace.UserID, Model: "test", Dim: 2, Embedding: []float32{1, 0}},
+				nil
+		},
+	}
+	profileRepo := &mockTraceProfileRepo{upsertFn: func(ctx context.Context, profile *domain.TraceProfile, vector *domain.TraceProfileVector) error {
+		return nil
+	}}
+	constellationProfileRepo := &mockConstellationProfileRepo{
+		findCandidatesFn: func(ctx context.Context, userID string, embedding []float32, limit int) ([]domain.ConstellationProfileCandidate, error) {
+			return []domain.ConstellationProfileCandidate{
+				{
+					Profile: domain.ConstellationProfile{
+						ConstellationID:  "c-onboarding",
+						UserID:           "user-1",
+						Topic:            "入职资料问题",
+						Summary:          "入职过程中资料、审核和反馈反复卡住。",
+						Keywords:         []string{"入职资料", "审核"},
+						Scenes:           []string{"入职", "工作"},
+						PatternTags:      []string{"流程受阻"},
+						ThemeCode:        "theme_onboarding_blocked",
+						ThemeLabel:       "入职流程卡住",
+						ThemeDescription: "入职、资料、审核、反馈、等待等流程反复卡住。",
+						TraceCount:       1,
+						MomentCount:      1,
+					},
+					Vector: domain.ConstellationProfileVector{Model: "test", Dim: 2, ProfileEmbedding: []float32{0.5, 0.8660254}, CentroidEmbedding: []float32{0.5, 0.8660254}, CreatedAt: now},
+				},
+				{
+					Profile: domain.ConstellationProfile{
+						ConstellationID:  "c-identity",
+						UserID:           "user-1",
+						Topic:            "被审核感",
+						Summary:          "反复处在被确认、被审核的位置。",
+						Keywords:         []string{"审核", "确认"},
+						Scenes:           []string{"工作"},
+						PatternTags:      []string{"被动等待"},
+						ThemeCode:        "theme_being_reviewed",
+						ThemeLabel:       "被审核感",
+						ThemeDescription: "反复处在等待别人确认或审核的位置。",
+						TraceCount:       1,
+						MomentCount:      1,
+					},
+					Vector: domain.ConstellationProfileVector{Model: "test", Dim: 2, ProfileEmbedding: []float32{0.42, 0.907524}, CentroidEmbedding: []float32{0.42, 0.907524}, CreatedAt: now},
+				},
+			}, nil
+		},
+		upsertFn: func(ctx context.Context, profile *domain.ConstellationProfile, vector *domain.ConstellationProfileVector) error {
+			if profile.ConstellationID != "c-onboarding" && profile.ConstellationID != "c-identity" {
+				t.Fatalf("unexpected profile upsert %q", profile.ConstellationID)
+			}
+			return nil
+		},
+		addMembershipFn: func(ctx context.Context, membership domain.ConstellationMembership) error {
+			memberships = append(memberships, membership)
+			if len(memberships) == 2 {
+				close(done)
+			}
+			return nil
+		},
+	}
+	borderlineJudge := &mockBorderlineJudge{
+		judgeFn: func(ctx context.Context, input domain.ConstellationBorderlineJudgeInput) (*domain.ConstellationBorderlineJudgement, error) {
+			if len(input.Candidates) != 2 {
+				t.Fatalf("expected two borderline candidates, got %#v", input.Candidates)
+			}
+			return &domain.ConstellationBorderlineJudgement{
+				Decision: domain.ConstellationBorderlineDecisionUseExisting,
+				Primary: &domain.ConstellationBorderlineSelection{
+					ConstellationID: "c-onboarding",
+					ThemeCode:       "theme_onboarding_blocked",
+					Confidence:      0.82,
+					SharedTheme:     "入职资料、审核和反馈反复卡住。",
+					MatchDimensions: []string{"situation"},
+					Reason:          "这是入职流程卡住主题的自然延伸。",
+				},
+				Secondary: []domain.ConstellationBorderlineSelection{
+					{
+						ConstellationID: "c-identity",
+						ThemeCode:       "theme_being_reviewed",
+						Confidence:      0.72,
+						SharedTheme:     "也可以从反复处在被审核位置的视角理解。",
+						MatchDimensions: []string{"identity"},
+						Reason:          "副视角是被确认和等待审核的位置感。",
+					},
+				},
+			}, nil
+		},
+	}
+
+	uc := NewStashTraceUseCaseWithTraceProfile(
+		traceReader, traceStasher, starRepo, constellationRepo,
+		&mockAssetGen{}, profileGen, borderlineJudge, profileRepo, constellationProfileRepo,
+		&mockSeqIDGen{ids: []string{"star-4"}},
+	)
+
+	if _, err := uc.Execute(ctx, StashTraceInput{TraceID: "tr-4"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("primary and secondary clustering did not complete within timeout")
+	}
+	if len(memberships) != 2 {
+		t.Fatalf("expected two memberships, got %#v", memberships)
+	}
+	if memberships[0].ConstellationID != "c-onboarding" || memberships[0].MatchType != domain.ConstellationMatchTypePrimary {
+		t.Fatalf("unexpected primary membership: %#v", memberships[0])
+	}
+	if memberships[1].ConstellationID != "c-identity" || memberships[1].MatchType != domain.ConstellationMatchTypeSecondary {
+		t.Fatalf("unexpected secondary membership: %#v", memberships[1])
+	}
+	if memberships[1].Weight != 0.5 {
+		t.Fatalf("secondary weight = %.1f, want 0.5", memberships[1].Weight)
+	}
+}
+
+func TestRankConstellationCandidates_PatternTagsAndSingleTraceAllowMiddleMatch(t *testing.T) {
+	traceProfile := &domain.TraceProfile{
+		TraceID:     "tr-new",
+		UserID:      "user-1",
+		Topic:       "入职前紧张",
+		Keywords:    []string{"入职", "紧张", "担心"},
+		Emotions:    []string{"紧张", "担心"},
+		Scenes:      []string{"工作", "入职"},
+		PatternTags: []string{"新开始", "工作变化", "不确定性", "担心"},
+	}
+	traceVector := &domain.TraceProfileVector{
+		TraceID:   "tr-new",
+		UserID:    "user-1",
+		Embedding: []float32{1, 0},
+	}
+	candidates := []domain.ConstellationProfileCandidate{
+		{
+			Profile: domain.ConstellationProfile{
+				ConstellationID: "c-job",
+				UserID:          "user-1",
+				Topic:           "入职前的期待与担心",
+				Keywords:        []string{"入职", "担心", "期待"},
+				Emotions:        []string{"期待", "担心"},
+				Scenes:          []string{"工作", "入职"},
+				PatternTags:     []string{"新开始", "工作变化", "期待", "担心"},
+				TraceCount:      1,
+				MomentCount:     1,
+			},
+			Vector: domain.ConstellationProfileVector{
+				ProfileEmbedding:  []float32{0.64, 0.7683749},
+				CentroidEmbedding: []float32{0.64, 0.7683749},
+			},
+		},
+	}
+
+	ranked := rankConstellationCandidates(traceProfile, traceVector, candidates)
+	if len(ranked) != 1 {
+		t.Fatalf("expected one ranked candidate, got %d", len(ranked))
+	}
+	top := ranked[0]
+	if top.score < constellationMiddleMatchThreshold {
+		t.Fatalf("score = %.3f, want >= middle threshold %.3f", top.score, constellationMiddleMatchThreshold)
+	}
+	if !isPrimaryAttachCandidate(top) {
+		t.Fatalf("expected candidate to be accepted as primary attach candidate: %#v", top)
+	}
+	if top.patternTagsOverlap <= 0 {
+		t.Fatalf("expected pattern_tags overlap, got %.3f", top.patternTagsOverlap)
+	}
+	if top.explainableMiddle {
+		t.Fatalf("score already reaches middle; explainable_middle should not be needed")
+	}
+	components := constellationScoreComponents(top)
+	if components["centroid_similarity"] != 0 {
+		t.Fatalf("single trace candidate should not double count centroid, components=%#v", components)
+	}
+	if len(top.matchedPatternTags) != 3 {
+		t.Fatalf("matched pattern tags = %#v, want 3 matches", top.matchedPatternTags)
+	}
+}
+
 func TestStashTrace_TraceNotFound(t *testing.T) {
 	ctx := context.WithValue(context.Background(), "user_id", "user-1")
 
@@ -230,7 +1197,7 @@ func TestStashTrace_TraceNotFound(t *testing.T) {
 	}
 
 	uc := NewStashTraceUseCase(
-		traceReader, nil, nil, nil, nil, nil, nil, nil,
+		traceReader, nil, nil, nil, nil, nil,
 	)
 
 	_, err := uc.Execute(ctx, StashTraceInput{TraceID: "nonexistent"})
@@ -254,7 +1221,7 @@ func TestStashTrace_AlreadyStashed(t *testing.T) {
 	}
 
 	uc := NewStashTraceUseCase(
-		traceReader, nil, nil, nil, nil, nil, nil, nil,
+		traceReader, nil, nil, nil, nil, nil,
 	)
 
 	_, err := uc.Execute(ctx, StashTraceInput{TraceID: "tr-1"})
@@ -278,11 +1245,204 @@ func TestStashTrace_WrongUser(t *testing.T) {
 	}
 
 	uc := NewStashTraceUseCase(
-		traceReader, nil, nil, nil, nil, nil, nil, nil,
+		traceReader, nil, nil, nil, nil, nil,
 	)
 
 	_, err := uc.Execute(ctx, StashTraceInput{TraceID: "tr-1"})
 	if !errors.Is(err, domain.ErrTraceNotFound) {
 		t.Fatalf("expected ErrTraceNotFound, got %v", err)
+	}
+}
+
+func TestConstellationProfileRefinementTrigger(t *testing.T) {
+	tests := []struct {
+		name    string
+		old     float64
+		new     float64
+		want    int
+		wantHit bool
+	}{
+		{name: "below first trigger", old: 1, new: 2, wantHit: false},
+		{name: "crosses three", old: 2.5, new: 3, want: 3, wantHit: true},
+		{name: "crosses five", old: 4.5, new: 5, want: 5, wantHit: true},
+		{name: "crosses eight", old: 7, new: 8.2, want: 8, wantHit: true},
+		{name: "crosses thirteen", old: 12.9, new: 13, want: 13, wantHit: true},
+		{name: "no repeat inside same integer", old: 21, new: 21.5, wantHit: false},
+		{name: "post thirteen stable trigger twenty one", old: 20.5, new: 21, want: 21, wantHit: true},
+		{name: "post thirteen no trigger before next bucket", old: 21, new: 28.5, wantHit: false},
+		{name: "post thirteen stable trigger twenty nine", old: 28.5, new: 29, want: 29, wantHit: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, hit := constellationProfileRefinementTrigger(tt.old, tt.new)
+			if hit != tt.wantHit {
+				t.Fatalf("hit = %v, want %v", hit, tt.wantHit)
+			}
+			if got != tt.want {
+				t.Fatalf("trigger = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRefineConstellationProfileIfNeeded_UsesRefinerAtTrigger(t *testing.T) {
+	ctx := context.Background()
+	now := time.Now()
+	existing := domain.ConstellationProfile{
+		ConstellationID: "constellation-1",
+		UserID:          "user-1",
+		Topic:           "样例等待",
+		Summary:         "测试主体在等待节点确认。",
+		TraceCount:      2,
+		MomentCount:     2,
+		ThemeCode:       "sample_transition",
+		CreatedAt:       now.Add(-time.Hour),
+		UpdatedAt:       now.Add(-time.Hour),
+	}
+	merged := existing
+	merged.Topic = "样例流程"
+	merged.TraceCount = 3
+	merged.MomentCount = 3
+	merged.UpdatedAt = now
+	incoming := &domain.TraceProfile{
+		TraceID:                "trace-3",
+		UserID:                 "user-1",
+		Topic:                  "流程节点停住",
+		Summary:                "测试主体记录样例流程节点停住。",
+		Keywords:               []string{"样例流程", "节点确认"},
+		Scenes:                 []string{"测试场景"},
+		RepresentativeMomentID: "moment-1",
+	}
+	moments := []writingdomain.Moment{{ID: "moment-1", Content: "样例流程在节点B停住了。"}}
+	vector := &domain.ConstellationProfileVector{
+		ConstellationID:   "constellation-1",
+		UserID:            "user-1",
+		Model:             "old-model",
+		Dim:               2,
+		ProfileEmbedding:  []float32{0.1, 0.2},
+		CentroidEmbedding: []float32{0.3, 0.4},
+		CreatedAt:         now.Add(-time.Hour),
+		UpdatedAt:         now,
+	}
+	var gotInput domain.ConstellationProfileRefineInput
+	uc := &StashTraceUseCase{}
+	uc.UseConstellationProfileRefiner(&mockConstellationProfileRefiner{
+		refineFn: func(ctx context.Context, input domain.ConstellationProfileRefineInput) (*domain.ConstellationProfileRefinement, error) {
+			gotInput = input
+			return &domain.ConstellationProfileRefinement{
+				Profile: domain.ConstellationProfile{
+					Topic:            "样例流程整理",
+					Summary:          "测试主体持续记录样例流程中的节点确认状态。",
+					Keywords:         []string{"样例流程", "节点确认", "流程"},
+					Scenes:           []string{"测试场景"},
+					CentralPattern:   "流程推进前反复等待外部节点确认。",
+					ThemeLabel:       "流程过渡",
+					ThemeDescription: "围绕样例流程中的等待和确认状态。",
+				},
+				Model:            "new-model",
+				Dim:              3,
+				ProfileEmbedding: []float32{0.7, 0.8, 0.9},
+				DisplayName:      "节点停住",
+			}, nil
+		},
+	})
+
+	gotResult := uc.refineConstellationProfileIfNeeded(ctx, existing, &merged, incoming, moments, vector)
+	gotProfile, gotVector := gotResult.Profile, gotResult.Vector
+
+	if gotInput.Trigger != 3 {
+		t.Fatalf("trigger = %d, want 3", gotInput.Trigger)
+	}
+	if !gotResult.Refined || gotResult.Trigger != 3 || gotResult.DisplayName != "节点停住" {
+		t.Fatalf("refine result = %#v", gotResult)
+	}
+	if gotInput.RepresentativeMoment != "样例流程在节点B停住了。" {
+		t.Fatalf("representative moment = %q", gotInput.RepresentativeMoment)
+	}
+	if gotProfile.Topic != "样例流程整理" {
+		t.Fatalf("topic = %q", gotProfile.Topic)
+	}
+	if gotProfile.ConstellationID != "constellation-1" || gotProfile.UserID != "user-1" {
+		t.Fatalf("profile identity not preserved: %#v", gotProfile)
+	}
+	if gotProfile.TraceCount != 3 || gotProfile.MomentCount != 3 {
+		t.Fatalf("counts = %.1f/%.1f, want 3/3", gotProfile.TraceCount, gotProfile.MomentCount)
+	}
+	if gotProfile.ThemeCode != "sample_transition" {
+		t.Fatalf("theme code = %q, want sample_transition", gotProfile.ThemeCode)
+	}
+	if gotVector.Model != "new-model" || gotVector.Dim != 3 {
+		t.Fatalf("vector model/dim = %s/%d, want new-model/3", gotVector.Model, gotVector.Dim)
+	}
+	if len(gotVector.ProfileEmbedding) != 3 || gotVector.ProfileEmbedding[0] != 0.7 {
+		t.Fatalf("profile embedding = %#v", gotVector.ProfileEmbedding)
+	}
+	if len(gotVector.CentroidEmbedding) != 2 || gotVector.CentroidEmbedding[0] != 0.3 {
+		t.Fatalf("centroid embedding should be preserved, got %#v", gotVector.CentroidEmbedding)
+	}
+}
+
+func TestRefineConstellationProfileIfNeeded_FallsBackOnError(t *testing.T) {
+	ctx := context.Background()
+	existing := domain.ConstellationProfile{
+		ConstellationID: "constellation-1",
+		UserID:          "user-1",
+		Topic:           "样例等待",
+		TraceCount:      2,
+	}
+	merged := existing
+	merged.TraceCount = 3
+	merged.Topic = "样例流程"
+	incoming := &domain.TraceProfile{TraceID: "trace-3", UserID: "user-1", Topic: "流程节点停住"}
+	vector := &domain.ConstellationProfileVector{Model: "old-model", ProfileEmbedding: []float32{0.1, 0.2}}
+	uc := &StashTraceUseCase{}
+	uc.UseConstellationProfileRefiner(&mockConstellationProfileRefiner{
+		refineFn: func(ctx context.Context, input domain.ConstellationProfileRefineInput) (*domain.ConstellationProfileRefinement, error) {
+			return nil, errors.New("temporary ai failure")
+		},
+	})
+
+	gotResult := uc.refineConstellationProfileIfNeeded(ctx, existing, &merged, incoming, nil, vector)
+	gotProfile, gotVector := gotResult.Profile, gotResult.Vector
+
+	if gotProfile != &merged {
+		t.Fatalf("expected merged profile fallback")
+	}
+	if gotResult.Refined {
+		t.Fatalf("expected no refined result: %#v", gotResult)
+	}
+	if gotVector != vector {
+		t.Fatalf("expected original vector fallback")
+	}
+	if gotVector.Model != "old-model" {
+		t.Fatalf("vector model = %q, want old-model", gotVector.Model)
+	}
+}
+
+func TestShouldUpdateConstellationName(t *testing.T) {
+	tests := []struct {
+		name      string
+		current   string
+		suggested string
+		trigger   int
+		want      bool
+		reason    string
+	}{
+		{name: "empty suggested", current: "流程", suggested: "", trigger: 3, want: false, reason: "empty_suggested_name"},
+		{name: "fallback uuid", current: "星座abcdef12", suggested: "样例节点", trigger: 21, want: true, reason: "current_name_fallback"},
+		{name: "fallback empty", current: "", suggested: "样例节点", trigger: 21, want: true, reason: "current_name_fallback"},
+		{name: "trigger three updates", current: "流程", suggested: "节点停住", trigger: 3, want: true, reason: "first_mature_trigger"},
+		{name: "trigger eight keeps specific", current: "节点停住", suggested: "流程确认", trigger: 8, want: false, reason: "current_name_specific_at_later_trigger"},
+		{name: "trigger eight updates generic", current: "工作", suggested: "流程确认", trigger: 8, want: true, reason: "current_name_generic_at_later_trigger"},
+		{name: "post thirteen stable", current: "节点停住", suggested: "流程确认", trigger: 21, want: false, reason: "post_thirteen_name_stable"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, reason := shouldUpdateConstellationName(tt.current, tt.suggested, tt.trigger)
+			if got != tt.want || reason != tt.reason {
+				t.Fatalf("shouldUpdateConstellationName() = %v/%s, want %v/%s", got, reason, tt.want, tt.reason)
+			}
+		})
 	}
 }

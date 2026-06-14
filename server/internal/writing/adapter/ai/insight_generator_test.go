@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"ego-server/internal/writing/domain"
@@ -36,10 +37,25 @@ func (e *stubEchoRepo) FindByMomentID(ctx context.Context, momentID string) (*do
 }
 
 func TestInsightGenerator_Success(t *testing.T) {
+	var sawEchoMoment bool
 	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Messages []struct {
+				Role    string `json:"role"`
+				Content string `json:"content"`
+			} `json:"messages"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode chat body: %v", err)
+		}
+		for _, msg := range body.Messages {
+			if strings.Contains(msg.Content, "每次计划卡在别人那里，我就会很难安心做别的事。") {
+				sawEchoMoment = true
+			}
+		}
 		resp := map[string]any{
 			"choices": []map[string]any{
-				{"message": map[string]any{"content": "你在反复寻找某种确定性，却忽略了已经拥有的答案。"}},
+				{"message": map[string]any{"content": "入职流程突然卡住，不只是一个安排变化，它也把快要开始的确定感悬在半空。"}},
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -48,6 +64,12 @@ func TestInsightGenerator_Success(t *testing.T) {
 
 	momentRepo := &stubMomentRepo{
 		getByIDFn: func(ctx context.Context, id string) (*domain.Moment, error) {
+			if id == "old-1" {
+				return &domain.Moment{ID: "old-1", UserID: "user-1", Content: "每次计划卡在别人那里，我就会很难安心做别的事。"}, nil
+			}
+			if id == "old-2" {
+				return &domain.Moment{ID: "old-2", UserID: "user-1", Content: "我之前也总是在等一个明确答复。"}, nil
+			}
 			return &domain.Moment{ID: "moment-1", Content: "今天又陷入了迷茫"}, nil
 		},
 	}
@@ -62,7 +84,10 @@ func TestInsightGenerator_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if insight.Text != "你在反复寻找某种确定性，却忽略了已经拥有的答案。" {
+	if !sawEchoMoment {
+		t.Fatal("expected prompt to include echo moment content")
+	}
+	if insight.Text != "入职流程突然卡住，不只是一个安排变化，它也把快要开始的确定感悬在半空。" {
 		t.Fatalf("unexpected insight text: %q", insight.Text)
 	}
 	if len(insight.RelatedMomentIDs) != 2 {
@@ -125,7 +150,9 @@ func TestInsightGenerator_MomentNotFound(t *testing.T) {
 }
 
 func TestInsightGenerator_ChatAPIError(t *testing.T) {
+	var attempts atomic.Int32
 	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		attempts.Add(1)
 		w.WriteHeader(http.StatusServiceUnavailable)
 	})
 
@@ -144,6 +171,9 @@ func TestInsightGenerator_ChatAPIError(t *testing.T) {
 	_, err := gen.Generate(context.Background(), "moment-1", "echo-1")
 	if err == nil {
 		t.Fatal("expected error when chat API fails")
+	}
+	if attempts.Load() != 2 {
+		t.Fatalf("attempts = %d, want 2", attempts.Load())
 	}
 }
 
@@ -182,23 +212,33 @@ func TestInsightGenerator_TrimsWhitespace(t *testing.T) {
 func TestBuildInsightUserPrompt_WithEcho(t *testing.T) {
 	moment := &domain.Moment{Content: "今天感到特别焦虑"}
 	echo := &domain.Echo{MatchedMomentIDs: []string{"a", "b", "c"}}
+	echoMoments := []domain.Moment{
+		{Content: "每次要等回复的时候，我都很难做别的事。"},
+		{Content: "事情卡在别人那里时，我会一直悬着。"},
+	}
 
-	result := buildInsightUserPrompt(moment, echo)
+	result := buildInsightUserPrompt(moment, echo, echoMoments)
 
-	if !strings.Contains(result, "当前想法：今天感到特别焦虑") {
+	if !strings.Contains(result, "当前想法：\n今天感到特别焦虑") {
 		t.Fatalf("expected moment content in prompt, got %q", result)
 	}
-	if !strings.Contains(result, "3") {
-		t.Fatalf("expected matched count in prompt, got %q", result)
+	if !strings.Contains(result, "历史回声原文（仅供参考；如果和当前想法不相关，请忽略，不要提及它不相关）：") {
+		t.Fatalf("expected echo moment section in prompt, got %q", result)
+	}
+	if !strings.Contains(result, "每次要等回复的时候，我都很难做别的事。") {
+		t.Fatalf("expected echo moment content in prompt, got %q", result)
 	}
 }
 
 func TestBuildInsightUserPrompt_NoEcho(t *testing.T) {
 	moment := &domain.Moment{Content: "只是随便写写"}
 
-	result := buildInsightUserPrompt(moment, nil)
+	result := buildInsightUserPrompt(moment, nil, nil)
 
-	if result != "当前想法：只是随便写写" {
-		t.Fatalf("expected only moment content, got %q", result)
+	if !strings.Contains(result, "当前想法：\n只是随便写写") {
+		t.Fatalf("expected moment content, got %q", result)
+	}
+	if strings.Contains(result, "历史回声") {
+		t.Fatalf("did not expect echo section, got %q", result)
 	}
 }
