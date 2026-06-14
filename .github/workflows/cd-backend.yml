@@ -7,11 +7,13 @@ on:
     paths:
       - 'server/**'
       - '.github/workflows/cd-backend.yml'
+      - docker-compose.yml
   push:
     branches: [main]
     paths:
       - 'server/**'
       - '.github/workflows/cd-backend.yml'
+      - docker-compose.yml
 
 jobs:
   # PR 和 push 都执行：仅交叉编译验证
