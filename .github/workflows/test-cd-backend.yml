@@ -7,13 +7,11 @@ on:
     paths:
       - 'server/**'
       - '.github/workflows/test-cd-backend.yml'
-      - docker-compose.yml
   push:
     branches: [test]
     paths:
       - 'server/**'
       - '.github/workflows/test-cd-backend.yml'
-      - docker-compose.yml
   workflow_dispatch:
 
 jobs:
