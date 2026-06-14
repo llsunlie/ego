@@ -48,13 +48,15 @@ final $typed_data.Uint8List loginReqDescriptor = $convert.base64Decode(
 const LoginRes$json = {
   '1': 'LoginRes',
   '2': [
-    {'1': 'token', '3': 1, '4': 1, '5': 9, '10': 'token'},
+    {'1': 'access_token', '3': 1, '4': 1, '5': 9, '10': 'accessToken'},
+    {'1': 'refresh_token', '3': 2, '4': 1, '5': 9, '10': 'refreshToken'},
   ],
 };
 
 /// Descriptor for `LoginRes`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List loginResDescriptor =
-    $convert.base64Decode('CghMb2dpblJlcxIUCgV0b2tlbhgBIAEoCVIFdG9rZW4=');
+final $typed_data.Uint8List loginResDescriptor = $convert.base64Decode(
+    'CghMb2dpblJlcxIhCgxhY2Nlc3NfdG9rZW4YASABKAlSC2FjY2Vzc1Rva2VuEiMKDXJlZnJlc2'
+    'hfdG9rZW4YAiABKAlSDHJlZnJlc2hUb2tlbg==');
 
 @$core.Deprecated('Use checkPhoneReqDescriptor instead')
 const CheckPhoneReq$json = {
@@ -121,13 +123,15 @@ final $typed_data.Uint8List registerReqDescriptor = $convert.base64Decode(
 const RegisterRes$json = {
   '1': 'RegisterRes',
   '2': [
-    {'1': 'token', '3': 1, '4': 1, '5': 9, '10': 'token'},
+    {'1': 'access_token', '3': 1, '4': 1, '5': 9, '10': 'accessToken'},
+    {'1': 'refresh_token', '3': 2, '4': 1, '5': 9, '10': 'refreshToken'},
   ],
 };
 
 /// Descriptor for `RegisterRes`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List registerResDescriptor =
-    $convert.base64Decode('CgtSZWdpc3RlclJlcxIUCgV0b2tlbhgBIAEoCVIFdG9rZW4=');
+final $typed_data.Uint8List registerResDescriptor = $convert.base64Decode(
+    'CgtSZWdpc3RlclJlcxIhCgxhY2Nlc3NfdG9rZW4YASABKAlSC2FjY2Vzc1Rva2VuEiMKDXJlZn'
+    'Jlc2hfdG9rZW4YAiABKAlSDHJlZnJlc2hUb2tlbg==');
 
 @$core.Deprecated('Use resetPasswordReqDescriptor instead')
 const ResetPasswordReq$json = {
@@ -148,13 +152,39 @@ final $typed_data.Uint8List resetPasswordReqDescriptor = $convert.base64Decode(
 const ResetPasswordRes$json = {
   '1': 'ResetPasswordRes',
   '2': [
-    {'1': 'token', '3': 1, '4': 1, '5': 9, '10': 'token'},
+    {'1': 'access_token', '3': 1, '4': 1, '5': 9, '10': 'accessToken'},
+    {'1': 'refresh_token', '3': 2, '4': 1, '5': 9, '10': 'refreshToken'},
   ],
 };
 
 /// Descriptor for `ResetPasswordRes`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List resetPasswordResDescriptor = $convert
-    .base64Decode('ChBSZXNldFBhc3N3b3JkUmVzEhQKBXRva2VuGAEgASgJUgV0b2tlbg==');
+final $typed_data.Uint8List resetPasswordResDescriptor = $convert.base64Decode(
+    'ChBSZXNldFBhc3N3b3JkUmVzEiEKDGFjY2Vzc190b2tlbhgBIAEoCVILYWNjZXNzVG9rZW4SIw'
+    'oNcmVmcmVzaF90b2tlbhgCIAEoCVIMcmVmcmVzaFRva2Vu');
+
+@$core.Deprecated('Use refreshTokenReqDescriptor instead')
+const RefreshTokenReq$json = {
+  '1': 'RefreshTokenReq',
+  '2': [
+    {'1': 'refresh_token', '3': 1, '4': 1, '5': 9, '10': 'refreshToken'},
+  ],
+};
+
+/// Descriptor for `RefreshTokenReq`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List refreshTokenReqDescriptor = $convert.base64Decode(
+    'Cg9SZWZyZXNoVG9rZW5SZXESIwoNcmVmcmVzaF90b2tlbhgBIAEoCVIMcmVmcmVzaFRva2Vu');
+
+@$core.Deprecated('Use refreshTokenResDescriptor instead')
+const RefreshTokenRes$json = {
+  '1': 'RefreshTokenRes',
+  '2': [
+    {'1': 'access_token', '3': 1, '4': 1, '5': 9, '10': 'accessToken'},
+  ],
+};
+
+/// Descriptor for `RefreshTokenRes`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List refreshTokenResDescriptor = $convert.base64Decode(
+    'Cg9SZWZyZXNoVG9rZW5SZXMSIQoMYWNjZXNzX3Rva2VuGAEgASgJUgthY2Nlc3NUb2tlbg==');
 
 @$core.Deprecated('Use getProfileReqDescriptor instead')
 const GetProfileReq$json = {

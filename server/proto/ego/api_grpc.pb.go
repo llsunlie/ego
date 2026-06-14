@@ -24,6 +24,7 @@ const (
 	Ego_SendVerificationCode_FullMethodName = "/ego.Ego/SendVerificationCode"
 	Ego_Register_FullMethodName             = "/ego.Ego/Register"
 	Ego_ResetPassword_FullMethodName        = "/ego.Ego/ResetPassword"
+	Ego_RefreshToken_FullMethodName         = "/ego.Ego/RefreshToken"
 	Ego_GetProfile_FullMethodName           = "/ego.Ego/GetProfile"
 	Ego_SubmitFeedback_FullMethodName       = "/ego.Ego/SubmitFeedback"
 	Ego_CreateMoment_FullMethodName         = "/ego.Ego/CreateMoment"
@@ -49,6 +50,7 @@ type EgoClient interface {
 	SendVerificationCode(ctx context.Context, in *SendVerificationCodeReq, opts ...grpc.CallOption) (*SendVerificationCodeRes, error)
 	Register(ctx context.Context, in *RegisterReq, opts ...grpc.CallOption) (*RegisterRes, error)
 	ResetPassword(ctx context.Context, in *ResetPasswordReq, opts ...grpc.CallOption) (*ResetPasswordRes, error)
+	RefreshToken(ctx context.Context, in *RefreshTokenReq, opts ...grpc.CallOption) (*RefreshTokenRes, error)
 	// ─── Setting（设置）──────────────────────────────────
 	GetProfile(ctx context.Context, in *GetProfileReq, opts ...grpc.CallOption) (*GetProfileRes, error)
 	SubmitFeedback(ctx context.Context, in *SubmitFeedbackReq, opts ...grpc.CallOption) (*SubmitFeedbackRes, error)
@@ -134,6 +136,16 @@ func (c *egoClient) ResetPassword(ctx context.Context, in *ResetPasswordReq, opt
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ResetPasswordRes)
 	err := c.cc.Invoke(ctx, Ego_ResetPassword_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *egoClient) RefreshToken(ctx context.Context, in *RefreshTokenReq, opts ...grpc.CallOption) (*RefreshTokenRes, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RefreshTokenRes)
+	err := c.cc.Invoke(ctx, Ego_RefreshToken_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -280,6 +292,7 @@ type EgoServer interface {
 	SendVerificationCode(context.Context, *SendVerificationCodeReq) (*SendVerificationCodeRes, error)
 	Register(context.Context, *RegisterReq) (*RegisterRes, error)
 	ResetPassword(context.Context, *ResetPasswordReq) (*ResetPasswordRes, error)
+	RefreshToken(context.Context, *RefreshTokenReq) (*RefreshTokenRes, error)
 	// ─── Setting（设置）──────────────────────────────────
 	GetProfile(context.Context, *GetProfileReq) (*GetProfileRes, error)
 	SubmitFeedback(context.Context, *SubmitFeedbackReq) (*SubmitFeedbackRes, error)
@@ -335,6 +348,9 @@ func (UnimplementedEgoServer) Register(context.Context, *RegisterReq) (*Register
 }
 func (UnimplementedEgoServer) ResetPassword(context.Context, *ResetPasswordReq) (*ResetPasswordRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ResetPassword not implemented")
+}
+func (UnimplementedEgoServer) RefreshToken(context.Context, *RefreshTokenReq) (*RefreshTokenRes, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RefreshToken not implemented")
 }
 func (UnimplementedEgoServer) GetProfile(context.Context, *GetProfileReq) (*GetProfileRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetProfile not implemented")
@@ -482,6 +498,24 @@ func _Ego_ResetPassword_Handler(srv interface{}, ctx context.Context, dec func(i
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(EgoServer).ResetPassword(ctx, req.(*ResetPasswordReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Ego_RefreshToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RefreshTokenReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EgoServer).RefreshToken(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Ego_RefreshToken_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EgoServer).RefreshToken(ctx, req.(*RefreshTokenReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -746,6 +780,10 @@ var Ego_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ResetPassword",
 			Handler:    _Ego_ResetPassword_Handler,
+		},
+		{
+			MethodName: "RefreshToken",
+			Handler:    _Ego_RefreshToken_Handler,
 		},
 		{
 			MethodName: "GetProfile",

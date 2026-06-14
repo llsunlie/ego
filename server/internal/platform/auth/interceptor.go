@@ -21,6 +21,7 @@ var PreAuthMethods = map[string]bool{
 	"SendVerificationCode": true,
 	"Register":             true,
 	"ResetPassword":        true,
+	"RefreshToken":         true,
 }
 
 func isPreAuthMethod(fullMethod string) bool {
@@ -60,7 +61,7 @@ func UnaryServerInterceptor(jwtSecret []byte, baseLogger *slog.Logger) grpc.Unar
 			return nil, status.Error(codes.Unauthenticated, "invalid authorization format")
 		}
 
-		userID, err := ParseJWT(tokenStr, jwtSecret)
+		userID, err := ParseJWTWithType(tokenStr, jwtSecret, "access")
 		if err != nil {
 			return nil, status.Error(codes.Unauthenticated, "invalid token")
 		}

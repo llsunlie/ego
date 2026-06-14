@@ -74,6 +74,14 @@ func (h *EgoHandler) ResetPassword(ctx context.Context, req *pb.ResetPasswordReq
 	return res, err
 }
 
+func (h *EgoHandler) RefreshToken(ctx context.Context, req *pb.RefreshTokenReq) (*pb.RefreshTokenRes, error) {
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "RefreshToken: request")
+	res, err := h.identity.RefreshToken(ctx, req)
+	logger.InfoContext(ctx, "RefreshToken: response", "error", err)
+	return res, err
+}
+
 // Moment — delegated to writing.
 func (h *EgoHandler) CreateMoment(ctx context.Context, req *pb.CreateMomentReq) (*pb.CreateMomentRes, error) {
 	logger := logging.FromContext(ctx)

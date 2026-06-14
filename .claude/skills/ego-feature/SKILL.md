@@ -151,7 +151,7 @@ server/internal/bootstrap/   ← 依赖注入, composite handler
 1. **Go 测试**: `go test ./internal/<domain>/... -v -count=1`（agent 执行）
 2. **Go 静态检查**: `go vet ./internal/<domain>/...`（agent 执行）
 3. **Flutter 静态分析**: `cd client && flutter analyze`（agent 执行，必须零 issue）
-4. **Smoke 测试**: `bash smoke.sh`（agent 执行，端到端 grpcurl 测试）
+4. **Smoke 测试**: `bash smoke.sh`（agent 执行，端到端 grpcurl 测试；默认静默模式仅显示 pass/fail，出错时告知用户加 `--verbose` 查看完整响应并调整 `LOG_LEVEL=debug` 排查）
 5. **真机测试**: 运行 `bash clean-start.sh`，按手动测试清单逐项验证（用户执行）
 6. **sqlc 副作用检查**: `make sqlc` 后检查 `git diff --stat`，如果 `server/internal/platform/postgres/sqlc/` 下出现 features 无关的变更，需 `git checkout` 还原（agent 执行）
 
@@ -198,8 +198,17 @@ cd client && flutter analyze
 
 ```bash
 # 从零启动 PostgreSQL + 迁移 + 编译 + 启动服务 + grpcurl 测试全部 RPC
+# 默认静默模式：仅显示 pass/fail
 bash smoke.sh
+
+# 调试模式：显示完整 RPC 响应 + 服务端日志
+VERBOSE=1 bash smoke.sh
 ```
+
+**如果 smoke 失败**，agent 应告知用户：
+1. 使用 `bash smoke.sh --verbose` 查看完整 RPC 响应定位失败断言
+2. 修改 smoke.sh 中 `LOG_LEVEL` 为 `debug` 可查看服务端日志排查 backend 错误
+3. 使用 `--keep-db` 保留数据库（含 seed 数据）避免每次重建
 
 **新增 RPC 必须在 smoke.sh 中添加对应的测试断言**：
 - 正常调用：带 token 验证返回数据正确

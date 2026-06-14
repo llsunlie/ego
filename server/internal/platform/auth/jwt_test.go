@@ -9,7 +9,7 @@ func TestGenerateAndParse(t *testing.T) {
 	secret := []byte("test-secret")
 	exp := time.Hour
 
-	token, err := GenerateJWT("user-123", secret, exp)
+	token, err := GenerateJWT("user-123", secret, exp, "access")
 	if err != nil {
 		t.Fatalf("GenerateJWT: %v", err)
 	}
@@ -28,7 +28,7 @@ func TestGenerateAndParse(t *testing.T) {
 
 func TestParseJWT_WrongSecret(t *testing.T) {
 	secret := []byte("real-secret")
-	token, err := GenerateJWT("user-1", secret, time.Hour)
+	token, err := GenerateJWT("user-1", secret, time.Hour, "access")
 	if err != nil {
 		t.Fatalf("GenerateJWT: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestParseJWT_WrongSecret(t *testing.T) {
 
 func TestParseJWT_Expired(t *testing.T) {
 	secret := []byte("test-secret")
-	token, err := GenerateJWT("user-1", secret, -time.Hour)
+	token, err := GenerateJWT("user-1", secret, -time.Hour, "access")
 	if err != nil {
 		t.Fatalf("GenerateJWT: %v", err)
 	}

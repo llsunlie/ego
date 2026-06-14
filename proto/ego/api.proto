@@ -18,6 +18,7 @@ service Ego {
   rpc SendVerificationCode(SendVerificationCodeReq) returns (SendVerificationCodeRes);
   rpc Register(RegisterReq) returns (RegisterRes);
   rpc ResetPassword(ResetPasswordReq) returns (ResetPasswordRes);
+  rpc RefreshToken(RefreshTokenReq) returns (RefreshTokenRes);
 
   // ─── Setting（设置）──────────────────────────────────
   rpc GetProfile(GetProfileReq) returns (GetProfileRes);
@@ -73,7 +74,8 @@ message LoginReq {
 }
 
 message LoginRes {
-  string token = 1;  // JWT token，后续请求通过 metadata 传递
+  string access_token = 1;
+  string refresh_token = 2;
 }
 
 message CheckPhoneReq {
@@ -97,7 +99,8 @@ message RegisterReq {
 }
 
 message RegisterRes {
-  string token = 1;
+  string access_token = 1;
+  string refresh_token = 2;
 }
 
 message ResetPasswordReq {
@@ -107,7 +110,16 @@ message ResetPasswordReq {
 }
 
 message ResetPasswordRes {
-  string token = 1;
+  string access_token = 1;
+  string refresh_token = 2;
+}
+
+message RefreshTokenReq {
+  string refresh_token = 1;
+}
+
+message RefreshTokenRes {
+  string access_token = 1;
 }
 
 message GetProfileReq {}

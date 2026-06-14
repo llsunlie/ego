@@ -40,13 +40,16 @@ func newTestHandlerRealDB(t *testing.T) (*Handler, *pgxpool.Pool) {
 	ids := mockIDGen{}
 	sms := mockSmsService{}
 
+	verifier := auth.RefreshTokenVerifier{Secret: []byte("secret")}
+
 	loginUseCase := identityapp.NewLoginUseCase(userRepo, hasher, tokens)
 	registerUseCase := identityapp.NewRegisterUseCase(userRepo, hasher, tokens, ids, sms)
 	sendCodeUseCase := identityapp.NewSendCodeUseCase(sms)
 	checkPhoneUseCase := identityapp.NewCheckPhoneUseCase(userRepo)
 	resetPasswordUseCase := identityapp.NewResetPasswordUseCase(userRepo, hasher, tokens, sms)
+	refreshTokenUseCase := identityapp.NewRefreshTokenUseCase(tokens, verifier)
 
-	return NewHandler(loginUseCase, registerUseCase, sendCodeUseCase, checkPhoneUseCase, resetPasswordUseCase), pool
+	return NewHandler(loginUseCase, registerUseCase, sendCodeUseCase, checkPhoneUseCase, resetPasswordUseCase, refreshTokenUseCase), pool
 }
 
 func cleanupUser(t *testing.T, pool *pgxpool.Pool, phone string) {
@@ -63,7 +66,7 @@ func TestIntegration_Register(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if res.Token == "" {
+	if res.AccessToken == "" {
 		t.Fatal("expected token")
 	}
 }
@@ -82,7 +85,7 @@ func TestIntegration_LoginAfterRegister(t *testing.T) {
 	if err != nil {
 		t.Fatalf("login: %v", err)
 	}
-	if res.Token == "" {
+	if res.AccessToken == "" {
 		t.Fatal("expected token")
 	}
 }
@@ -118,7 +121,7 @@ func TestIntegration_TokenContainsUserID(t *testing.T) {
 		t.Fatalf("login: %v", err)
 	}
 
-	userID, err := auth.ParseJWT(res.Token, []byte("secret"))
+	userID, err := auth.ParseJWT(res.AccessToken, []byte("secret"))
 	if err != nil {
 		t.Fatalf("parse token: %v", err)
 	}
@@ -189,7 +192,7 @@ func TestIntegration_ResetPassword(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if res.Token == "" {
+	if res.AccessToken == "" {
 		t.Fatal("expected token")
 	}
 

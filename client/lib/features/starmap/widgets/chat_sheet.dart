@@ -44,7 +44,7 @@ class _ChatSheetState extends ConsumerState<ChatSheet> {
   Future<void> _startChat() async {
     try {
       final client = ref.read(EgoClient.provider);
-      final token = ref.read(authProvider).token;
+      final token = ref.read(authProvider).accessToken;
       final existing = ref.read(_chatSessionProvider)[widget.star.id];
       final res = await client.stub.startChat(
         pb.StartChatReq(
@@ -100,7 +100,7 @@ class _ChatSheetState extends ConsumerState<ChatSheet> {
 
     try {
       final client = ref.read(EgoClient.provider);
-      final token = ref.read(authProvider).token;
+      final token = ref.read(authProvider).accessToken;
       final res = await client.stub.sendMessage(
         pb.SendMessageReq(
           chatSessionId: _sessionId!,
