@@ -13,3 +13,5 @@ var ErrInvalidVerificationCode = errors.New("invalid verification code")
 var ErrCodeExpired = errors.New("verification code expired")
 
 var ErrInvalidPhone = errors.New("invalid phone number")
+
+var ErrInvalidRefreshToken = errors.New("invalid refresh token")

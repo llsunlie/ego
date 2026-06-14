@@ -20,6 +20,7 @@ type Handler struct {
 	sendCode      *app.SendCodeUseCase
 	checkPhone    *app.CheckPhoneUseCase
 	resetPassword *app.ResetPasswordUseCase
+	refreshToken  *app.RefreshTokenUseCase
 }
 
 func NewHandler(
@@ -28,8 +29,14 @@ func NewHandler(
 	sendCode *app.SendCodeUseCase,
 	checkPhone *app.CheckPhoneUseCase,
 	resetPassword *app.ResetPasswordUseCase,
+	refreshToken *app.RefreshTokenUseCase,
 ) *Handler {
-	return &Handler{login: login, register: register, sendCode: sendCode, checkPhone: checkPhone, resetPassword: resetPassword}
+	return &Handler{
+		login: login, register: register,
+		sendCode: sendCode, checkPhone: checkPhone,
+		resetPassword: resetPassword,
+		refreshToken: refreshToken,
+	}
 }
 
 func (h *Handler) CheckPhone(ctx context.Context, req *pb.CheckPhoneReq) (*pb.CheckPhoneRes, error) {
@@ -52,7 +59,7 @@ func (h *Handler) Register(ctx context.Context, req *pb.RegisterReq) (*pb.Regist
 	if err != nil {
 		return nil, mapError(err)
 	}
-	return &pb.RegisterRes{Token: result.Token}, nil
+	return &pb.RegisterRes{AccessToken: result.AccessToken, RefreshToken: result.RefreshToken}, nil
 }
 
 func (h *Handler) Login(ctx context.Context, req *pb.LoginReq) (*pb.LoginRes, error) {
@@ -60,7 +67,7 @@ func (h *Handler) Login(ctx context.Context, req *pb.LoginReq) (*pb.LoginRes, er
 	if err != nil {
 		return nil, mapError(err)
 	}
-	return &pb.LoginRes{Token: result.Token}, nil
+	return &pb.LoginRes{AccessToken: result.AccessToken, RefreshToken: result.RefreshToken}, nil
 }
 
 func (h *Handler) ResetPassword(ctx context.Context, req *pb.ResetPasswordReq) (*pb.ResetPasswordRes, error) {
@@ -68,7 +75,15 @@ func (h *Handler) ResetPassword(ctx context.Context, req *pb.ResetPasswordReq) (
 	if err != nil {
 		return nil, mapError(err)
 	}
-	return &pb.ResetPasswordRes{Token: result.Token}, nil
+	return &pb.ResetPasswordRes{AccessToken: result.AccessToken, RefreshToken: result.RefreshToken}, nil
+}
+
+func (h *Handler) RefreshToken(ctx context.Context, req *pb.RefreshTokenReq) (*pb.RefreshTokenRes, error) {
+	accessToken, err := h.refreshToken.Refresh(ctx, req.RefreshToken)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &pb.RefreshTokenRes{AccessToken: accessToken}, nil
 }
 
 func mapError(err error) error {
@@ -89,6 +104,9 @@ func mapError(err error) error {
 	}
 	if errors.Is(err, domain.ErrPhoneAlreadyRegistered) {
 		return status.Error(codes.AlreadyExists, "该手机号已注册")
+	}
+	if errors.Is(err, domain.ErrInvalidRefreshToken) {
+		return status.Error(codes.Unauthenticated, "登录已过期，请重新登录")
 	}
 	return status.Error(codes.Internal, err.Error())
 }

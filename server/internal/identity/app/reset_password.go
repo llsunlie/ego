@@ -30,7 +30,8 @@ func NewResetPasswordUseCase(
 }
 
 type ResetPasswordResult struct {
-	Token string
+	AccessToken  string
+	RefreshToken string
 }
 
 func (uc *ResetPasswordUseCase) ResetPassword(ctx context.Context, phone, code, newPassword string) (*ResetPasswordResult, error) {
@@ -66,10 +67,15 @@ func (uc *ResetPasswordUseCase) ResetPassword(ctx context.Context, phone, code, 
 		return nil, fmt.Errorf("update password: %w", err)
 	}
 
-	token, err := uc.tokens.Issue(user.ID)
+	accessToken, err := uc.tokens.Issue(user.ID)
 	if err != nil {
-		return nil, fmt.Errorf("issue token: %w", err)
+		return nil, fmt.Errorf("issue access token: %w", err)
 	}
 
-	return &ResetPasswordResult{Token: token}, nil
+	refreshToken, err := uc.tokens.IssueRefresh(user.ID)
+	if err != nil {
+		return nil, fmt.Errorf("issue refresh token: %w", err)
+	}
+
+	return &ResetPasswordResult{AccessToken: accessToken, RefreshToken: refreshToken}, nil
 }

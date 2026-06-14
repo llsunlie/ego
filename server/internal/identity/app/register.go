@@ -33,7 +33,8 @@ func NewRegisterUseCase(
 }
 
 type RegisterResult struct {
-	Token string
+	AccessToken  string
+	RefreshToken string
 }
 
 func (uc *RegisterUseCase) Register(ctx context.Context, phone, code, password string) (*RegisterResult, error) {
@@ -75,10 +76,15 @@ func (uc *RegisterUseCase) Register(ctx context.Context, phone, code, password s
 		return nil, fmt.Errorf("create user: %w", err)
 	}
 
-	token, err := uc.tokens.Issue(user.ID)
+	accessToken, err := uc.tokens.Issue(user.ID)
 	if err != nil {
-		return nil, fmt.Errorf("issue token: %w", err)
+		return nil, fmt.Errorf("issue access token: %w", err)
 	}
 
-	return &RegisterResult{Token: token}, nil
+	refreshToken, err := uc.tokens.IssueRefresh(user.ID)
+	if err != nil {
+		return nil, fmt.Errorf("issue refresh token: %w", err)
+	}
+
+	return &RegisterResult{AccessToken: accessToken, RefreshToken: refreshToken}, nil
 }

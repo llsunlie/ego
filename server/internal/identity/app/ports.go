@@ -9,6 +9,11 @@ type PasswordHasher interface {
 
 type TokenIssuer interface {
 	Issue(userID string) (string, error)
+	IssueRefresh(userID string) (string, error)
+}
+
+type RefreshTokenVerifier interface {
+	Verify(tokenStr, expectedType string) (userID string, err error)
 }
 
 type IDGenerator interface {

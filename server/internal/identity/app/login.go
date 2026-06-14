@@ -19,7 +19,8 @@ func NewLoginUseCase(users domain.UserRepository, hasher PasswordHasher, tokens 
 }
 
 type LoginResult struct {
-	Token string
+	AccessToken  string
+	RefreshToken string
 }
 
 func (uc *LoginUseCase) Login(ctx context.Context, phone, password string) (*LoginResult, error) {
@@ -35,10 +36,15 @@ func (uc *LoginUseCase) Login(ctx context.Context, phone, password string) (*Log
 		return nil, domain.ErrInvalidPassword
 	}
 
-	token, err := uc.tokens.Issue(user.ID)
+	accessToken, err := uc.tokens.Issue(user.ID)
 	if err != nil {
-		return nil, fmt.Errorf("issue token: %w", err)
+		return nil, fmt.Errorf("issue access token: %w", err)
 	}
 
-	return &LoginResult{Token: token}, nil
+	refreshToken, err := uc.tokens.IssueRefresh(user.ID)
+	if err != nil {
+		return nil, fmt.Errorf("issue refresh token: %w", err)
+	}
+
+	return &LoginResult{AccessToken: accessToken, RefreshToken: refreshToken}, nil
 }

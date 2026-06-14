@@ -122,7 +122,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       final client = ref.read(EgoClient.provider);
       final res = await client.login(_phoneCtrl.text.trim(), password);
       if (mounted) {
-        ref.read(authProvider.notifier).login(res.token);
+        ref.read(authProvider.notifier).login(res.accessToken, res.refreshToken);
       }
     } on GrpcError catch (e) {
       if (mounted) {
@@ -164,7 +164,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         password: password,
       );
       if (mounted) {
-        ref.read(authProvider.notifier).login(res.token);
+        ref.read(authProvider.notifier).login(res.accessToken, res.refreshToken);
       }
     } on GrpcError catch (e) {
       if (mounted) {
@@ -234,7 +234,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         newPassword: password,
       );
       if (mounted) {
-        ref.read(authProvider.notifier).login(res.token);
+        ref.read(authProvider.notifier).login(res.accessToken, res.refreshToken);
       }
     } on GrpcError catch (e) {
       if (mounted) {

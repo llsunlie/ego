@@ -15,6 +15,7 @@ type Deps struct {
 	Hasher    identityapp.PasswordHasher
 	Tokens    identityapp.TokenIssuer
 	SmsSender identityapp.SmsService
+	Verifier  identityapp.RefreshTokenVerifier
 }
 
 // NewHandler wires the identity module's adapters, application use cases, and
@@ -30,6 +31,7 @@ func NewHandler(deps Deps) *identitygrpc.Handler {
 	sendCodeUseCase := identityapp.NewSendCodeUseCase(deps.SmsSender)
 	checkPhoneUseCase := identityapp.NewCheckPhoneUseCase(userRepo)
 	resetPasswordUseCase := identityapp.NewResetPasswordUseCase(userRepo, deps.Hasher, deps.Tokens, deps.SmsSender)
+	refreshTokenUseCase := identityapp.NewRefreshTokenUseCase(deps.Tokens, deps.Verifier)
 
-	return identitygrpc.NewHandler(loginUseCase, registerUseCase, sendCodeUseCase, checkPhoneUseCase, resetPasswordUseCase)
+	return identitygrpc.NewHandler(loginUseCase, registerUseCase, sendCodeUseCase, checkPhoneUseCase, resetPasswordUseCase, refreshTokenUseCase)
 }
