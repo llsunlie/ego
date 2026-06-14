@@ -41,7 +41,7 @@ class _ConstellationDetailPageState
     });
     try {
       final client = ref.read(EgoClient.provider);
-      final token = ref.read(authProvider).token;
+      final token = ref.read(authProvider).accessToken;
       final res = await client.stub.getConstellation(
         pb.GetConstellationReq(constellationId: widget.constellationId),
         options: authCallOptions(token),

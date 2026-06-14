@@ -68,13 +68,16 @@ func newTestHandler(repo *mockUserRepo) *Handler {
 	ids := mockIDGen{}
 	sms := mockSmsService{}
 
+	verifier := auth.RefreshTokenVerifier{Secret: []byte("secret")}
+
 	login := app.NewLoginUseCase(repo, hasher, tokens)
 	register := app.NewRegisterUseCase(repo, hasher, tokens, ids, sms)
 	sendCode := app.NewSendCodeUseCase(sms)
 	checkPhone := app.NewCheckPhoneUseCase(repo)
 	resetPassword := app.NewResetPasswordUseCase(repo, hasher, tokens, sms)
+	refreshToken := app.NewRefreshTokenUseCase(tokens, verifier)
 
-	return NewHandler(login, register, sendCode, checkPhone, resetPassword)
+	return NewHandler(login, register, sendCode, checkPhone, resetPassword, refreshToken)
 }
 
 func TestResetPassword_Success(t *testing.T) {
@@ -90,7 +93,7 @@ func TestResetPassword_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if res.Token == "" {
+	if res.AccessToken == "" {
 		t.Fatal("expected token")
 	}
 	// Verify password was actually updated by logging in with new password
@@ -122,7 +125,7 @@ func TestResetPassword_WrongCode(t *testing.T) {
 	// Use a mock that rejects wrong codes
 	failSms := &mockSmsServiceFailVerify{}
 	resetPassword := app.NewResetPasswordUseCase(repo, auth.BcryptHasher{}, auth.JWTIssuer{Secret: []byte("secret"), Exp: 24 * time.Hour}, failSms)
-	h2 := NewHandler(h.login, h.register, h.sendCode, h.checkPhone, resetPassword)
+	h2 := NewHandler(h.login, h.register, h.sendCode, h.checkPhone, resetPassword, h.refreshToken)
 
 	_, err = h2.ResetPassword(context.Background(), resetPasswordReq("13800000012", "000000", "newpass"))
 	if err == nil {
@@ -138,7 +141,7 @@ func TestRegister_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if res.Token == "" {
+	if res.AccessToken == "" {
 		t.Fatal("expected token")
 	}
 	if _, exists := repo.users["13800000001"]; !exists {
@@ -174,7 +177,7 @@ func TestLogin_ExistingUserCorrectPassword(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if res.Token == "" {
+	if res.AccessToken == "" {
 		t.Fatal("expected token")
 	}
 }
@@ -233,7 +236,7 @@ func TestLogin_TokenContainsUserID(t *testing.T) {
 		t.Fatalf("login: %v", err)
 	}
 
-	userID, err := auth.ParseJWT(res.Token, []byte("secret"))
+	userID, err := auth.ParseJWT(res.AccessToken, []byte("secret"))
 	if err != nil {
 		t.Fatalf("parse token: %v", err)
 	}

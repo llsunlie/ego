@@ -88,10 +88,12 @@ class LoginReq extends $pb.GeneratedMessage {
 
 class LoginRes extends $pb.GeneratedMessage {
   factory LoginRes({
-    $core.String? token,
+    $core.String? accessToken,
+    $core.String? refreshToken,
   }) {
     final result = create();
-    if (token != null) result.token = token;
+    if (accessToken != null) result.accessToken = accessToken;
+    if (refreshToken != null) result.refreshToken = refreshToken;
     return result;
   }
 
@@ -108,7 +110,8 @@ class LoginRes extends $pb.GeneratedMessage {
       _omitMessageNames ? '' : 'LoginRes',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'ego'),
       createEmptyInstance: create)
-    ..aOS(1, _omitFieldNames ? '' : 'token')
+    ..aOS(1, _omitFieldNames ? '' : 'accessToken')
+    ..aOS(2, _omitFieldNames ? '' : 'refreshToken')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -130,13 +133,22 @@ class LoginRes extends $pb.GeneratedMessage {
   static LoginRes? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $core.String get token => $_getSZ(0);
+  $core.String get accessToken => $_getSZ(0);
   @$pb.TagNumber(1)
-  set token($core.String value) => $_setString(0, value);
+  set accessToken($core.String value) => $_setString(0, value);
   @$pb.TagNumber(1)
-  $core.bool hasToken() => $_has(0);
+  $core.bool hasAccessToken() => $_has(0);
   @$pb.TagNumber(1)
-  void clearToken() => $_clearField(1);
+  void clearAccessToken() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get refreshToken => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set refreshToken($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasRefreshToken() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearRefreshToken() => $_clearField(2);
 }
 
 class CheckPhoneReq extends $pb.GeneratedMessage {
@@ -421,10 +433,12 @@ class RegisterReq extends $pb.GeneratedMessage {
 
 class RegisterRes extends $pb.GeneratedMessage {
   factory RegisterRes({
-    $core.String? token,
+    $core.String? accessToken,
+    $core.String? refreshToken,
   }) {
     final result = create();
-    if (token != null) result.token = token;
+    if (accessToken != null) result.accessToken = accessToken;
+    if (refreshToken != null) result.refreshToken = refreshToken;
     return result;
   }
 
@@ -441,7 +455,8 @@ class RegisterRes extends $pb.GeneratedMessage {
       _omitMessageNames ? '' : 'RegisterRes',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'ego'),
       createEmptyInstance: create)
-    ..aOS(1, _omitFieldNames ? '' : 'token')
+    ..aOS(1, _omitFieldNames ? '' : 'accessToken')
+    ..aOS(2, _omitFieldNames ? '' : 'refreshToken')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -464,13 +479,22 @@ class RegisterRes extends $pb.GeneratedMessage {
   static RegisterRes? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $core.String get token => $_getSZ(0);
+  $core.String get accessToken => $_getSZ(0);
   @$pb.TagNumber(1)
-  set token($core.String value) => $_setString(0, value);
+  set accessToken($core.String value) => $_setString(0, value);
   @$pb.TagNumber(1)
-  $core.bool hasToken() => $_has(0);
+  $core.bool hasAccessToken() => $_has(0);
   @$pb.TagNumber(1)
-  void clearToken() => $_clearField(1);
+  void clearAccessToken() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get refreshToken => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set refreshToken($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasRefreshToken() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearRefreshToken() => $_clearField(2);
 }
 
 class ResetPasswordReq extends $pb.GeneratedMessage {
@@ -553,10 +577,12 @@ class ResetPasswordReq extends $pb.GeneratedMessage {
 
 class ResetPasswordRes extends $pb.GeneratedMessage {
   factory ResetPasswordRes({
-    $core.String? token,
+    $core.String? accessToken,
+    $core.String? refreshToken,
   }) {
     final result = create();
-    if (token != null) result.token = token;
+    if (accessToken != null) result.accessToken = accessToken;
+    if (refreshToken != null) result.refreshToken = refreshToken;
     return result;
   }
 
@@ -573,7 +599,8 @@ class ResetPasswordRes extends $pb.GeneratedMessage {
       _omitMessageNames ? '' : 'ResetPasswordRes',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'ego'),
       createEmptyInstance: create)
-    ..aOS(1, _omitFieldNames ? '' : 'token')
+    ..aOS(1, _omitFieldNames ? '' : 'accessToken')
+    ..aOS(2, _omitFieldNames ? '' : 'refreshToken')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -596,13 +623,130 @@ class ResetPasswordRes extends $pb.GeneratedMessage {
   static ResetPasswordRes? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $core.String get token => $_getSZ(0);
+  $core.String get accessToken => $_getSZ(0);
   @$pb.TagNumber(1)
-  set token($core.String value) => $_setString(0, value);
+  set accessToken($core.String value) => $_setString(0, value);
   @$pb.TagNumber(1)
-  $core.bool hasToken() => $_has(0);
+  $core.bool hasAccessToken() => $_has(0);
   @$pb.TagNumber(1)
-  void clearToken() => $_clearField(1);
+  void clearAccessToken() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get refreshToken => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set refreshToken($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasRefreshToken() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearRefreshToken() => $_clearField(2);
+}
+
+class RefreshTokenReq extends $pb.GeneratedMessage {
+  factory RefreshTokenReq({
+    $core.String? refreshToken,
+  }) {
+    final result = create();
+    if (refreshToken != null) result.refreshToken = refreshToken;
+    return result;
+  }
+
+  RefreshTokenReq._();
+
+  factory RefreshTokenReq.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory RefreshTokenReq.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RefreshTokenReq',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'ego'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'refreshToken')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RefreshTokenReq clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RefreshTokenReq copyWith(void Function(RefreshTokenReq) updates) =>
+      super.copyWith((message) => updates(message as RefreshTokenReq))
+          as RefreshTokenReq;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static RefreshTokenReq create() => RefreshTokenReq._();
+  @$core.override
+  RefreshTokenReq createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static RefreshTokenReq getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RefreshTokenReq>(create);
+  static RefreshTokenReq? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get refreshToken => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set refreshToken($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasRefreshToken() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRefreshToken() => $_clearField(1);
+}
+
+class RefreshTokenRes extends $pb.GeneratedMessage {
+  factory RefreshTokenRes({
+    $core.String? accessToken,
+  }) {
+    final result = create();
+    if (accessToken != null) result.accessToken = accessToken;
+    return result;
+  }
+
+  RefreshTokenRes._();
+
+  factory RefreshTokenRes.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory RefreshTokenRes.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RefreshTokenRes',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'ego'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'accessToken')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RefreshTokenRes clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RefreshTokenRes copyWith(void Function(RefreshTokenRes) updates) =>
+      super.copyWith((message) => updates(message as RefreshTokenRes))
+          as RefreshTokenRes;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static RefreshTokenRes create() => RefreshTokenRes._();
+  @$core.override
+  RefreshTokenRes createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static RefreshTokenRes getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RefreshTokenRes>(create);
+  static RefreshTokenRes? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get accessToken => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set accessToken($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasAccessToken() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearAccessToken() => $_clearField(1);
 }
 
 class GetProfileReq extends $pb.GeneratedMessage {

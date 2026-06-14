@@ -7,6 +7,7 @@ class LocalStore {
   static const _settingsBox = 'settings';
   static final _secure = FlutterSecureStorage();
   static String? _cachedToken;
+  static String? _cachedRefreshToken;
   static late Box _auth;
   static late Box _settings;
 
@@ -16,10 +17,12 @@ class LocalStore {
     _settings = await Hive.openBox(_settingsBox);
     if (kIsWeb) {
       // Web: Hive (dart2js incompatible with flutter_secure_storage_web)
-      _cachedToken = _auth.get('token');
+      _cachedToken = _auth.get('access_token');
+      _cachedRefreshToken = _auth.get('refresh_token');
     } else {
       // Native: Keystore/EncryptedSharedPreferences
-      _cachedToken = await _secure.read(key: 'token');
+      _cachedToken = await _secure.read(key: 'access_token');
+      _cachedRefreshToken = await _secure.read(key: 'refresh_token');
     }
   }
 
@@ -28,20 +31,44 @@ class LocalStore {
 
   static Future<void> setToken(String token) async {
     if (kIsWeb) {
-      _auth.put('token', token);
+      _auth.put('access_token', token);
     } else {
-      await _secure.write(key: 'token', value: token);
+      await _secure.write(key: 'access_token', value: token);
     }
     _cachedToken = token;
   }
 
   static Future<void> clearToken() async {
     if (kIsWeb) {
-      _auth.delete('token');
+      _auth.delete('access_token');
+      _auth.delete('refresh_token');
     } else {
-      await _secure.delete(key: 'token');
+      await _secure.delete(key: 'access_token');
+      await _secure.delete(key: 'refresh_token');
     }
     _cachedToken = null;
+    _cachedRefreshToken = null;
+  }
+
+  // Refresh token
+  static String? getRefreshToken() => _cachedRefreshToken;
+
+  static Future<void> setRefreshToken(String token) async {
+    if (kIsWeb) {
+      _auth.put('refresh_token', token);
+    } else {
+      await _secure.write(key: 'refresh_token', value: token);
+    }
+    _cachedRefreshToken = token;
+  }
+
+  static Future<void> clearRefreshToken() async {
+    if (kIsWeb) {
+      _auth.delete('refresh_token');
+    } else {
+      await _secure.delete(key: 'refresh_token');
+    }
+    _cachedRefreshToken = null;
   }
 
   // Settings

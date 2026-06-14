@@ -31,7 +31,8 @@ type Config struct {
 	WebTLSPort            string
 	GRPCPort              string
 	WebDir                string
-	JWTExpHours           string
+	JwtAccessExpHours     string
+	JwtRefreshExpDays     string
 	LogLevel              string
 	LogFormat             string
 	LogOutput             string
@@ -83,7 +84,8 @@ func Load() *Config {
 		WebTLSPort:            os.Getenv("WEB_TLS_PORT"),
 		GRPCPort:              os.Getenv("GRPC_PORT"),
 		WebDir:                os.Getenv("WEB_DIR"),
-		JWTExpHours:           os.Getenv("JWT_EXP_HOURS"),
+		JwtAccessExpHours:     os.Getenv("JWT_ACCESS_EXP_HOURS"),
+		JwtRefreshExpDays:     os.Getenv("JWT_REFRESH_EXP_DAYS"),
 		LogLevel:              os.Getenv("LOG_LEVEL"),
 		LogFormat:             os.Getenv("LOG_FORMAT"),
 		LogOutput:             os.Getenv("LOG_OUTPUT"),

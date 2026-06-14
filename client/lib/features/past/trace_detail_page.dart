@@ -36,7 +36,7 @@ class _TraceDetailPageState extends ConsumerState<TraceDetailPage> {
     });
     try {
       final client = ref.read(EgoClient.provider);
-      final token = ref.read(authProvider).token;
+      final token = ref.read(authProvider).accessToken;
       final res = await client.stub.getTraceDetail(
         pb.GetTraceDetailReq(traceId: widget.traceId),
         options: authCallOptions(token),

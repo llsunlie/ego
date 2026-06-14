@@ -7,7 +7,28 @@ set -euo pipefail
 # 2. 执行数据库迁移
 # 3. 编译并启动 Go 服务
 # 4. 用 grpcurl 测试核心 RPC 流程
+#
+# Usage:
+#   bash smoke.sh           # quiet mode — only pass/fail
+#   bash smoke.sh --verbose # show all RPC response details
+#   VERBOSE=1 bash smoke.sh # same as --verbose
 # ============================================================================
+
+# --- verbosity ----------------------------------------------------------------
+VERBOSE="${VERBOSE:-0}"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -v|--verbose) VERBOSE=1; shift ;;
+    *) shift ;;
+  esac
+done
+
+echo_rpc() {
+  if [ "$VERBOSE" = "1" ]; then
+    echo "  $*"
+  fi
+}
+echo_rpc_full() { echo_rpc "$@"; }  # pass-through (used for error dumps)
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SERVER_DIR="$PROJECT_DIR/server"
@@ -116,8 +137,10 @@ pass "server built"
 
 info "starting server..."
 DATABASE_URL="$DB_URL" \
+LOG_LEVEL=error \
 JWT_SECRET="smoke-test-secret" \
-JWT_EXP_HOURS="720" \
+JWT_ACCESS_EXP_HOURS="1" \
+JWT_REFRESH_EXP_DAYS="30" \
 WEB_PORT="9080" \
 WEB_TLS_PORT="9443" \
 GRPC_PORT="9444" \
@@ -148,15 +171,72 @@ $GRPCURL -plaintext "$GRPC_ADDR" list | grep -q "ego.Ego" || fail "ego.Ego servi
 
 info "logging in..."
 LOGIN_JSON=$($GRPCURL -plaintext -d '{"phone":"13800000001","password":"test1234"}' "$GRPC_ADDR" ego.Ego/Login 2>&1)
-echo "  login response: $LOGIN_JSON"
+echo_rpc "  login response: $LOGIN_JSON"
 
-TOKEN=$(echo "$LOGIN_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
+TOKEN=$(echo "$LOGIN_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['accessToken'])")
 if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-  fail "failed to extract JWT token from login response"
+  fail "failed to extract access token from login response"
 fi
-pass "JWT token obtained"
+REFRESH_TOKEN=$(echo "$LOGIN_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['refreshToken'])")
+if [ -z "$REFRESH_TOKEN" ] || [ "$REFRESH_TOKEN" = "null" ]; then
+  fail "failed to extract refresh token from login response"
+fi
+pass "access token + refresh token obtained"
 
 AUTH="authorization: Bearer $TOKEN"
+
+# ============================================================================
+# Smoke Test: RefreshToken
+# ============================================================================
+
+info "=== Smoke: RefreshToken ==="
+
+# Refresh: get new access token
+RES_REFRESH=$($GRPCURL -plaintext -d "{\"refresh_token\":\"$REFRESH_TOKEN\"}" "$GRPC_ADDR" ego.Ego/RefreshToken 2>&1)
+echo_rpc "  RefreshToken: $RES_REFRESH"
+
+NEW_ACCESS=$(echo "$RES_REFRESH" | python3 -c "import sys,json; print(json.load(sys.stdin)['accessToken'])")
+if [ -z "$NEW_ACCESS" ] || [ "$NEW_ACCESS" = "null" ]; then
+  fail "RefreshToken: no access token returned"
+fi
+pass "RefreshToken returned new access token"
+
+# Verify new access token works on authenticated RPC
+RES_NEWAUTH=$($GRPCURL -plaintext -H "authorization: Bearer $NEW_ACCESS" -d '{}' "$GRPC_ADDR" ego.Ego/GetProfile 2>&1)
+echo_rpc "  GetProfile with new token: $RES_NEWAUTH"
+NEWAUTH_PHONE=$(echo "$RES_NEWAUTH" | python3 -c "import sys,json; print(json.load(sys.stdin).get('phone',''))" 2>/dev/null || echo "")
+if [ -n "$NEWAUTH_PHONE" ] && [ "$NEWAUTH_PHONE" != "null" ]; then
+  pass "new access token accepted by authenticated RPC"
+else
+  fail "new access token from RefreshToken not accepted"
+fi
+
+# Verify refresh token cannot be used as access token
+RES_RT_AS_AT=$($GRPCURL -plaintext -H "authorization: Bearer $REFRESH_TOKEN" -d '{}' "$GRPC_ADDR" ego.Ego/GetProfile 2>&1) || true
+echo_rpc "  GetProfile with refresh token: $RES_RT_AS_AT"
+if echo "$RES_RT_AS_AT" | grep -qi "unauthenticated\|invalid"; then
+  pass "refresh token rejected for authenticated RPC (correct)"
+else
+  fail "refresh token should be rejected for authenticated RPC"
+fi
+
+# Verify RefreshToken without token returns UNAUTHENTICATED
+RES_RT_EMPTY=$($GRPCURL -plaintext -d '{}' "$GRPC_ADDR" ego.Ego/RefreshToken 2>&1) || true
+echo_rpc "  RefreshToken (empty): $RES_RT_EMPTY"
+if echo "$RES_RT_EMPTY" | grep -qi "unauthenticated\|expired\|登录已过期"; then
+  pass "empty RefreshToken returns UNAUTHENTICATED (correct)"
+else
+  fail "empty RefreshToken expected UNAUTHENTICATED"
+fi
+
+# Verify RefreshToken with invalid token
+RES_RT_INVALID=$($GRPCURL -plaintext -d '{"refresh_token":"invalid-token"}' "$GRPC_ADDR" ego.Ego/RefreshToken 2>&1) || true
+echo_rpc "  RefreshToken (invalid): $RES_RT_INVALID"
+if echo "$RES_RT_INVALID" | grep -qi "unauthenticated\|expired\|登录已过期"; then
+  pass "invalid refresh token returns UNAUTHENTICATED (correct)"
+else
+  fail "invalid refresh token expected UNAUTHENTICATED"
+fi
 
 # ============================================================================
 # Smoke Test: Setting — 账号信息与登出
@@ -165,7 +245,7 @@ AUTH="authorization: Bearer $TOKEN"
 info "=== Smoke: Setting — GetProfile ==="
 
 RES_PROFILE=$($GRPCURL -plaintext -H "$AUTH" -d '{}' "$GRPC_ADDR" ego.Ego/GetProfile 2>&1)
-echo "  GetProfile: $RES_PROFILE"
+echo_rpc "  GetProfile: $RES_PROFILE"
 
 PROFILE_PHONE=$(echo "$RES_PROFILE" | python3 -c "import sys,json; print(json.load(sys.stdin)['phone'])")
 PROFILE_CREATED_AT=$(echo "$RES_PROFILE" | python3 -c "import sys,json; print(json.load(sys.stdin)['createdAt'])")
@@ -178,7 +258,7 @@ pass "GetProfile: phone=$PROFILE_PHONE, created_at=$PROFILE_CREATED_AT"
 
 # assert: unauthorized access without token
 RES_PROFILE_NOAUTH=$($GRPCURL -plaintext -d '{}' "$GRPC_ADDR" ego.Ego/GetProfile 2>&1) || true
-echo "  GetProfile (no auth): $RES_PROFILE_NOAUTH"
+echo_rpc "  GetProfile (no auth): $RES_PROFILE_NOAUTH"
 if echo "$RES_PROFILE_NOAUTH" | grep -qi "unauthenticated\|missing\|error"; then
   pass "GetProfile: unauthorized rejected (correct)"
 else
@@ -189,7 +269,7 @@ info "=== Smoke: Setting — SubmitFeedback ==="
 
 # Normal feedback submission
 RES_FEEDBACK=$($GRPCURL -plaintext -H "$AUTH" -d '{"content":"这是一条来自 smoke 测试的反馈"}' "$GRPC_ADDR" ego.Ego/SubmitFeedback 2>&1)
-echo "  SubmitFeedback: $RES_FEEDBACK"
+echo_rpc "  SubmitFeedback: $RES_FEEDBACK"
 
 FB_ID=$(echo "$RES_FEEDBACK" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
 FB_CREATED_AT=$(echo "$RES_FEEDBACK" | python3 -c "import sys,json; print(json.load(sys.stdin)['createdAt'])")
@@ -200,7 +280,7 @@ pass "SubmitFeedback: id=$FB_ID, created_at=$FB_CREATED_AT"
 
 # Unauthenticated request
 RES_FB_NOAUTH=$($GRPCURL -plaintext -d '{"content":"test"}' "$GRPC_ADDR" ego.Ego/SubmitFeedback 2>&1) || true
-echo "  SubmitFeedback (no auth): $RES_FB_NOAUTH"
+echo_rpc "  SubmitFeedback (no auth): $RES_FB_NOAUTH"
 if echo "$RES_FB_NOAUTH" | grep -qi "unauthenticated\|missing\|error"; then
   pass "SubmitFeedback: unauthorized rejected (correct)"
 else
@@ -209,7 +289,7 @@ fi
 
 # Empty content
 RES_FB_EMPTY=$($GRPCURL -plaintext -H "$AUTH" -d '{"content":"  "}' "$GRPC_ADDR" ego.Ego/SubmitFeedback 2>&1) || true
-echo "  SubmitFeedback (empty): $RES_FB_EMPTY"
+echo_rpc "  SubmitFeedback (empty): $RES_FB_EMPTY"
 if echo "$RES_FB_EMPTY" | grep -qi "invalid\|InvalidArgument"; then
   pass "SubmitFeedback: empty content rejected (correct)"
 else
@@ -225,7 +305,7 @@ info "=== Smoke F1: Write and Observe ==="
 # First moment of user: cold start → no echo expected
 REQ1='{"content":"最近工作压力很大，每天都加班到深夜，感觉身心俱疲"}'
 RES1=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ1" "$GRPC_ADDR" ego.Ego/CreateMoment 2>&1)
-echo "  CreateMoment #1: $RES1"
+echo_rpc "  CreateMoment #1: $RES1"
 
 MOMENT1_ID=$(echo "$RES1" | python3 -c "import sys,json; print(json.load(sys.stdin)['moment']['id'])")
 MOMENT1_TRACE=$(echo "$RES1" | python3 -c "import sys,json; print(json.load(sys.stdin)['moment']['traceId'])")
@@ -250,7 +330,7 @@ pass "cold start: echo is nil (correct — no history)"
 # Second moment: continue same trace → should match previous moment
 REQ2="{\"content\":\"连续加班好几个星期了，身体和精神都快撑不住了，真的很累\",\"traceId\":\"$MOMENT1_TRACE\"}"
 RES2=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ2" "$GRPC_ADDR" ego.Ego/CreateMoment 2>&1)
-echo "  CreateMoment #2: $RES2"
+echo_rpc "  CreateMoment #2: $RES2"
 
 MOMENT2_ID=$(echo "$RES2" | python3 -c "import sys,json; print(json.load(sys.stdin)['moment']['id'])")
 MOMENT2_TRACE=$(echo "$RES2" | python3 -c "import sys,json; print(json.load(sys.stdin)['moment']['traceId'])")
@@ -280,7 +360,7 @@ fi
 # GetMoments: verify matched moment content
 REQ_GM=$(printf '{"ids":["%s"]}' "$MOMENT1_ID")
 RES_GM=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ_GM" "$GRPC_ADDR" ego.Ego/GetMoments 2>&1)
-echo "  GetMoments: $RES_GM"
+echo_rpc "  GetMoments: $RES_GM"
 
 GM_COUNT=$(echo "$RES_GM" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('moments',[])))")
 GM_CONTENT=$(echo "$RES_GM" | python3 -c "import sys,json; m=json.load(sys.stdin)['moments']; print(m[0]['content'] if m else 'NIL')")
@@ -293,7 +373,7 @@ pass "GetMoments: returned matched moment with correct content"
 ECHO2_ID=$(echo "$RES2" | python3 -c "import sys,json; print(json.load(sys.stdin)['echo']['id'])")
 REQ_INSIGHT="{\"momentId\":\"$MOMENT2_ID\",\"echoId\":\"$ECHO2_ID\"}"
 RES_INSIGHT=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ_INSIGHT" "$GRPC_ADDR" ego.Ego/GenerateInsight 2>&1)
-echo "  GenerateInsight: $RES_INSIGHT"
+echo_rpc "  GenerateInsight: $RES_INSIGHT"
 
 INSIGHT_TEXT=$(echo "$RES_INSIGHT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('insight',{}).get('text','NIL') if d.get('insight') else 'NIL')")
 INSIGHT_MOMENT=$(echo "$RES_INSIGHT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('insight',{}).get('momentId','') if d.get('insight') else '')")
@@ -311,7 +391,7 @@ info "=== Smoke F2: Continue Trace (3-round deep dive) ==="
 # Round 3 on same trace
 REQ3="{\"content\":\"我意识到这样下去不行，必须学会调整自己，找到工作和生活的平衡\",\"traceId\":\"$MOMENT1_TRACE\"}"
 RES3=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ3" "$GRPC_ADDR" ego.Ego/CreateMoment 2>&1)
-echo "  CreateMoment #3: $RES3"
+echo_rpc "  CreateMoment #3: $RES3"
 
 MOMENT3_ID=$(echo "$RES3" | python3 -c "import sys,json; print(json.load(sys.stdin)['moment']['id'])")
 MOMENT3_TRACE=$(echo "$RES3" | python3 -c "import sys,json; print(json.load(sys.stdin)['moment']['traceId'])")
@@ -340,7 +420,7 @@ info "=== Smoke: ListTraces ==="
 
 REQ_LT='{"pageSize":10}'
 RES_LT=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ_LT" "$GRPC_ADDR" ego.Ego/ListTraces 2>&1)
-echo "  ListTraces: $RES_LT"
+echo_rpc "  ListTraces: $RES_LT"
 
 TRACE_COUNT=$(echo "$RES_LT" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('traces',[])))")
 HAS_MORE=$(echo "$RES_LT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('hasMore', False))")
@@ -358,7 +438,7 @@ info "=== Smoke: GetTraceDetail ==="
 
 REQ_GTD="{\"traceId\":\"$MOMENT1_TRACE\"}"
 RES_GTD=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ_GTD" "$GRPC_ADDR" ego.Ego/GetTraceDetail 2>&1)
-echo "  GetTraceDetail: $RES_GTD"
+echo_rpc "  GetTraceDetail: $RES_GTD"
 
 ITEM_COUNT=$(echo "$RES_GTD" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('items',[])))")
 TRACE_MOTIVATION=$(echo "$RES_GTD" | python3 -c "import sys,json; print(json.load(sys.stdin).get('trace',{}).get('motivation',''))")
@@ -396,7 +476,7 @@ info "=== Smoke: GetRandomMoments ==="
 # With explicit count
 REQ_GRM='{"count":2}'
 RES_GRM=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ_GRM" "$GRPC_ADDR" ego.Ego/GetRandomMoments 2>&1)
-echo "  GetRandomMoments (count=2): $RES_GRM"
+echo_rpc "  GetRandomMoments (count=2): $RES_GRM"
 
 GRM_COUNT=$(echo "$RES_GRM" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('moments',[])))")
 [ "$GRM_COUNT" -eq 2 ] || fail "GetRandomMoments: expected 2 moments, got $GRM_COUNT"
@@ -421,7 +501,7 @@ pass "GetRandomMoments: all moments belong to user's trace"
 
 # Default count (no count specified → default 3)
 RES_GRM_DEF=$($GRPCURL -plaintext -H "$AUTH" -d '{}' "$GRPC_ADDR" ego.Ego/GetRandomMoments 2>&1)
-echo "  GetRandomMoments (default): $RES_GRM_DEF"
+echo_rpc "  GetRandomMoments (default): $RES_GRM_DEF"
 GRM_DEF_COUNT=$(echo "$RES_GRM_DEF" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('moments',[])))")
 # With only 3 total moments, default count of 3 should return at most 3
 [ "$GRM_DEF_COUNT" -le 3 ] || fail "GetRandomMoments default: expected <= 3, got $GRM_DEF_COUNT"
@@ -438,7 +518,7 @@ info "=== Smoke F3: StashTrace → Constellation ==="
 # Stash the trace from F1/F2
 	REQ_STASH=$(printf '{"traceId":"%s"}' "$MOMENT1_TRACE")
 RES_STASH=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ_STASH" "$GRPC_ADDR" ego.Ego/StashTrace 2>&1)
-echo "  StashTrace: $RES_STASH"
+echo_rpc "  StashTrace: $RES_STASH"
 
 STAR_ID=$(echo "$RES_STASH" | python3 -c "import sys,json; print(json.load(sys.stdin)['star']['id'])")
 STAR_TOPIC=$(echo "$RES_STASH" | python3 -c "import sys,json; print(json.load(sys.stdin)['star']['topic'])")
@@ -452,7 +532,7 @@ STAR_TRACE=$(echo "$RES_STASH" | python3 -c "import sys,json; print(json.load(sy
 # Verify second stash returns error (already stashed)
 	REQ_STASH2=$(printf '{"traceId":"%s"}' "$MOMENT1_TRACE")
 RES_STASH2=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ_STASH2" "$GRPC_ADDR" ego.Ego/StashTrace 2>&1) || true
-echo "  StashTrace (duplicate): $RES_STASH2"
+echo_rpc "  StashTrace (duplicate): $RES_STASH2"
 if echo "$RES_STASH2" | grep -qi "already"; then
   pass "StashTrace: duplicate rejected"
 else
@@ -461,7 +541,7 @@ fi
 
 # ListConstellations
 RES_LC=$($GRPCURL -plaintext -H "$AUTH" -d '{}' "$GRPC_ADDR" ego.Ego/ListConstellations 2>&1)
-echo "  ListConstellations: $RES_LC"
+echo_rpc "  ListConstellations: $RES_LC"
 
 LC_COUNT=$(echo "$RES_LC" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('constellations',[])))")
 LC_TOTAL=$(echo "$RES_LC" | python3 -c "import sys,json; print(json.load(sys.stdin).get('totalStarCount',0))")
@@ -478,7 +558,7 @@ LC1_STAR_COUNT=$(echo "$RES_LC" | python3 -c "import sys,json; print(json.load(s
 # GetConstellation
 	REQ_GC=$(printf '{"constellationId":"%s"}' "$LC1_ID")
 RES_GC=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ_GC" "$GRPC_ADDR" ego.Ego/GetConstellation 2>&1)
-echo "  GetConstellation: $RES_GC"
+echo_rpc "  GetConstellation: $RES_GC"
 
 GC_NAME=$(echo "$RES_GC" | python3 -c "import sys,json; print(json.load(sys.stdin)['constellation']['name'])")
 GC_STAR_COUNT=$(echo "$RES_GC" | python3 -c "import sys,json; print(json.load(sys.stdin)['constellation']['starCount'])")
@@ -514,7 +594,7 @@ info "=== Smoke F7: StartChat + SendMessage ==="
 # Start a new chat session with the stashed star
 REQ_SC=$(printf '{"starId":"%s"}' "$STAR_ID")
 RES_SC=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ_SC" "$GRPC_ADDR" ego.Ego/StartChat 2>&1)
-echo "  StartChat: $RES_SC"
+echo_rpc "  StartChat: $RES_SC"
 
 CHAT_SESSION_ID=$(echo "$RES_SC" | python3 -c "import sys,json; print(json.load(sys.stdin)['chatSessionId'])")
 OPENING_CONTENT=$(echo "$RES_SC" | python3 -c "import sys,json; print(json.load(sys.stdin).get('opening',{}).get('content','NIL'))")
@@ -530,7 +610,7 @@ pass "StartChat: session=$CHAT_SESSION_ID, opening=$OPENING_CONTENT"
 # Send first message
 REQ_SM1=$(printf '{"chatSessionId":"%s","content":"那时候的你，现在还好吗？"}' "$CHAT_SESSION_ID")
 RES_SM1=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ_SM1" "$GRPC_ADDR" ego.Ego/SendMessage 2>&1)
-echo "  SendMessage #1: $RES_SM1"
+echo_rpc "  SendMessage #1: $RES_SM1"
 
 REPLY1_CONTENT=$(echo "$RES_SM1" | python3 -c "import sys,json; print(json.load(sys.stdin).get('reply',{}).get('content','NIL'))")
 REPLY1_ROLE=$(echo "$RES_SM1" | python3 -c "import sys,json; d=json.load(sys.stdin).get('reply',{}); print('PAST_SELF' if d.get('role') == 'PAST_SELF' else 'NIL')")
@@ -544,7 +624,7 @@ pass "SendMessage #1: reply=$REPLY1_CONTENT"
 # Send second message (multi-turn)
 REQ_SM2=$(printf '{"chatSessionId":"%s","content":"谢谢你，我会继续往前走的"}' "$CHAT_SESSION_ID")
 RES_SM2=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ_SM2" "$GRPC_ADDR" ego.Ego/SendMessage 2>&1)
-echo "  SendMessage #2: $RES_SM2"
+echo_rpc "  SendMessage #2: $RES_SM2"
 
 REPLY2_CONTENT=$(echo "$RES_SM2" | python3 -c "import sys,json; print(json.load(sys.stdin).get('reply',{}).get('content','NIL'))")
 REPLY2_ROLE=$(echo "$RES_SM2" | python3 -c "import sys,json; d=json.load(sys.stdin).get('reply',{}); print('PAST_SELF' if d.get('role') == 'PAST_SELF' else 'NIL')")
@@ -556,7 +636,7 @@ pass "SendMessage #2: reply=$REPLY2_CONTENT"
 # Resume session: StartChat with existing chatSessionId
 REQ_RESUME=$(printf '{"starId":"%s","chatSessionId":"%s"}' "$STAR_ID" "$CHAT_SESSION_ID")
 RES_RESUME=$($GRPCURL -plaintext -H "$AUTH" -d "$REQ_RESUME" "$GRPC_ADDR" ego.Ego/StartChat 2>&1)
-echo "  StartChat (resume): $RES_RESUME"
+echo_rpc "  StartChat (resume): $RES_RESUME"
 
 RESUME_SESSION_ID=$(echo "$RES_RESUME" | python3 -c "import sys,json; print(json.load(sys.stdin)['chatSessionId'])")
 RESUME_HISTORY_LEN=$(echo "$RES_RESUME" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('history',[])))")
@@ -601,6 +681,7 @@ echo -e "${GREEN}========================================${RESET}"
 echo -e "${GREEN}  All smoke tests passed!${RESET}"
 echo -e "${GREEN}========================================${RESET}"
 echo ""
+echo "  RefreshToken         : PASS"
 echo "  Setting GetProfile   : PASS"
 echo "  F1 Write+Observe     : PASS"
 echo "  GetMoments           : PASS"

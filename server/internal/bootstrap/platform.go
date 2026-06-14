@@ -17,14 +17,15 @@ import (
 )
 
 type Platform struct {
-	Pool       *pgxpool.Pool
-	JWTKey     []byte
-	JWTExp     time.Duration
-	Hasher     auth.BcryptHasher
-	Tokens     auth.JWTIssuer
-	Logger     *slog.Logger
-	AIClient   *ai.Client
-	SmsService *sms.AliyunSmsService
+	Pool          *pgxpool.Pool
+	JWTKey        []byte
+	JWTExp        time.Duration
+	Hasher        auth.BcryptHasher
+	Tokens        auth.JWTIssuer
+	Logger        *slog.Logger
+	AIClient      *ai.Client
+	SmsService    *sms.AliyunSmsService
+	TokenVerifier auth.RefreshTokenVerifier
 }
 
 func InitPlatform(cfg *config.Config) (*Platform, error) {
@@ -43,12 +44,20 @@ func InitPlatform(cfg *config.Config) (*Platform, error) {
 	}
 
 	jwtKey := []byte(cfg.JWTSecret)
-	expHours, err := strconv.Atoi(cfg.JWTExpHours)
+
+	accessExpHours, err := strconv.Atoi(cfg.JwtAccessExpHours)
 	if err != nil {
 		pool.Close()
-		return nil, fmt.Errorf("invalid JWT_EXP_HOURS: %w", err)
+		return nil, fmt.Errorf("invalid JWT_ACCESS_EXP_HOURS: %w", err)
 	}
-	jwtExp := time.Duration(expHours) * time.Hour
+	accessExp := time.Duration(accessExpHours) * time.Hour
+
+	refreshExpDays, err := strconv.Atoi(cfg.JwtRefreshExpDays)
+	if err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("invalid JWT_REFRESH_EXP_DAYS: %w", err)
+	}
+	refreshExp := time.Duration(refreshExpDays) * 24 * time.Hour
 
 	aiClient := ai.NewClient(ai.Config{
 		EmbeddingAPIKey:  cfg.AIEmbeddingAPIKey,
@@ -62,12 +71,13 @@ func InitPlatform(cfg *config.Config) (*Platform, error) {
 	return &Platform{
 		Pool:       pool,
 		JWTKey:     jwtKey,
-		JWTExp:     jwtExp,
+		JWTExp:     accessExp,
 		Hasher:     auth.BcryptHasher{},
-		Tokens:     auth.JWTIssuer{Secret: jwtKey, Exp: jwtExp},
+		Tokens:     auth.JWTIssuer{Secret: jwtKey, Exp: accessExp, RefreshExp: refreshExp},
 		Logger:     logger,
 		AIClient:   aiClient,
-		SmsService: newSmsService(cfg, pool),
+		SmsService:    newSmsService(cfg, pool),
+		TokenVerifier: auth.RefreshTokenVerifier{Secret: jwtKey},
 	}, nil
 }
 

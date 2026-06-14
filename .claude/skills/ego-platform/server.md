@@ -34,7 +34,7 @@ type Config struct {
     GRPCPort              string  // 9444 (gRPC native, TLS when TLS_DOMAIN set)
     TLSDomain             string  // Let's Encrypt domain, empty = TLS disabled
     WebDir                string
-    JWTExpHours           string
+    JwtAccessExpHours     string  // access token (hours), default 1\n\t    JwtRefreshExpDays     string  // refresh token (days), default 30
     LogLevel              string
     LogFormat             string
     AIAPIKey              string
@@ -91,10 +91,17 @@ ai/
 ```
 auth/
 ├── bcrypt.go        # bcrypt 密码哈希（实现 identity 的 PasswordHasher）
-├── jwt_issuer.go    # JWT 签发（实现 identity 的 TokenIssuer）
-├── jwt.go           # JWT 验证 + gRPC 一元拦截器
-└── interceptor.go   # gRPC auth 拦截器（提取 token → 注入 context）
+├── jwt_issuer.go    # JWT 签发：Issue(access, 1h) + IssueRefresh(refresh, 30d)
+├── jwt.go           # JWT 验证 + ParseJWTWithType（token_type 校验）
+├── interceptor.go   # gRPC auth 拦截器（验证 access token + 6 个 PreAuthMethods）
+└── (jwt_issuer 实现 identity app 的 TokenIssuer + RefreshTokenVerifier 接口)
 ```
+
+**JWT 双 token 机制**：
+- Access token: `{user_id, token_type:"access", iat, exp}` — 1h，用于 API 鉴权
+- Refresh token: `{user_id, token_type:"refresh", iat, exp}` — 30d，仅用于获取新 access token
+- Interceptor 调用 `ParseJWTWithType(token, secret, "access")` 防止 refresh token 直接调业务 API
+- `RefreshToken` RPC 在 `PreAuthMethods` 中，由 refresh token 自身作为凭证
 
 ## platform/logging (`server/internal/platform/logging/`)
 

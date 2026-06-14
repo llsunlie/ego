@@ -124,7 +124,8 @@ func (x *LoginReq) GetPassword() string {
 
 type LoginRes struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"` // JWT token，后续请求通过 metadata 传递
+	AccessToken   string                 `protobuf:"bytes,1,opt,name=access_token,json=accessToken,proto3" json:"access_token,omitempty"`
+	RefreshToken  string                 `protobuf:"bytes,2,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -159,9 +160,16 @@ func (*LoginRes) Descriptor() ([]byte, []int) {
 	return file_ego_api_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *LoginRes) GetToken() string {
+func (x *LoginRes) GetAccessToken() string {
 	if x != nil {
-		return x.Token
+		return x.AccessToken
+	}
+	return ""
+}
+
+func (x *LoginRes) GetRefreshToken() string {
+	if x != nil {
+		return x.RefreshToken
 	}
 	return ""
 }
@@ -396,7 +404,8 @@ func (x *RegisterReq) GetPassword() string {
 
 type RegisterRes struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	AccessToken   string                 `protobuf:"bytes,1,opt,name=access_token,json=accessToken,proto3" json:"access_token,omitempty"`
+	RefreshToken  string                 `protobuf:"bytes,2,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -431,9 +440,16 @@ func (*RegisterRes) Descriptor() ([]byte, []int) {
 	return file_ego_api_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *RegisterRes) GetToken() string {
+func (x *RegisterRes) GetAccessToken() string {
 	if x != nil {
-		return x.Token
+		return x.AccessToken
+	}
+	return ""
+}
+
+func (x *RegisterRes) GetRefreshToken() string {
+	if x != nil {
+		return x.RefreshToken
 	}
 	return ""
 }
@@ -500,7 +516,8 @@ func (x *ResetPasswordReq) GetNewPassword() string {
 
 type ResetPasswordRes struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	AccessToken   string                 `protobuf:"bytes,1,opt,name=access_token,json=accessToken,proto3" json:"access_token,omitempty"`
+	RefreshToken  string                 `protobuf:"bytes,2,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -535,9 +552,104 @@ func (*ResetPasswordRes) Descriptor() ([]byte, []int) {
 	return file_ego_api_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *ResetPasswordRes) GetToken() string {
+func (x *ResetPasswordRes) GetAccessToken() string {
 	if x != nil {
-		return x.Token
+		return x.AccessToken
+	}
+	return ""
+}
+
+func (x *ResetPasswordRes) GetRefreshToken() string {
+	if x != nil {
+		return x.RefreshToken
+	}
+	return ""
+}
+
+type RefreshTokenReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RefreshToken  string                 `protobuf:"bytes,1,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RefreshTokenReq) Reset() {
+	*x = RefreshTokenReq{}
+	mi := &file_ego_api_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefreshTokenReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefreshTokenReq) ProtoMessage() {}
+
+func (x *RefreshTokenReq) ProtoReflect() protoreflect.Message {
+	mi := &file_ego_api_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefreshTokenReq.ProtoReflect.Descriptor instead.
+func (*RefreshTokenReq) Descriptor() ([]byte, []int) {
+	return file_ego_api_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *RefreshTokenReq) GetRefreshToken() string {
+	if x != nil {
+		return x.RefreshToken
+	}
+	return ""
+}
+
+type RefreshTokenRes struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccessToken   string                 `protobuf:"bytes,1,opt,name=access_token,json=accessToken,proto3" json:"access_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RefreshTokenRes) Reset() {
+	*x = RefreshTokenRes{}
+	mi := &file_ego_api_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefreshTokenRes) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefreshTokenRes) ProtoMessage() {}
+
+func (x *RefreshTokenRes) ProtoReflect() protoreflect.Message {
+	mi := &file_ego_api_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefreshTokenRes.ProtoReflect.Descriptor instead.
+func (*RefreshTokenRes) Descriptor() ([]byte, []int) {
+	return file_ego_api_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *RefreshTokenRes) GetAccessToken() string {
+	if x != nil {
+		return x.AccessToken
 	}
 	return ""
 }
@@ -550,7 +662,7 @@ type GetProfileReq struct {
 
 func (x *GetProfileReq) Reset() {
 	*x = GetProfileReq{}
-	mi := &file_ego_api_proto_msgTypes[10]
+	mi := &file_ego_api_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -562,7 +674,7 @@ func (x *GetProfileReq) String() string {
 func (*GetProfileReq) ProtoMessage() {}
 
 func (x *GetProfileReq) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[10]
+	mi := &file_ego_api_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -575,7 +687,7 @@ func (x *GetProfileReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProfileReq.ProtoReflect.Descriptor instead.
 func (*GetProfileReq) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{10}
+	return file_ego_api_proto_rawDescGZIP(), []int{12}
 }
 
 type GetProfileRes struct {
@@ -588,7 +700,7 @@ type GetProfileRes struct {
 
 func (x *GetProfileRes) Reset() {
 	*x = GetProfileRes{}
-	mi := &file_ego_api_proto_msgTypes[11]
+	mi := &file_ego_api_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -600,7 +712,7 @@ func (x *GetProfileRes) String() string {
 func (*GetProfileRes) ProtoMessage() {}
 
 func (x *GetProfileRes) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[11]
+	mi := &file_ego_api_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -613,7 +725,7 @@ func (x *GetProfileRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProfileRes.ProtoReflect.Descriptor instead.
 func (*GetProfileRes) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{11}
+	return file_ego_api_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetProfileRes) GetPhone() string {
@@ -639,7 +751,7 @@ type SubmitFeedbackReq struct {
 
 func (x *SubmitFeedbackReq) Reset() {
 	*x = SubmitFeedbackReq{}
-	mi := &file_ego_api_proto_msgTypes[12]
+	mi := &file_ego_api_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -651,7 +763,7 @@ func (x *SubmitFeedbackReq) String() string {
 func (*SubmitFeedbackReq) ProtoMessage() {}
 
 func (x *SubmitFeedbackReq) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[12]
+	mi := &file_ego_api_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -664,7 +776,7 @@ func (x *SubmitFeedbackReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitFeedbackReq.ProtoReflect.Descriptor instead.
 func (*SubmitFeedbackReq) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{12}
+	return file_ego_api_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *SubmitFeedbackReq) GetContent() string {
@@ -684,7 +796,7 @@ type SubmitFeedbackRes struct {
 
 func (x *SubmitFeedbackRes) Reset() {
 	*x = SubmitFeedbackRes{}
-	mi := &file_ego_api_proto_msgTypes[13]
+	mi := &file_ego_api_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -696,7 +808,7 @@ func (x *SubmitFeedbackRes) String() string {
 func (*SubmitFeedbackRes) ProtoMessage() {}
 
 func (x *SubmitFeedbackRes) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[13]
+	mi := &file_ego_api_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -709,7 +821,7 @@ func (x *SubmitFeedbackRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitFeedbackRes.ProtoReflect.Descriptor instead.
 func (*SubmitFeedbackRes) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{13}
+	return file_ego_api_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *SubmitFeedbackRes) GetId() string {
@@ -738,7 +850,7 @@ type Moment struct {
 
 func (x *Moment) Reset() {
 	*x = Moment{}
-	mi := &file_ego_api_proto_msgTypes[14]
+	mi := &file_ego_api_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -750,7 +862,7 @@ func (x *Moment) String() string {
 func (*Moment) ProtoMessage() {}
 
 func (x *Moment) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[14]
+	mi := &file_ego_api_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -763,7 +875,7 @@ func (x *Moment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Moment.ProtoReflect.Descriptor instead.
 func (*Moment) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{14}
+	return file_ego_api_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *Moment) GetId() string {
@@ -806,7 +918,7 @@ type Echo struct {
 
 func (x *Echo) Reset() {
 	*x = Echo{}
-	mi := &file_ego_api_proto_msgTypes[15]
+	mi := &file_ego_api_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -818,7 +930,7 @@ func (x *Echo) String() string {
 func (*Echo) ProtoMessage() {}
 
 func (x *Echo) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[15]
+	mi := &file_ego_api_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -831,7 +943,7 @@ func (x *Echo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Echo.ProtoReflect.Descriptor instead.
 func (*Echo) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{15}
+	return file_ego_api_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *Echo) GetId() string {
@@ -875,7 +987,7 @@ type Insight struct {
 
 func (x *Insight) Reset() {
 	*x = Insight{}
-	mi := &file_ego_api_proto_msgTypes[16]
+	mi := &file_ego_api_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -887,7 +999,7 @@ func (x *Insight) String() string {
 func (*Insight) ProtoMessage() {}
 
 func (x *Insight) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[16]
+	mi := &file_ego_api_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -900,7 +1012,7 @@ func (x *Insight) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Insight.ProtoReflect.Descriptor instead.
 func (*Insight) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{16}
+	return file_ego_api_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *Insight) GetId() string {
@@ -949,7 +1061,7 @@ type Star struct {
 
 func (x *Star) Reset() {
 	*x = Star{}
-	mi := &file_ego_api_proto_msgTypes[17]
+	mi := &file_ego_api_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -961,7 +1073,7 @@ func (x *Star) String() string {
 func (*Star) ProtoMessage() {}
 
 func (x *Star) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[17]
+	mi := &file_ego_api_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -974,7 +1086,7 @@ func (x *Star) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Star.ProtoReflect.Descriptor instead.
 func (*Star) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{17}
+	return file_ego_api_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *Star) GetId() string {
@@ -1015,7 +1127,7 @@ type Constellation struct {
 
 func (x *Constellation) Reset() {
 	*x = Constellation{}
-	mi := &file_ego_api_proto_msgTypes[18]
+	mi := &file_ego_api_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1027,7 +1139,7 @@ func (x *Constellation) String() string {
 func (*Constellation) ProtoMessage() {}
 
 func (x *Constellation) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[18]
+	mi := &file_ego_api_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1040,7 +1152,7 @@ func (x *Constellation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Constellation.ProtoReflect.Descriptor instead.
 func (*Constellation) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{18}
+	return file_ego_api_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *Constellation) GetId() string {
@@ -1119,7 +1231,7 @@ type ChatMessage struct {
 
 func (x *ChatMessage) Reset() {
 	*x = ChatMessage{}
-	mi := &file_ego_api_proto_msgTypes[19]
+	mi := &file_ego_api_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1131,7 +1243,7 @@ func (x *ChatMessage) String() string {
 func (*ChatMessage) ProtoMessage() {}
 
 func (x *ChatMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[19]
+	mi := &file_ego_api_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1144,7 +1256,7 @@ func (x *ChatMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChatMessage.ProtoReflect.Descriptor instead.
 func (*ChatMessage) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{19}
+	return file_ego_api_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ChatMessage) GetId() string {
@@ -1192,7 +1304,7 @@ type MomentReference struct {
 
 func (x *MomentReference) Reset() {
 	*x = MomentReference{}
-	mi := &file_ego_api_proto_msgTypes[20]
+	mi := &file_ego_api_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1204,7 +1316,7 @@ func (x *MomentReference) String() string {
 func (*MomentReference) ProtoMessage() {}
 
 func (x *MomentReference) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[20]
+	mi := &file_ego_api_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1217,7 +1329,7 @@ func (x *MomentReference) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MomentReference.ProtoReflect.Descriptor instead.
 func (*MomentReference) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{20}
+	return file_ego_api_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *MomentReference) GetDate() string {
@@ -1244,7 +1356,7 @@ type CreateMomentReq struct {
 
 func (x *CreateMomentReq) Reset() {
 	*x = CreateMomentReq{}
-	mi := &file_ego_api_proto_msgTypes[21]
+	mi := &file_ego_api_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1256,7 +1368,7 @@ func (x *CreateMomentReq) String() string {
 func (*CreateMomentReq) ProtoMessage() {}
 
 func (x *CreateMomentReq) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[21]
+	mi := &file_ego_api_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1269,7 +1381,7 @@ func (x *CreateMomentReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateMomentReq.ProtoReflect.Descriptor instead.
 func (*CreateMomentReq) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{21}
+	return file_ego_api_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *CreateMomentReq) GetContent() string {
@@ -1296,7 +1408,7 @@ type CreateMomentRes struct {
 
 func (x *CreateMomentRes) Reset() {
 	*x = CreateMomentRes{}
-	mi := &file_ego_api_proto_msgTypes[22]
+	mi := &file_ego_api_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1308,7 +1420,7 @@ func (x *CreateMomentRes) String() string {
 func (*CreateMomentRes) ProtoMessage() {}
 
 func (x *CreateMomentRes) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[22]
+	mi := &file_ego_api_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1321,7 +1433,7 @@ func (x *CreateMomentRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateMomentRes.ProtoReflect.Descriptor instead.
 func (*CreateMomentRes) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{22}
+	return file_ego_api_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *CreateMomentRes) GetMoment() *Moment {
@@ -1347,7 +1459,7 @@ type GetMomentsReq struct {
 
 func (x *GetMomentsReq) Reset() {
 	*x = GetMomentsReq{}
-	mi := &file_ego_api_proto_msgTypes[23]
+	mi := &file_ego_api_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1359,7 +1471,7 @@ func (x *GetMomentsReq) String() string {
 func (*GetMomentsReq) ProtoMessage() {}
 
 func (x *GetMomentsReq) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[23]
+	mi := &file_ego_api_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1372,7 +1484,7 @@ func (x *GetMomentsReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMomentsReq.ProtoReflect.Descriptor instead.
 func (*GetMomentsReq) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{23}
+	return file_ego_api_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *GetMomentsReq) GetIds() []string {
@@ -1391,7 +1503,7 @@ type GetMomentsRes struct {
 
 func (x *GetMomentsRes) Reset() {
 	*x = GetMomentsRes{}
-	mi := &file_ego_api_proto_msgTypes[24]
+	mi := &file_ego_api_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1403,7 +1515,7 @@ func (x *GetMomentsRes) String() string {
 func (*GetMomentsRes) ProtoMessage() {}
 
 func (x *GetMomentsRes) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[24]
+	mi := &file_ego_api_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1416,7 +1528,7 @@ func (x *GetMomentsRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMomentsRes.ProtoReflect.Descriptor instead.
 func (*GetMomentsRes) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{24}
+	return file_ego_api_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *GetMomentsRes) GetMoments() []*Moment {
@@ -1436,7 +1548,7 @@ type GenerateInsightReq struct {
 
 func (x *GenerateInsightReq) Reset() {
 	*x = GenerateInsightReq{}
-	mi := &file_ego_api_proto_msgTypes[25]
+	mi := &file_ego_api_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1448,7 +1560,7 @@ func (x *GenerateInsightReq) String() string {
 func (*GenerateInsightReq) ProtoMessage() {}
 
 func (x *GenerateInsightReq) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[25]
+	mi := &file_ego_api_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1461,7 +1573,7 @@ func (x *GenerateInsightReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateInsightReq.ProtoReflect.Descriptor instead.
 func (*GenerateInsightReq) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{25}
+	return file_ego_api_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *GenerateInsightReq) GetMomentId() string {
@@ -1487,7 +1599,7 @@ type GenerateInsightRes struct {
 
 func (x *GenerateInsightRes) Reset() {
 	*x = GenerateInsightRes{}
-	mi := &file_ego_api_proto_msgTypes[26]
+	mi := &file_ego_api_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1499,7 +1611,7 @@ func (x *GenerateInsightRes) String() string {
 func (*GenerateInsightRes) ProtoMessage() {}
 
 func (x *GenerateInsightRes) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[26]
+	mi := &file_ego_api_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1512,7 +1624,7 @@ func (x *GenerateInsightRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateInsightRes.ProtoReflect.Descriptor instead.
 func (*GenerateInsightRes) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{26}
+	return file_ego_api_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *GenerateInsightRes) GetInsight() *Insight {
@@ -1535,7 +1647,7 @@ type Trace struct {
 
 func (x *Trace) Reset() {
 	*x = Trace{}
-	mi := &file_ego_api_proto_msgTypes[27]
+	mi := &file_ego_api_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1547,7 +1659,7 @@ func (x *Trace) String() string {
 func (*Trace) ProtoMessage() {}
 
 func (x *Trace) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[27]
+	mi := &file_ego_api_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1560,7 +1672,7 @@ func (x *Trace) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Trace.ProtoReflect.Descriptor instead.
 func (*Trace) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{27}
+	return file_ego_api_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *Trace) GetId() string {
@@ -1609,7 +1721,7 @@ type TraceItem struct {
 
 func (x *TraceItem) Reset() {
 	*x = TraceItem{}
-	mi := &file_ego_api_proto_msgTypes[28]
+	mi := &file_ego_api_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1621,7 +1733,7 @@ func (x *TraceItem) String() string {
 func (*TraceItem) ProtoMessage() {}
 
 func (x *TraceItem) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[28]
+	mi := &file_ego_api_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1634,7 +1746,7 @@ func (x *TraceItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TraceItem.ProtoReflect.Descriptor instead.
 func (*TraceItem) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{28}
+	return file_ego_api_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *TraceItem) GetMoment() *Moment {
@@ -1668,7 +1780,7 @@ type ListTracesReq struct {
 
 func (x *ListTracesReq) Reset() {
 	*x = ListTracesReq{}
-	mi := &file_ego_api_proto_msgTypes[29]
+	mi := &file_ego_api_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1680,7 +1792,7 @@ func (x *ListTracesReq) String() string {
 func (*ListTracesReq) ProtoMessage() {}
 
 func (x *ListTracesReq) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[29]
+	mi := &file_ego_api_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1693,7 +1805,7 @@ func (x *ListTracesReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTracesReq.ProtoReflect.Descriptor instead.
 func (*ListTracesReq) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{29}
+	return file_ego_api_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *ListTracesReq) GetCursor() string {
@@ -1721,7 +1833,7 @@ type ListTracesRes struct {
 
 func (x *ListTracesRes) Reset() {
 	*x = ListTracesRes{}
-	mi := &file_ego_api_proto_msgTypes[30]
+	mi := &file_ego_api_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1733,7 +1845,7 @@ func (x *ListTracesRes) String() string {
 func (*ListTracesRes) ProtoMessage() {}
 
 func (x *ListTracesRes) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[30]
+	mi := &file_ego_api_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1746,7 +1858,7 @@ func (x *ListTracesRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTracesRes.ProtoReflect.Descriptor instead.
 func (*ListTracesRes) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{30}
+	return file_ego_api_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *ListTracesRes) GetTraces() []*Trace {
@@ -1779,7 +1891,7 @@ type GetTraceDetailReq struct {
 
 func (x *GetTraceDetailReq) Reset() {
 	*x = GetTraceDetailReq{}
-	mi := &file_ego_api_proto_msgTypes[31]
+	mi := &file_ego_api_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1791,7 +1903,7 @@ func (x *GetTraceDetailReq) String() string {
 func (*GetTraceDetailReq) ProtoMessage() {}
 
 func (x *GetTraceDetailReq) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[31]
+	mi := &file_ego_api_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1804,7 +1916,7 @@ func (x *GetTraceDetailReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTraceDetailReq.ProtoReflect.Descriptor instead.
 func (*GetTraceDetailReq) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{31}
+	return file_ego_api_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *GetTraceDetailReq) GetTraceId() string {
@@ -1824,7 +1936,7 @@ type GetTraceDetailRes struct {
 
 func (x *GetTraceDetailRes) Reset() {
 	*x = GetTraceDetailRes{}
-	mi := &file_ego_api_proto_msgTypes[32]
+	mi := &file_ego_api_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1836,7 +1948,7 @@ func (x *GetTraceDetailRes) String() string {
 func (*GetTraceDetailRes) ProtoMessage() {}
 
 func (x *GetTraceDetailRes) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[32]
+	mi := &file_ego_api_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1849,7 +1961,7 @@ func (x *GetTraceDetailRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTraceDetailRes.ProtoReflect.Descriptor instead.
 func (*GetTraceDetailRes) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{32}
+	return file_ego_api_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *GetTraceDetailRes) GetTrace() *Trace {
@@ -1875,7 +1987,7 @@ type GetRandomMomentsReq struct {
 
 func (x *GetRandomMomentsReq) Reset() {
 	*x = GetRandomMomentsReq{}
-	mi := &file_ego_api_proto_msgTypes[33]
+	mi := &file_ego_api_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1887,7 +1999,7 @@ func (x *GetRandomMomentsReq) String() string {
 func (*GetRandomMomentsReq) ProtoMessage() {}
 
 func (x *GetRandomMomentsReq) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[33]
+	mi := &file_ego_api_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1900,7 +2012,7 @@ func (x *GetRandomMomentsReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRandomMomentsReq.ProtoReflect.Descriptor instead.
 func (*GetRandomMomentsReq) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{33}
+	return file_ego_api_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *GetRandomMomentsReq) GetCount() int32 {
@@ -1919,7 +2031,7 @@ type GetRandomMomentsRes struct {
 
 func (x *GetRandomMomentsRes) Reset() {
 	*x = GetRandomMomentsRes{}
-	mi := &file_ego_api_proto_msgTypes[34]
+	mi := &file_ego_api_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1931,7 +2043,7 @@ func (x *GetRandomMomentsRes) String() string {
 func (*GetRandomMomentsRes) ProtoMessage() {}
 
 func (x *GetRandomMomentsRes) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[34]
+	mi := &file_ego_api_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1944,7 +2056,7 @@ func (x *GetRandomMomentsRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRandomMomentsRes.ProtoReflect.Descriptor instead.
 func (*GetRandomMomentsRes) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{34}
+	return file_ego_api_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *GetRandomMomentsRes) GetMoments() []*Moment {
@@ -1963,7 +2075,7 @@ type StashTraceReq struct {
 
 func (x *StashTraceReq) Reset() {
 	*x = StashTraceReq{}
-	mi := &file_ego_api_proto_msgTypes[35]
+	mi := &file_ego_api_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1975,7 +2087,7 @@ func (x *StashTraceReq) String() string {
 func (*StashTraceReq) ProtoMessage() {}
 
 func (x *StashTraceReq) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[35]
+	mi := &file_ego_api_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1988,7 +2100,7 @@ func (x *StashTraceReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StashTraceReq.ProtoReflect.Descriptor instead.
 func (*StashTraceReq) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{35}
+	return file_ego_api_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *StashTraceReq) GetTraceId() string {
@@ -2007,7 +2119,7 @@ type StashTraceRes struct {
 
 func (x *StashTraceRes) Reset() {
 	*x = StashTraceRes{}
-	mi := &file_ego_api_proto_msgTypes[36]
+	mi := &file_ego_api_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2019,7 +2131,7 @@ func (x *StashTraceRes) String() string {
 func (*StashTraceRes) ProtoMessage() {}
 
 func (x *StashTraceRes) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[36]
+	mi := &file_ego_api_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2032,7 +2144,7 @@ func (x *StashTraceRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StashTraceRes.ProtoReflect.Descriptor instead.
 func (*StashTraceRes) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{36}
+	return file_ego_api_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *StashTraceRes) GetStar() *Star {
@@ -2050,7 +2162,7 @@ type ListConstellationsReq struct {
 
 func (x *ListConstellationsReq) Reset() {
 	*x = ListConstellationsReq{}
-	mi := &file_ego_api_proto_msgTypes[37]
+	mi := &file_ego_api_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2062,7 +2174,7 @@ func (x *ListConstellationsReq) String() string {
 func (*ListConstellationsReq) ProtoMessage() {}
 
 func (x *ListConstellationsReq) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[37]
+	mi := &file_ego_api_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2075,7 +2187,7 @@ func (x *ListConstellationsReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListConstellationsReq.ProtoReflect.Descriptor instead.
 func (*ListConstellationsReq) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{37}
+	return file_ego_api_proto_rawDescGZIP(), []int{39}
 }
 
 type ListConstellationsRes struct {
@@ -2088,7 +2200,7 @@ type ListConstellationsRes struct {
 
 func (x *ListConstellationsRes) Reset() {
 	*x = ListConstellationsRes{}
-	mi := &file_ego_api_proto_msgTypes[38]
+	mi := &file_ego_api_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2100,7 +2212,7 @@ func (x *ListConstellationsRes) String() string {
 func (*ListConstellationsRes) ProtoMessage() {}
 
 func (x *ListConstellationsRes) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[38]
+	mi := &file_ego_api_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2113,7 +2225,7 @@ func (x *ListConstellationsRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListConstellationsRes.ProtoReflect.Descriptor instead.
 func (*ListConstellationsRes) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{38}
+	return file_ego_api_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *ListConstellationsRes) GetConstellations() []*Constellation {
@@ -2139,7 +2251,7 @@ type GetConstellationReq struct {
 
 func (x *GetConstellationReq) Reset() {
 	*x = GetConstellationReq{}
-	mi := &file_ego_api_proto_msgTypes[39]
+	mi := &file_ego_api_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2151,7 +2263,7 @@ func (x *GetConstellationReq) String() string {
 func (*GetConstellationReq) ProtoMessage() {}
 
 func (x *GetConstellationReq) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[39]
+	mi := &file_ego_api_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2164,7 +2276,7 @@ func (x *GetConstellationReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConstellationReq.ProtoReflect.Descriptor instead.
 func (*GetConstellationReq) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{39}
+	return file_ego_api_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *GetConstellationReq) GetConstellationId() string {
@@ -2188,7 +2300,7 @@ type GetConstellationRes struct {
 
 func (x *GetConstellationRes) Reset() {
 	*x = GetConstellationRes{}
-	mi := &file_ego_api_proto_msgTypes[40]
+	mi := &file_ego_api_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2200,7 +2312,7 @@ func (x *GetConstellationRes) String() string {
 func (*GetConstellationRes) ProtoMessage() {}
 
 func (x *GetConstellationRes) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[40]
+	mi := &file_ego_api_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2213,7 +2325,7 @@ func (x *GetConstellationRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConstellationRes.ProtoReflect.Descriptor instead.
 func (*GetConstellationRes) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{40}
+	return file_ego_api_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *GetConstellationRes) GetConstellation() *Constellation {
@@ -2247,7 +2359,7 @@ type StartChatReq struct {
 
 func (x *StartChatReq) Reset() {
 	*x = StartChatReq{}
-	mi := &file_ego_api_proto_msgTypes[41]
+	mi := &file_ego_api_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2259,7 +2371,7 @@ func (x *StartChatReq) String() string {
 func (*StartChatReq) ProtoMessage() {}
 
 func (x *StartChatReq) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[41]
+	mi := &file_ego_api_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2272,7 +2384,7 @@ func (x *StartChatReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartChatReq.ProtoReflect.Descriptor instead.
 func (*StartChatReq) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{41}
+	return file_ego_api_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *StartChatReq) GetStarId() string {
@@ -2300,7 +2412,7 @@ type StartChatRes struct {
 
 func (x *StartChatRes) Reset() {
 	*x = StartChatRes{}
-	mi := &file_ego_api_proto_msgTypes[42]
+	mi := &file_ego_api_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2312,7 +2424,7 @@ func (x *StartChatRes) String() string {
 func (*StartChatRes) ProtoMessage() {}
 
 func (x *StartChatRes) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[42]
+	mi := &file_ego_api_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2325,7 +2437,7 @@ func (x *StartChatRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartChatRes.ProtoReflect.Descriptor instead.
 func (*StartChatRes) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{42}
+	return file_ego_api_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *StartChatRes) GetChatSessionId() string {
@@ -2359,7 +2471,7 @@ type SendMessageReq struct {
 
 func (x *SendMessageReq) Reset() {
 	*x = SendMessageReq{}
-	mi := &file_ego_api_proto_msgTypes[43]
+	mi := &file_ego_api_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2371,7 +2483,7 @@ func (x *SendMessageReq) String() string {
 func (*SendMessageReq) ProtoMessage() {}
 
 func (x *SendMessageReq) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[43]
+	mi := &file_ego_api_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2384,7 +2496,7 @@ func (x *SendMessageReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendMessageReq.ProtoReflect.Descriptor instead.
 func (*SendMessageReq) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{43}
+	return file_ego_api_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *SendMessageReq) GetChatSessionId() string {
@@ -2410,7 +2522,7 @@ type SendMessageRes struct {
 
 func (x *SendMessageRes) Reset() {
 	*x = SendMessageRes{}
-	mi := &file_ego_api_proto_msgTypes[44]
+	mi := &file_ego_api_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2422,7 +2534,7 @@ func (x *SendMessageRes) String() string {
 func (*SendMessageRes) ProtoMessage() {}
 
 func (x *SendMessageRes) ProtoReflect() protoreflect.Message {
-	mi := &file_ego_api_proto_msgTypes[44]
+	mi := &file_ego_api_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2435,7 +2547,7 @@ func (x *SendMessageRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendMessageRes.ProtoReflect.Descriptor instead.
 func (*SendMessageRes) Descriptor() ([]byte, []int) {
-	return file_ego_api_proto_rawDescGZIP(), []int{44}
+	return file_ego_api_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *SendMessageRes) GetReply() *ChatMessage {
@@ -2452,9 +2564,10 @@ const file_ego_api_proto_rawDesc = "" +
 	"\rego/api.proto\x12\x03ego\"<\n" +
 	"\bLoginReq\x12\x14\n" +
 	"\x05phone\x18\x01 \x01(\tR\x05phone\x12\x1a\n" +
-	"\bpassword\x18\x02 \x01(\tR\bpassword\" \n" +
-	"\bLoginRes\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token\"%\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\"R\n" +
+	"\bLoginRes\x12!\n" +
+	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12#\n" +
+	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\"%\n" +
 	"\rCheckPhoneReq\x12\x14\n" +
 	"\x05phone\x18\x01 \x01(\tR\x05phone\"/\n" +
 	"\rCheckPhoneRes\x12\x1e\n" +
@@ -2467,15 +2580,21 @@ const file_ego_api_proto_rawDesc = "" +
 	"\vRegisterReq\x12\x14\n" +
 	"\x05phone\x18\x01 \x01(\tR\x05phone\x12\x12\n" +
 	"\x04code\x18\x02 \x01(\tR\x04code\x12\x1a\n" +
-	"\bpassword\x18\x03 \x01(\tR\bpassword\"#\n" +
-	"\vRegisterRes\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token\"_\n" +
+	"\bpassword\x18\x03 \x01(\tR\bpassword\"U\n" +
+	"\vRegisterRes\x12!\n" +
+	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12#\n" +
+	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\"_\n" +
 	"\x10ResetPasswordReq\x12\x14\n" +
 	"\x05phone\x18\x01 \x01(\tR\x05phone\x12\x12\n" +
 	"\x04code\x18\x02 \x01(\tR\x04code\x12!\n" +
-	"\fnew_password\x18\x03 \x01(\tR\vnewPassword\"(\n" +
-	"\x10ResetPasswordRes\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token\"\x0f\n" +
+	"\fnew_password\x18\x03 \x01(\tR\vnewPassword\"Z\n" +
+	"\x10ResetPasswordRes\x12!\n" +
+	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12#\n" +
+	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\"6\n" +
+	"\x0fRefreshTokenReq\x12#\n" +
+	"\rrefresh_token\x18\x01 \x01(\tR\frefreshToken\"4\n" +
+	"\x0fRefreshTokenRes\x12!\n" +
+	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\"\x0f\n" +
 	"\rGetProfileReq\"D\n" +
 	"\rGetProfileRes\x12\x14\n" +
 	"\x05phone\x18\x01 \x01(\tR\x05phone\x12\x1d\n" +
@@ -2608,14 +2727,15 @@ const file_ego_api_proto_rawDesc = "" +
 	"\bChatRole\x12\x19\n" +
 	"\x15CHAT_ROLE_UNSPECIFIED\x10\x00\x12\b\n" +
 	"\x04USER\x10\x01\x12\r\n" +
-	"\tPAST_SELF\x10\x022\xcc\b\n" +
+	"\tPAST_SELF\x10\x022\x88\t\n" +
 	"\x03Ego\x12%\n" +
 	"\x05Login\x12\r.ego.LoginReq\x1a\r.ego.LoginRes\x124\n" +
 	"\n" +
 	"CheckPhone\x12\x12.ego.CheckPhoneReq\x1a\x12.ego.CheckPhoneRes\x12R\n" +
 	"\x14SendVerificationCode\x12\x1c.ego.SendVerificationCodeReq\x1a\x1c.ego.SendVerificationCodeRes\x12.\n" +
 	"\bRegister\x12\x10.ego.RegisterReq\x1a\x10.ego.RegisterRes\x12=\n" +
-	"\rResetPassword\x12\x15.ego.ResetPasswordReq\x1a\x15.ego.ResetPasswordRes\x124\n" +
+	"\rResetPassword\x12\x15.ego.ResetPasswordReq\x1a\x15.ego.ResetPasswordRes\x12:\n" +
+	"\fRefreshToken\x12\x14.ego.RefreshTokenReq\x1a\x14.ego.RefreshTokenRes\x124\n" +
 	"\n" +
 	"GetProfile\x12\x12.ego.GetProfileReq\x1a\x12.ego.GetProfileRes\x12@\n" +
 	"\x0eSubmitFeedback\x12\x16.ego.SubmitFeedbackReq\x1a\x16.ego.SubmitFeedbackRes\x12:\n" +
@@ -2647,7 +2767,7 @@ func file_ego_api_proto_rawDescGZIP() []byte {
 }
 
 var file_ego_api_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_ego_api_proto_msgTypes = make([]protoimpl.MessageInfo, 45)
+var file_ego_api_proto_msgTypes = make([]protoimpl.MessageInfo, 47)
 var file_ego_api_proto_goTypes = []any{
 	(ChatRole)(0),                   // 0: ego.ChatRole
 	(*LoginReq)(nil),                // 1: ego.LoginReq
@@ -2660,102 +2780,106 @@ var file_ego_api_proto_goTypes = []any{
 	(*RegisterRes)(nil),             // 8: ego.RegisterRes
 	(*ResetPasswordReq)(nil),        // 9: ego.ResetPasswordReq
 	(*ResetPasswordRes)(nil),        // 10: ego.ResetPasswordRes
-	(*GetProfileReq)(nil),           // 11: ego.GetProfileReq
-	(*GetProfileRes)(nil),           // 12: ego.GetProfileRes
-	(*SubmitFeedbackReq)(nil),       // 13: ego.SubmitFeedbackReq
-	(*SubmitFeedbackRes)(nil),       // 14: ego.SubmitFeedbackRes
-	(*Moment)(nil),                  // 15: ego.Moment
-	(*Echo)(nil),                    // 16: ego.Echo
-	(*Insight)(nil),                 // 17: ego.Insight
-	(*Star)(nil),                    // 18: ego.Star
-	(*Constellation)(nil),           // 19: ego.Constellation
-	(*ChatMessage)(nil),             // 20: ego.ChatMessage
-	(*MomentReference)(nil),         // 21: ego.MomentReference
-	(*CreateMomentReq)(nil),         // 22: ego.CreateMomentReq
-	(*CreateMomentRes)(nil),         // 23: ego.CreateMomentRes
-	(*GetMomentsReq)(nil),           // 24: ego.GetMomentsReq
-	(*GetMomentsRes)(nil),           // 25: ego.GetMomentsRes
-	(*GenerateInsightReq)(nil),      // 26: ego.GenerateInsightReq
-	(*GenerateInsightRes)(nil),      // 27: ego.GenerateInsightRes
-	(*Trace)(nil),                   // 28: ego.Trace
-	(*TraceItem)(nil),               // 29: ego.TraceItem
-	(*ListTracesReq)(nil),           // 30: ego.ListTracesReq
-	(*ListTracesRes)(nil),           // 31: ego.ListTracesRes
-	(*GetTraceDetailReq)(nil),       // 32: ego.GetTraceDetailReq
-	(*GetTraceDetailRes)(nil),       // 33: ego.GetTraceDetailRes
-	(*GetRandomMomentsReq)(nil),     // 34: ego.GetRandomMomentsReq
-	(*GetRandomMomentsRes)(nil),     // 35: ego.GetRandomMomentsRes
-	(*StashTraceReq)(nil),           // 36: ego.StashTraceReq
-	(*StashTraceRes)(nil),           // 37: ego.StashTraceRes
-	(*ListConstellationsReq)(nil),   // 38: ego.ListConstellationsReq
-	(*ListConstellationsRes)(nil),   // 39: ego.ListConstellationsRes
-	(*GetConstellationReq)(nil),     // 40: ego.GetConstellationReq
-	(*GetConstellationRes)(nil),     // 41: ego.GetConstellationRes
-	(*StartChatReq)(nil),            // 42: ego.StartChatReq
-	(*StartChatRes)(nil),            // 43: ego.StartChatRes
-	(*SendMessageReq)(nil),          // 44: ego.SendMessageReq
-	(*SendMessageRes)(nil),          // 45: ego.SendMessageRes
+	(*RefreshTokenReq)(nil),         // 11: ego.RefreshTokenReq
+	(*RefreshTokenRes)(nil),         // 12: ego.RefreshTokenRes
+	(*GetProfileReq)(nil),           // 13: ego.GetProfileReq
+	(*GetProfileRes)(nil),           // 14: ego.GetProfileRes
+	(*SubmitFeedbackReq)(nil),       // 15: ego.SubmitFeedbackReq
+	(*SubmitFeedbackRes)(nil),       // 16: ego.SubmitFeedbackRes
+	(*Moment)(nil),                  // 17: ego.Moment
+	(*Echo)(nil),                    // 18: ego.Echo
+	(*Insight)(nil),                 // 19: ego.Insight
+	(*Star)(nil),                    // 20: ego.Star
+	(*Constellation)(nil),           // 21: ego.Constellation
+	(*ChatMessage)(nil),             // 22: ego.ChatMessage
+	(*MomentReference)(nil),         // 23: ego.MomentReference
+	(*CreateMomentReq)(nil),         // 24: ego.CreateMomentReq
+	(*CreateMomentRes)(nil),         // 25: ego.CreateMomentRes
+	(*GetMomentsReq)(nil),           // 26: ego.GetMomentsReq
+	(*GetMomentsRes)(nil),           // 27: ego.GetMomentsRes
+	(*GenerateInsightReq)(nil),      // 28: ego.GenerateInsightReq
+	(*GenerateInsightRes)(nil),      // 29: ego.GenerateInsightRes
+	(*Trace)(nil),                   // 30: ego.Trace
+	(*TraceItem)(nil),               // 31: ego.TraceItem
+	(*ListTracesReq)(nil),           // 32: ego.ListTracesReq
+	(*ListTracesRes)(nil),           // 33: ego.ListTracesRes
+	(*GetTraceDetailReq)(nil),       // 34: ego.GetTraceDetailReq
+	(*GetTraceDetailRes)(nil),       // 35: ego.GetTraceDetailRes
+	(*GetRandomMomentsReq)(nil),     // 36: ego.GetRandomMomentsReq
+	(*GetRandomMomentsRes)(nil),     // 37: ego.GetRandomMomentsRes
+	(*StashTraceReq)(nil),           // 38: ego.StashTraceReq
+	(*StashTraceRes)(nil),           // 39: ego.StashTraceRes
+	(*ListConstellationsReq)(nil),   // 40: ego.ListConstellationsReq
+	(*ListConstellationsRes)(nil),   // 41: ego.ListConstellationsRes
+	(*GetConstellationReq)(nil),     // 42: ego.GetConstellationReq
+	(*GetConstellationRes)(nil),     // 43: ego.GetConstellationRes
+	(*StartChatReq)(nil),            // 44: ego.StartChatReq
+	(*StartChatRes)(nil),            // 45: ego.StartChatRes
+	(*SendMessageReq)(nil),          // 46: ego.SendMessageReq
+	(*SendMessageRes)(nil),          // 47: ego.SendMessageRes
 }
 var file_ego_api_proto_depIdxs = []int32{
 	0,  // 0: ego.ChatMessage.role:type_name -> ego.ChatRole
-	21, // 1: ego.ChatMessage.referenced:type_name -> ego.MomentReference
-	15, // 2: ego.CreateMomentRes.moment:type_name -> ego.Moment
-	16, // 3: ego.CreateMomentRes.echo:type_name -> ego.Echo
-	15, // 4: ego.GetMomentsRes.moments:type_name -> ego.Moment
-	17, // 5: ego.GenerateInsightRes.insight:type_name -> ego.Insight
-	15, // 6: ego.TraceItem.moment:type_name -> ego.Moment
-	16, // 7: ego.TraceItem.echos:type_name -> ego.Echo
-	17, // 8: ego.TraceItem.insight:type_name -> ego.Insight
-	28, // 9: ego.ListTracesRes.traces:type_name -> ego.Trace
-	28, // 10: ego.GetTraceDetailRes.trace:type_name -> ego.Trace
-	29, // 11: ego.GetTraceDetailRes.items:type_name -> ego.TraceItem
-	15, // 12: ego.GetRandomMomentsRes.moments:type_name -> ego.Moment
-	18, // 13: ego.StashTraceRes.star:type_name -> ego.Star
-	19, // 14: ego.ListConstellationsRes.constellations:type_name -> ego.Constellation
-	19, // 15: ego.GetConstellationRes.constellation:type_name -> ego.Constellation
-	15, // 16: ego.GetConstellationRes.moments:type_name -> ego.Moment
-	18, // 17: ego.GetConstellationRes.stars:type_name -> ego.Star
-	20, // 18: ego.StartChatRes.opening:type_name -> ego.ChatMessage
-	20, // 19: ego.StartChatRes.history:type_name -> ego.ChatMessage
-	20, // 20: ego.SendMessageRes.reply:type_name -> ego.ChatMessage
+	23, // 1: ego.ChatMessage.referenced:type_name -> ego.MomentReference
+	17, // 2: ego.CreateMomentRes.moment:type_name -> ego.Moment
+	18, // 3: ego.CreateMomentRes.echo:type_name -> ego.Echo
+	17, // 4: ego.GetMomentsRes.moments:type_name -> ego.Moment
+	19, // 5: ego.GenerateInsightRes.insight:type_name -> ego.Insight
+	17, // 6: ego.TraceItem.moment:type_name -> ego.Moment
+	18, // 7: ego.TraceItem.echos:type_name -> ego.Echo
+	19, // 8: ego.TraceItem.insight:type_name -> ego.Insight
+	30, // 9: ego.ListTracesRes.traces:type_name -> ego.Trace
+	30, // 10: ego.GetTraceDetailRes.trace:type_name -> ego.Trace
+	31, // 11: ego.GetTraceDetailRes.items:type_name -> ego.TraceItem
+	17, // 12: ego.GetRandomMomentsRes.moments:type_name -> ego.Moment
+	20, // 13: ego.StashTraceRes.star:type_name -> ego.Star
+	21, // 14: ego.ListConstellationsRes.constellations:type_name -> ego.Constellation
+	21, // 15: ego.GetConstellationRes.constellation:type_name -> ego.Constellation
+	17, // 16: ego.GetConstellationRes.moments:type_name -> ego.Moment
+	20, // 17: ego.GetConstellationRes.stars:type_name -> ego.Star
+	22, // 18: ego.StartChatRes.opening:type_name -> ego.ChatMessage
+	22, // 19: ego.StartChatRes.history:type_name -> ego.ChatMessage
+	22, // 20: ego.SendMessageRes.reply:type_name -> ego.ChatMessage
 	1,  // 21: ego.Ego.Login:input_type -> ego.LoginReq
 	3,  // 22: ego.Ego.CheckPhone:input_type -> ego.CheckPhoneReq
 	5,  // 23: ego.Ego.SendVerificationCode:input_type -> ego.SendVerificationCodeReq
 	7,  // 24: ego.Ego.Register:input_type -> ego.RegisterReq
 	9,  // 25: ego.Ego.ResetPassword:input_type -> ego.ResetPasswordReq
-	11, // 26: ego.Ego.GetProfile:input_type -> ego.GetProfileReq
-	13, // 27: ego.Ego.SubmitFeedback:input_type -> ego.SubmitFeedbackReq
-	22, // 28: ego.Ego.CreateMoment:input_type -> ego.CreateMomentReq
-	24, // 29: ego.Ego.GetMoments:input_type -> ego.GetMomentsReq
-	26, // 30: ego.Ego.GenerateInsight:input_type -> ego.GenerateInsightReq
-	30, // 31: ego.Ego.ListTraces:input_type -> ego.ListTracesReq
-	32, // 32: ego.Ego.GetTraceDetail:input_type -> ego.GetTraceDetailReq
-	34, // 33: ego.Ego.GetRandomMoments:input_type -> ego.GetRandomMomentsReq
-	36, // 34: ego.Ego.StashTrace:input_type -> ego.StashTraceReq
-	38, // 35: ego.Ego.ListConstellations:input_type -> ego.ListConstellationsReq
-	40, // 36: ego.Ego.GetConstellation:input_type -> ego.GetConstellationReq
-	42, // 37: ego.Ego.StartChat:input_type -> ego.StartChatReq
-	44, // 38: ego.Ego.SendMessage:input_type -> ego.SendMessageReq
-	2,  // 39: ego.Ego.Login:output_type -> ego.LoginRes
-	4,  // 40: ego.Ego.CheckPhone:output_type -> ego.CheckPhoneRes
-	6,  // 41: ego.Ego.SendVerificationCode:output_type -> ego.SendVerificationCodeRes
-	8,  // 42: ego.Ego.Register:output_type -> ego.RegisterRes
-	10, // 43: ego.Ego.ResetPassword:output_type -> ego.ResetPasswordRes
-	12, // 44: ego.Ego.GetProfile:output_type -> ego.GetProfileRes
-	14, // 45: ego.Ego.SubmitFeedback:output_type -> ego.SubmitFeedbackRes
-	23, // 46: ego.Ego.CreateMoment:output_type -> ego.CreateMomentRes
-	25, // 47: ego.Ego.GetMoments:output_type -> ego.GetMomentsRes
-	27, // 48: ego.Ego.GenerateInsight:output_type -> ego.GenerateInsightRes
-	31, // 49: ego.Ego.ListTraces:output_type -> ego.ListTracesRes
-	33, // 50: ego.Ego.GetTraceDetail:output_type -> ego.GetTraceDetailRes
-	35, // 51: ego.Ego.GetRandomMoments:output_type -> ego.GetRandomMomentsRes
-	37, // 52: ego.Ego.StashTrace:output_type -> ego.StashTraceRes
-	39, // 53: ego.Ego.ListConstellations:output_type -> ego.ListConstellationsRes
-	41, // 54: ego.Ego.GetConstellation:output_type -> ego.GetConstellationRes
-	43, // 55: ego.Ego.StartChat:output_type -> ego.StartChatRes
-	45, // 56: ego.Ego.SendMessage:output_type -> ego.SendMessageRes
-	39, // [39:57] is the sub-list for method output_type
-	21, // [21:39] is the sub-list for method input_type
+	11, // 26: ego.Ego.RefreshToken:input_type -> ego.RefreshTokenReq
+	13, // 27: ego.Ego.GetProfile:input_type -> ego.GetProfileReq
+	15, // 28: ego.Ego.SubmitFeedback:input_type -> ego.SubmitFeedbackReq
+	24, // 29: ego.Ego.CreateMoment:input_type -> ego.CreateMomentReq
+	26, // 30: ego.Ego.GetMoments:input_type -> ego.GetMomentsReq
+	28, // 31: ego.Ego.GenerateInsight:input_type -> ego.GenerateInsightReq
+	32, // 32: ego.Ego.ListTraces:input_type -> ego.ListTracesReq
+	34, // 33: ego.Ego.GetTraceDetail:input_type -> ego.GetTraceDetailReq
+	36, // 34: ego.Ego.GetRandomMoments:input_type -> ego.GetRandomMomentsReq
+	38, // 35: ego.Ego.StashTrace:input_type -> ego.StashTraceReq
+	40, // 36: ego.Ego.ListConstellations:input_type -> ego.ListConstellationsReq
+	42, // 37: ego.Ego.GetConstellation:input_type -> ego.GetConstellationReq
+	44, // 38: ego.Ego.StartChat:input_type -> ego.StartChatReq
+	46, // 39: ego.Ego.SendMessage:input_type -> ego.SendMessageReq
+	2,  // 40: ego.Ego.Login:output_type -> ego.LoginRes
+	4,  // 41: ego.Ego.CheckPhone:output_type -> ego.CheckPhoneRes
+	6,  // 42: ego.Ego.SendVerificationCode:output_type -> ego.SendVerificationCodeRes
+	8,  // 43: ego.Ego.Register:output_type -> ego.RegisterRes
+	10, // 44: ego.Ego.ResetPassword:output_type -> ego.ResetPasswordRes
+	12, // 45: ego.Ego.RefreshToken:output_type -> ego.RefreshTokenRes
+	14, // 46: ego.Ego.GetProfile:output_type -> ego.GetProfileRes
+	16, // 47: ego.Ego.SubmitFeedback:output_type -> ego.SubmitFeedbackRes
+	25, // 48: ego.Ego.CreateMoment:output_type -> ego.CreateMomentRes
+	27, // 49: ego.Ego.GetMoments:output_type -> ego.GetMomentsRes
+	29, // 50: ego.Ego.GenerateInsight:output_type -> ego.GenerateInsightRes
+	33, // 51: ego.Ego.ListTraces:output_type -> ego.ListTracesRes
+	35, // 52: ego.Ego.GetTraceDetail:output_type -> ego.GetTraceDetailRes
+	37, // 53: ego.Ego.GetRandomMoments:output_type -> ego.GetRandomMomentsRes
+	39, // 54: ego.Ego.StashTrace:output_type -> ego.StashTraceRes
+	41, // 55: ego.Ego.ListConstellations:output_type -> ego.ListConstellationsRes
+	43, // 56: ego.Ego.GetConstellation:output_type -> ego.GetConstellationRes
+	45, // 57: ego.Ego.StartChat:output_type -> ego.StartChatRes
+	47, // 58: ego.Ego.SendMessage:output_type -> ego.SendMessageRes
+	40, // [40:59] is the sub-list for method output_type
+	21, // [21:40] is the sub-list for method input_type
 	21, // [21:21] is the sub-list for extension type_name
 	21, // [21:21] is the sub-list for extension extendee
 	0,  // [0:21] is the sub-list for field type_name
@@ -2772,7 +2896,7 @@ func file_ego_api_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ego_api_proto_rawDesc), len(file_ego_api_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   45,
+			NumMessages:   47,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

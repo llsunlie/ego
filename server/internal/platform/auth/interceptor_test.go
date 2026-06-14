@@ -58,7 +58,7 @@ func TestUnaryServerInterceptor_LoggerInContext(t *testing.T) {
 	interceptor := UnaryServerInterceptor(secret, base)
 
 	// Generate a valid token
-	token, err := GenerateJWT("user-1", secret, time.Hour)
+	token, err := GenerateJWT("user-1", secret, time.Hour, "access")
 	if err != nil {
 		t.Fatalf("GenerateJWT: %v", err)
 	}

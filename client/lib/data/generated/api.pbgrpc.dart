@@ -68,6 +68,13 @@ class EgoClient extends $grpc.Client {
     return $createUnaryCall(_$resetPassword, request, options: options);
   }
 
+  $grpc.ResponseFuture<$0.RefreshTokenRes> refreshToken(
+    $0.RefreshTokenReq request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$refreshToken, request, options: options);
+  }
+
   /// ─── Setting（设置）──────────────────────────────────
   $grpc.ResponseFuture<$0.GetProfileRes> getProfile(
     $0.GetProfileReq request, {
@@ -202,6 +209,11 @@ class EgoClient extends $grpc.Client {
           '/ego.Ego/ResetPassword',
           ($0.ResetPasswordReq value) => value.writeToBuffer(),
           $0.ResetPasswordRes.fromBuffer);
+  static final _$refreshToken =
+      $grpc.ClientMethod<$0.RefreshTokenReq, $0.RefreshTokenRes>(
+          '/ego.Ego/RefreshToken',
+          ($0.RefreshTokenReq value) => value.writeToBuffer(),
+          $0.RefreshTokenRes.fromBuffer);
   static final _$getProfile =
       $grpc.ClientMethod<$0.GetProfileReq, $0.GetProfileRes>(
           '/ego.Ego/GetProfile',
@@ -311,6 +323,13 @@ abstract class EgoServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) => $0.ResetPasswordReq.fromBuffer(value),
         ($0.ResetPasswordRes value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.RefreshTokenReq, $0.RefreshTokenRes>(
+        'RefreshToken',
+        refreshToken_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.RefreshTokenReq.fromBuffer(value),
+        ($0.RefreshTokenRes value) => value.writeToBuffer()));
     $addMethod($grpc.ServiceMethod<$0.GetProfileReq, $0.GetProfileRes>(
         'GetProfile',
         getProfile_Pre,
@@ -451,6 +470,14 @@ abstract class EgoServiceBase extends $grpc.Service {
 
   $async.Future<$0.ResetPasswordRes> resetPassword(
       $grpc.ServiceCall call, $0.ResetPasswordReq request);
+
+  $async.Future<$0.RefreshTokenRes> refreshToken_Pre($grpc.ServiceCall $call,
+      $async.Future<$0.RefreshTokenReq> $request) async {
+    return refreshToken($call, await $request);
+  }
+
+  $async.Future<$0.RefreshTokenRes> refreshToken(
+      $grpc.ServiceCall call, $0.RefreshTokenReq request);
 
   $async.Future<$0.GetProfileRes> getProfile_Pre(
       $grpc.ServiceCall $call, $async.Future<$0.GetProfileReq> $request) async {

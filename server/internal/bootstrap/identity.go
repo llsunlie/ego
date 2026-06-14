@@ -12,5 +12,6 @@ func NewIdentityHandler(p *Platform) pb.EgoServer {
 		Hasher:    p.Hasher,
 		Tokens:    p.Tokens,
 		SmsSender: p.SmsService,
+		Verifier:  p.TokenVerifier,
 	})
 }
