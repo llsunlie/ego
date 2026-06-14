@@ -78,6 +78,36 @@ ai.Embed: ok      → 记录 model、tokens、耗时
 ai.Embed: error   → 记录错误信息
 ```
 
+### Echo 召回日志示例
+
+Echo 召回日志关注算法结果，而不是每个基础设施步骤。
+
+```text
+CreateMoment: echo recall candidates
+  -> 记录 current_preview
+  -> 记录 dense_candidates / es_candidates / fused_candidates
+  -> 每路候选最多记录前 5 条
+  -> 每条候选包含 rank、moment_id、trace_id、created_at、content_preview
+
+echo match candidate scores
+  -> 记录 EchoMatcher 对融合候选的逐条计算明细
+  -> 每条候选包含 raw cosine similarity、time_adjustment、echo_score、passed_threshold、skip_reason
+
+CreateMoment: echo final matches
+  -> 记录 EchoMatcher 最终命中的历史 Moment
+  -> 每条命中包含 rank、moment_id、trace_id、content_preview、similarity
+  -> 这里的 similarity 是最终 echo_score，与前端展示字段一致
+
+echo match done
+  -> 记录 history_size、filtered_same_trace、matched、top_score、top_raw_similarity 等统计值
+```
+
+降噪约定：
+
+- gRPC composite 层不记录完整 req/res。
+- ES HTTP 成功请求、ES 写入成功、sparse ids loaded、sparse moments loaded、hybrid merged 等中间碎片日志不记录。
+- 候选内容只记录 `content_preview`，当前最多 48 个 rune。
+
 ### 日志采集链路
 
 ```
@@ -95,6 +125,8 @@ server/.tmp/logs/server/server.log
 {job="ego-server"} |= "ERROR"               # 关键词
 {job="ego-server"} | json | level = "ERROR"  # 结构化过滤
 {job="ego-server"} | msg =~ "ai\\..*"        # AI 调用日志
+{job="ego-server"} | json | msg = "CreateMoment: echo recall candidates"
+{job="ego-server"} | json | msg = "CreateMoment: echo final matches"
 ```
 
 ---

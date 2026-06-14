@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "suite": "constellation_matching_baseline",
+  "description": "P0 baseline cases for Starmap constellation matching evaluation.",
+  "cases": [
+    {
+      "case_id": "constellation.c01.same_theme_different_topic",
+      "title": "不同 topic 命名，但应聚为同一主题",
+      "incoming_trace": {
+        "id": "trace_incoming",
+        "moments": [
+          "我不想每次都是我先开口。",
+          "但我又一直在等他发现。"
+        ],
+        "profile_hint": "在亲密关系中不想总是主动表达，同时期待对方主动靠近。"
+      },
+      "existing_constellations": [
+        {
+          "id": "c1",
+          "status": "active",
+          "topic": "关系里的沉默",
+          "summary": "在亲密关系中等待对方主动靠近，同时不愿反复先表达需求。"
+        },
+        {
+          "id": "c2",
+          "status": "active",
+          "topic": "工作压力",
+          "summary": "承担任务过多导致疲惫。"
+        }
+      ],
+      "expected_action": "join_existing",
+      "expected_target_id": "c1",
+      "expected_negative_ids": ["c2"],
+      "reason": "虽然 topic 词面不同，但 Trace 与 c1 的长期主题画像一致。",
+      "tags": ["profile_match", "topic_variation", "relationship"],
+      "failure_types_covered": ["over_split_topic_variation"]
+    },
+    {
+      "case_id": "constellation.c02.generic_topic_false_merge",
+      "title": "topic 太泛，不应误合并",
+      "incoming_trace": {
+        "id": "trace_incoming",
+        "moments": [
+          "我跟朋友聊天时总怕自己说错话。"
+        ],
+        "profile_hint": "在人际交流中担心表达不合适、被误解或显得奇怪。"
+      },
+      "existing_constellations": [
+        {
+          "id": "c1",
+          "status": "active",
+          "topic": "关系沟通",
+          "summary": "亲密关系中等待对方主动、害怕表达需求。"
+        },
+        {
+          "id": "c2",
+          "status": "forming",
+          "topic": "表达焦虑",
+          "summary": "在人际交流中担心说错话、被误解或显得不合适。"
+        }
+      ],
+      "expected_action": "join_existing",
+      "expected_target_id": "c2",
+      "expected_negative_ids": ["c1"],
+      "reason": "“关系沟通”过泛，不能只因 topic 相近误合并到 c1。",
+      "tags": ["generic_topic_trap", "social_anxiety"],
+      "failure_types_covered": ["false_merge_generic_topic"]
+    },
+    {
+      "case_id": "constellation.c03.lonely_new_theme",
+      "title": "单次新主题应保留为孤星",
+      "incoming_trace": {
+        "id": "trace_incoming",
+        "moments": [
+          "今天第一次认真做饭，发现切菜的时候心里很安静。"
+        ],
+        "profile_hint": "一次新的日常体验，和烹饪、安静、生活感有关。"
+      },
+      "existing_constellations": [
+        {
+          "id": "c1",
+          "status": "active",
+          "topic": "工作压力",
+          "summary": "长期任务压力和独自承担。"
+        },
+        {
+          "id": "c2",
+          "status": "active",
+          "topic": "亲密关系等待",
+          "summary": "关系里等待对方主动靠近。"
+        }
+      ],
+      "expected_action": "create_lonely",
+      "expected_target_id": "",
+      "expected_negative_ids": ["c1", "c2"],
+      "reason": "新 Trace 没有足够相近的长期主题，不应硬凑进已有星座。",
+      "tags": ["lonely", "new_theme", "daily_life"],
+      "failure_types_covered": ["forced_constellation"]
+    },
+    {
+      "case_id": "constellation.c04.lonely_to_forming",
+      "title": "两个孤星相似，可形成 forming",
+      "incoming_trace": {
+        "id": "trace_incoming",
+        "moments": [
+          "我又拖到最后才开始，越拖越怕。"
+        ],
+        "profile_hint": "拖延开始导致压力越来越大。"
+      },
+      "existing_constellations": [
+        {
+          "id": "l1",
+          "status": "lonely",
+          "topic": "拖到最后",
+          "summary": "一直拖延开始，直到压力变大才行动。"
+        },
+        {
+          "id": "c1",
+          "status": "active",
+          "topic": "亲密关系里的主动与等待",
+          "summary": "亲密关系里的主动与等待。"
+        }
+      ],
+      "expected_action": "create_forming",
+      "expected_target_id": "l1",
+      "expected_negative_ids": ["c1"],
+      "reason": "incoming trace 与孤星 l1 属于同一反复模式，可形成 forming 主题。",
+      "tags": ["lonely_merge", "forming", "procrastination"],
+      "failure_types_covered": ["lonely_not_reused"]
+    },
+    {
+      "case_id": "constellation.c05.profile_evolution",
+      "title": "已成型星座应随新 Trace 演化",
+      "incoming_trace": {
+        "id": "trace_incoming",
+        "moments": [
+          "我不是不想说，只是每次说出口都像是在求别人理解我。"
+        ],
+        "profile_hint": "表达需求时感到像是在请求别人理解自己。"
+      },
+      "existing_constellations": [
+        {
+          "id": "c1",
+          "status": "active",
+          "topic": "亲密关系中的主动与等待",
+          "summary": "等待对方主动靠近，不想总由自己表达需求。"
+        }
+      ],
+      "expected_action": "join_existing",
+      "expected_target_id": "c1",
+      "expected_negative_ids": [],
+      "expected_profile_update": true,
+      "reason": "新 Trace 应加入 c1，并推动星座画像吸收“表达需求像是在请求理解”这一更具体的侧面。",
+      "tags": ["active_update", "profile_evolution", "relationship"],
+      "failure_types_covered": ["profile_stale"]
+    }
+  ]
+}
