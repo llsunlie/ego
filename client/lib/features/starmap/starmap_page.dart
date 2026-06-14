@@ -24,6 +24,7 @@ class _StarmapPageState extends ConsumerState<StarmapPage>
   bool _hasLoaded = false;
   bool _showTapGuide = false;
   Timer? _tapGuideTimer;
+  Timer? _autoRefreshTimer;
 
   @override
   void initState() {
@@ -38,6 +39,7 @@ class _StarmapPageState extends ConsumerState<StarmapPage>
   void dispose() {
     _twinkleCtrl.dispose();
     _tapGuideTimer?.cancel();
+    _autoRefreshTimer?.cancel();
     super.dispose();
   }
 
@@ -100,9 +102,16 @@ class _StarmapPageState extends ConsumerState<StarmapPage>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(starmapProvider.notifier).loadConstellations();
       });
+      _autoRefreshTimer?.cancel();
+      _autoRefreshTimer = Timer(const Duration(seconds: 20), () {
+        if (mounted) {
+          ref.read(starmapProvider.notifier).loadConstellations();
+        }
+      });
     }
     if (tabIndex != 2) {
       _hasLoaded = false;
+      _autoRefreshTimer?.cancel();
     }
 
     final state = ref.watch(starmapProvider);

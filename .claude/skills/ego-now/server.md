@@ -60,11 +60,36 @@ Insight { ID, MomentID, EchoID, TraceID, Text, CreatedAt }
 4. 触发 Echo 匹配 → 生成 AI 回声 + 匹配历史相似 moments
 5. 高相似度 Echo 触发 Insight 生成
 
-## Echo 匹配 (`app/echo_matcher.go`)
+## Echo 召回与匹配
 
-- 调用 AI 生成回声文本
-- 基于向量相似度搜索匹配的历史 moments
-- 返回匹配 moment IDs + 相似度分数
+当前 Echo 不再全量扫描历史 Moment。创建 Moment 时会生成 active content embedding，并双写：
+
+- `moments.embeddings` JSONB：领域模型兼容和跨模块读取。
+- `moment_embedding_vectors.embedding VECTOR(1024)`：pgvector/HNSW dense topK 召回。
+- Elasticsearch `ego_moments`：best-effort sparse 召回索引。
+
+`CreateMoment` 中的候选召回流程：
+
+```text
+current moment embedding
+  -> pgvector/HNSW dense topK
+  -> Elasticsearch sparse topK
+  -> RRF 融合
+  -> EchoMatcher 规则过滤、同 Trace 去重、排序
+```
+
+相关配置：
+
+| 环境变量 | 默认 | 说明 |
+|---|---:|---|
+| `AI_EMBEDDING_MODEL` | `BAAI/bge-m3` | 当前 embedding 模型 |
+| `AI_EMBEDDING_DIM` | `1024` | pgvector 写入维度 |
+| `ECHO_RECALL_TOP_K` | `10` | dense topK |
+| `ECHO_SPARSE_RECALL_ENABLED` | `true` | 是否启用 ES sparse |
+| `ECHO_SPARSE_RECALL_TOP_K` | `10` | sparse topK |
+| `ECHO_HYBRID_RRF_K` | `60` | RRF 融合常数 |
+
+`app/echo_matcher.go` 仍负责最终规则排序：计算 raw cosine、加时间距离调整、按 `echo_score >= 0.65` 过滤，并对同一历史 Trace 只保留最高分候选。
 
 ## GenerateInsight (`app/generate_insight.go`)
 
@@ -98,6 +123,10 @@ func NewHandler(deps Deps) *writinggrpc.Handler
 |------|------|
 | `server/internal/platform/ai/client.go` | AI API 客户端（Embedding + Chat） |
 | `server/internal/platform/ai/similarity.go` | 余弦相似度计算 |
+| `server/internal/platform/postgres/migrations/010_moment_embedding_vectors.sql` | Moment 向量表，`VECTOR(1024)` + HNSW |
+| `server/internal/writing/adapter/postgres/echo_candidate_reader.go` | pgvector/HNSW dense topK 候选召回 |
+| `server/internal/writing/adapter/elasticsearch/moment_search.go` | ES sparse 索引与候选召回 |
+| `server/internal/writing/app/echo_hybrid.go` | dense/sparse RRF 融合 |
 | `server/internal/platform/postgres/sqlc/moments.sql.go` | sqlc 生成的 moment 查询 |
 | `server/internal/platform/postgres/sqlc/echos.sql.go` | sqlc 生成的 echo 查询 |
 | `server/internal/platform/postgres/sqlc/insights.sql.go` | sqlc 生成的 insight 查询 |

@@ -31,6 +31,49 @@
       ]
     },
     {
+      "id": "platform.postgres.pgvector_moment_embeddings",
+      "title": "pgvector migration for active Moment embedding recall",
+      "status": "passing",
+      "evidence": [
+        "server/internal/platform/postgres/migrations/010_moment_embedding_vectors.sql",
+        "server/internal/config/config.go",
+        "server/internal/bootstrap/platform.go",
+        "go test ./internal/writing/..."
+      ]
+    },
+    {
+      "id": "platform.elasticsearch",
+      "title": "Elasticsearch HTTP client and sparse recall bootstrap config",
+      "status": "passing",
+      "evidence": [
+        "server/internal/platform/elasticsearch/client.go",
+        "server/internal/config/config.go",
+        "server/internal/bootstrap/platform.go",
+        "docker-compose.yml",
+        "docker/elasticsearch/Dockerfile",
+        "go test ./internal/bootstrap ./internal/writing/adapter/elasticsearch"
+      ]
+    },
+    {
+      "id": "platform.postgres.trace_profiles",
+      "title": "Postgres pgvector storage for TraceProfile sidecar embeddings",
+      "status": "passing",
+      "evidence": [
+        "server/internal/platform/postgres/migrations/011_trace_profiles.sql",
+        "go test ./internal/starmap/..."
+      ]
+    },
+    {
+      "id": "platform.postgres.constellation_profiles",
+      "title": "Postgres storage for ConstellationProfile vectors and Star memberships",
+      "status": "passing",
+      "evidence": [
+        "server/internal/platform/postgres/migrations/012_constellation_profiles.sql",
+        "server/internal/platform/postgres/migrations/013_profile_pattern_tags.sql",
+        "go test ./internal/starmap/..."
+      ]
+    },
+    {
       "id": "platform.ai",
       "title": "AI client — OpenAI-compatible embedding + chat completion",
       "status": "passing",
