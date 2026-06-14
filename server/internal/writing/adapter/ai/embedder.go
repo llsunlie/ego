@@ -24,7 +24,7 @@ func (e *Embedder) Generate(ctx context.Context, content string) ([]domain.Embed
 	logger := logging.FromContext(ctx)
 	logger.DebugContext(ctx, "generating embedding", "input_len", len([]rune(content)))
 
-	result, err := e.client.CreateEmbeddingWithRetry(ctx, content, platformai.DefaultEmbeddingRetryOptions())
+	result, err := e.client.CreateEmbedding(ctx, content)
 	if err != nil {
 		logger.ErrorContext(ctx, "embedding generation failed", "error", err)
 		return nil, fmt.Errorf("ai embedder: %w", err)
