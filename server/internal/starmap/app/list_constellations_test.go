@@ -68,40 +68,6 @@ func TestListConstellations_WithData(t *testing.T) {
 	}
 }
 
-func TestListConstellations_CountsMultiMembershipStarsOnce(t *testing.T) {
-	ctx := context.WithValue(context.Background(), "user_id", "user-1")
-
-	constellationRepo := &mockConstellationRepo{
-		findAllByUserIDFn: func(ctx context.Context, userID string) ([]domain.Constellation, error) {
-			return []domain.Constellation{
-				{ID: "c1", StarIDs: []string{"s1", "s2"}},
-				{ID: "c2", StarIDs: []string{"s1", "s3"}},
-			}, nil
-		},
-	}
-	starRepo := &mockStarRepo{
-		findAllByUserIDFn: func(ctx context.Context, userID string) ([]domain.Star, error) {
-			return []domain.Star{
-				{ID: "s1", UserID: "user-1"},
-				{ID: "s2", UserID: "user-1"},
-				{ID: "s3", UserID: "user-1"},
-			}, nil
-		},
-	}
-
-	uc := NewListConstellationsUseCase(constellationRepo, starRepo)
-	out, err := uc.Execute(ctx)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if out.TotalStarCount != 3 {
-		t.Fatalf("expected 3 unique stars, got %d", out.TotalStarCount)
-	}
-	if len(out.Constellations) != 2 {
-		t.Fatalf("expected 2 constellations, got %d", len(out.Constellations))
-	}
-}
-
 func TestListConstellations_WithUnclusteredStars(t *testing.T) {
 	ctx := context.WithValue(context.Background(), "user_id", "user-1")
 

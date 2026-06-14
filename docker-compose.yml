@@ -24,19 +24,6 @@ services:
     environment:
       ADMINER_DEFAULT_SERVER: postgres
 
-  elasticsearch:
-    build:
-      context: ./docker/elasticsearch
-    container_name: ego-elasticsearch
-    environment:
-      discovery.type: single-node
-      xpack.security.enabled: "false"
-      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
-    ports:
-      - "9200:9200"
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-
   # ── Monitoring stack ──────────────────────────────
 
   prometheus:
@@ -99,4 +86,3 @@ volumes:
   prometheus_data:
   loki_data:
   grafana_data:
-  elasticsearch_data:

@@ -116,15 +116,7 @@ var preAuthMethods = map[string]bool{
 }
 ```
 
-这 5 个 RPC 不校验 JWT，直接放行。其余 RPC 都需要 gRPC metadata 中携带 `Authorization: Bearer <token>`。
-
-## gRPC-web CORS
-
-登录注册页面通过 gRPC-web 访问后端时会经过 `server/internal/bootstrap/server.go` 的 CORS origin 检查：
-
-- 本地开发：`TLS_DOMAIN` 为空时自动允许 `localhost` / `127.0.0.1`。
-- 生产环境：必须把前端域名加入 `CORS_ALLOWED_ORIGINS`，多个 origin 使用逗号分隔。
-- same-origin 请求不受白名单限制。
+这 4 个 RPC 不校验 JWT，直接放行。
 
 ## 模块组装 (`module.go`)
 
@@ -136,7 +128,7 @@ type Deps struct {
     SmsSender identityapp.SmsService        // adapter/sms/aliyun
 }
 
-NewHandler → CheckPhone + SendCode + Register + Login + ResetPassword → Handler
+NewHandler → CheckPhone + SendCode + Register + Login → Handler
 ```
 
 ## Composite 路由 (`bootstrap/composite.go`)

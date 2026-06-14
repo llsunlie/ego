@@ -1,51 +1,28 @@
 # starmap Progress
 
-## Current State (2026-06-04)
+## Current State (2026-05-26)
 
 Starmap module with async clustering and optimistic pending-star UI. `StashTrace` returns immediately (~50ms) with Star(topic="聚合中"), background goroutine handles the AI pipeline (topic → match → assets → constellation). `ListConstellations` surfaces unclustered stars as synthetic single-star constellations so the frontend can render them immediately.
-
-P4 TraceProfile sidecar persistence is implemented. `StashTrace` still returns immediately and the existing async topic clustering path is unchanged. A separate background path generates a TraceProfile from trace moments, retries LLM JSON generation up to two times, falls back to a minimal profile when needed, embeds `profile_text`, and upserts `trace_profiles` plus `trace_profile_vectors`. TraceProfile failures are logged and do not block existing constellation clustering.
-
-P5 TraceProfile quality baseline is established. Fixed review cases now live under `docs/matching-optimization/test-data/trace_profile_cases.json`, and adapter-level regression tests cover prompt construction, JSON parsing, field normalization, fallback behavior, and profile text construction without calling live AI services.
-
-P6 ConstellationProfile target design is documented. The planned model keeps `Trace -> Star` one-to-one, introduces `Star <-> Constellation` many-to-many membership through `constellation_stars`, keeps `TraceProfile` as the content profile name, and adds `ConstellationProfile` as the long-term theme profile.
-
-P7 profile-based constellation matching is implemented as the only `StashTrace` async clustering path. Runtime now generates/persists TraceProfile, recalls ConstellationProfile candidates, scores them, writes primary/secondary memberships through `constellation_stars`, syncs `constellations.star_ids` for proto compatibility, and updates ConstellationProfile stats plus centroid embedding. The old topic-based `clusterAsync` path and TopicGenerator/ConstellationMatcher fallback have been removed.
-
-P7 cleanup keeps TraceProfile AI retry inside `TraceProfileGenerator`: LLM JSON generation and profile embedding each retry locally before fallback / failed profile persistence. App-level `StashTrace` orchestration calls the generator once, then persists the resulting profile/vector. Critical async failures log `recovery=pending_message_queue`, marking the future consistency mechanism; P8 is now reserved for ConstellationProfile merge quality and eventual-consistency design.
-
-P7.1 over-splitting reduction is implemented. TraceProfile/ConstellationProfile now carry `pattern_tags`, profile text includes them, repositories persist them through JSONB, and migration `013_profile_pattern_tags.sql` backfills the column for existing local tables. Matching now uses `pattern_tags_overlap` instead of `central_pattern_overlap`, lowers deterministic thresholds to strong=0.72 / middle=0.60, avoids duplicate centroid weighting for single-trace constellations, and allows explainable middle matches when score is in [0.58, 0.60) with at least three structured evidence dimensions. Candidate logs now include matched keywords, scenes, emotions, pattern tags, score components, and threshold gaps.
-
-P7.2 theme codebook and gated borderline LLM judgement are implemented. `ConstellationProfile` now persists `theme_code`, `theme_label`, `theme_description`, and `theme_examples`; new constellations receive deterministic fallback codebook entries, and valid `suggest_new` LLM output can override them. Deterministic P7.1 scoring still runs first; strong matches attach directly, while weak-but-evidenced top3 borderline candidates call `ConstellationBorderlineJudge`. Accepted output must pass confidence, candidate id, theme_code, shared theme, and match_dimensions gates. Rejected/failed judgements fall back to creating a new constellation.
-
-P7.3 unified membership judgement is implemented. The borderline LLM now judges primary and secondary constellation memberships in one call, using the product-level question "which constellation would feel natural when the user reviews this star later" instead of overly fine-grained event labels. Strong deterministic primary matches still bypass LLM. Borderline candidates in `[0.30, 0.68)` can be accepted by LLM; secondary memberships no longer require the previous middle score threshold, but must pass confidence and evidence gates.
-
-P7.4 ConstellationProfile Elasticsearch sparse recall is implemented. Runtime now indexes ConstellationProfile upserts into `ego_constellation_profiles` on a best-effort basis, recalls dense pgvector and ES sparse candidates concurrently, fuses them with RRF, and then reuses the existing deterministic scoring plus P7.3 judgement path. ES failures only warn and fall back to dense candidates. No historical backfill command is provided.
-
-P8-a ConstellationProfile milestone refinement is implemented. Existing star-to-constellation attach still performs direct rule merge first, then triggers `ConstellationProfileRefiner` when `trace_count` crosses 3, 5, 8, 13, and every +8 traces after 13. Successful refinement rewrites the long-term profile fields and refreshes `profile_embedding` while preserving the weighted `centroid_embedding`; failures warn and fall back to the rule-merged profile without blocking membership writes. P8-b remains reserved for message-queue backed async consistency.
 
 ### Test summary
 
 | Layer | Tests | Status |
 |---|---|---|
-| `app/` | StashTrace, borderline judgement, primary/secondary membership, ListConstellations, and GetConstellation coverage | All pass |
+| `app/` | 11 (4 StashTrace + 3 ListConstellations + 4 GetConstellation) | All pass |
 | `adapter/grpc/` | 5 (StashTrace, StashTrace_Error, ListConstellations, GetConstellation, GetConstellation_Error) | All pass |
-| `internal/starmap/...` | TraceProfile persistence, P7 profile-based constellation matching, P7.1 pattern_tags scoring, P7.2/P7.3 borderline judgement, P7.4 sparse recall, P8-a profile refinement, multi-membership unique list count, and existing starmap tests | All pass |
 
 ### Completed layers
 
 | Layer | Files | Status |
 | --- | --- | --- |
 | `domain` | `types.go`, `ports.go`, `errors.go` | Complete |
-| `app` | `ports.go`, `stash_trace.go`, `list_constellations.go`, `get_constellation.go`, `constellation_asset_generator.go` | Complete |
+| `app` | `ports.go`, `stash_trace.go`, `list_constellations.go`, `get_constellation.go`, `topic_generator.go`, `constellation_matcher.go`, `constellation_asset_generator.go` | Complete |
 | `adapter/postgres` | `star_repo.go`, `constellation_repo.go`, `trace_stasher.go`, `star_reader.go` | Complete |
-| `adapter/postgres` | `trace_profile_repo.go` | Complete |
-| `adapter/ai` | `trace_profile_generator.go` | Complete |
 | `adapter/grpc` | `handler.go`, `mapper.go` | Complete |
 | `adapter/id` | `uuid.go` | Complete |
 | `module wiring` | `module.go` | Complete |
 | `bootstrap` | `bootstrap/starmap.go` | Complete |
-| `platform/migrations` | `006_starmap.sql`, `011_trace_profiles.sql` | Complete |
+| `platform/migrations` | `006_starmap.sql` | Complete |
 | `platform/queries` | `stars.sql`, `constellations.sql` | Complete |
 
 ### RPCs owned by Starmap
@@ -60,26 +37,16 @@ P8-a ConstellationProfile milestone refinement is implemented. Existing star-to-
 
 1. **Star per Trace**: Each stashed Trace becomes exactly one Star (`idx_stars_trace` unique index).
 2. **Constellation clustering**: `star_ids UUID[]` stored in constellation table.
-3. **Async insourcing**: `StashTrace.Execute()` creates Star with topic "聚合中" and returns immediately (~50ms). A background goroutine (`clusterWithProfileAsync`) handles TraceProfile generation, ConstellationProfile matching, membership persistence, and asset generation. Each critical failure logs errors via `logging.FromContext`.
+3. **Async insourcing**: `StashTrace.Execute()` creates Star with topic "聚合中" and returns immediately (~50ms). A background goroutine (`clusterAsync`) handles topic generation, constellation matching, and asset generation. Each step logs errors via `logging.FromContext`.
 4. **Optimistic pending stars (no DB changes)**: No `status` column on `stars`. Unclustered stars are detected at query time (stars not referenced by any constellation's `star_ids`). `ListConstellations` wraps them as synthetic single-star Constellations with user-friendly insight text. `GetConstellation` falls back to the same synthetic response when the ID resolves to a star instead of a constellation. Frontend requires zero changes — `StarFieldPainter._drawLone()` already handles star_count=1.
-5. **Business policies in app**: Profile-based clustering orchestration and ConstellationAssetGenerator remain Starmap business logic, with AI and persistence injected through domain ports.
+5. **Business policies in app**: TopicGenerator, ConstellationMatcher, ConstellationAssetGenerator MVP defaults are Starmap business policies, located in `app/` per two-level assembly rules.
 6. **Two-level assembly**: `bootstrap/starmap.go` passes only DB pool; `starmap/module.go` assembles repos, business policies, app use cases, and gRPC handler.
 7. **Handler use-case interfaces**: Handler accepts interfaces rather than concrete use-case types, enabling clean mock testing.
 8. **Mapper in adapter/grpc**: Proto conversion kept in `mapper.go`.
-9. **TraceProfile profile clustering**: TraceProfile is generated asynchronously after `StashTrace`, persisted, and used as the primary material for ConstellationProfile matching.
-10. **TraceProfile quality before replacement**: P5 validates generation quality before ConstellationProfile or matching replacement work. Quality samples and generator helper tests are the baseline for prompt tuning.
-11. **P6 target membership model**: Future matching should use TraceProfile to compare against ConstellationProfile. A Star can join multiple Constellations as primary/secondary memberships, while `constellations` remains the proto-compatible display entity.
-12. **P7 profile matching path**: Current module wiring uses TraceProfile -> ConstellationProfile matching only. `constellation_stars` is the algorithm membership table; `constellations.star_ids` is still synchronized for compatibility.
-13. **P7.1 matching refinement**: Pattern tags and revised deterministic scoring are implemented to reduce over-splitting before broader P8 profile merge quality work.
-14. **P7.2 matching refinement**: Theme codebook and gated borderline LLM judgement are implemented to reduce over-splitting when deterministic overlap is too weak but a shared upper situation exists.
-15. **P7.3 matching refinement**: Borderline LLM judgement now returns a primary selection plus optional secondary selections in one call. Direct deterministic primary attach is reserved for strong matches; secondary attach is allowed from explicit LLM evidence even when deterministic score is below the old middle threshold.
-16. **P7.4 sparse recall**: ConstellationProfile ES sparse recall is implemented as an optional enhancement. Dense pgvector remains authoritative for primary availability; ES sparse failures warn and do not block clustering. Historical ES backfill is intentionally omitted.
-17. **P8-a profile refinement**: ConstellationProfile direct merge remains the first update step, but trace-count milestones trigger LLM refinement and profile embedding refresh to keep long-term profiles shorter and more distinctive.
-18. **P8-b marker**: Message-queue backed async consistency is reserved for follow-up design.
 
 ### Known Issues
 
-- **Goroutine failure can leave star partially clustered**: If the async `clusterWithProfileAsync` goroutine fails during profile/membership/profile-vector persistence, the star can remain with topic="聚合中" or with incomplete profile membership. Critical failures are logged with `star_id`, `trace_id`, and `recovery=pending_message_queue`; durable retry/dead-letter handling is planned for P8.
+- **Goroutine failure leaves star permanently unclustered**: If the async `clusterAsync` goroutine fails (AI call error, DB error, etc.), the star remains with topic="聚合中" forever. It will continue to appear as a synthetic single-star constellation in `ListConstellations` and `GetConstellation` responses. There is no retry mechanism or dead-letter queue. Recovery requires manual DB intervention or a future background reconciliation job. All failures are logged via `logger.ErrorContext` with `star_id` for diagnosis.
 
 ### Reads from other modules
 

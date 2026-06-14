@@ -33,24 +33,12 @@ func NewEgoHandler(identity, writing, timeline, starmap, chat, setting pb.EgoSer
 	}
 }
 
-func logRPCDispatch(ctx context.Context, rpc string, module string) {
-	logging.FromContext(ctx).DebugContext(ctx, rpc+": dispatch", "module", module)
-}
-
-func logRPCDone(ctx context.Context, rpc string, err error) {
-	logger := logging.FromContext(ctx)
-	if err != nil {
-		logger.ErrorContext(ctx, rpc+": failed", "error", err)
-		return
-	}
-	logger.DebugContext(ctx, rpc+": done")
-}
-
 // Auth — delegated to identity.
 func (h *EgoHandler) Login(ctx context.Context, req *pb.LoginReq) (*pb.LoginRes, error) {
-	logRPCDispatch(ctx, "Login", "identity")
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "Login: request", "req", fmt.Sprintf("%+v", req))
 	res, err := h.identity.Login(ctx, req)
-	logRPCDone(ctx, "Login", err)
+	logger.InfoContext(ctx, "Login: response", "res", fmt.Sprintf("%+v", res), "error", err)
 	return res, err
 }
 
@@ -88,85 +76,96 @@ func (h *EgoHandler) ResetPassword(ctx context.Context, req *pb.ResetPasswordReq
 
 // Moment — delegated to writing.
 func (h *EgoHandler) CreateMoment(ctx context.Context, req *pb.CreateMomentReq) (*pb.CreateMomentRes, error) {
-	logRPCDispatch(ctx, "CreateMoment", "writing")
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "CreateMoment: request", "req", fmt.Sprintf("%+v", req))
 	res, err := h.writing.CreateMoment(ctx, req)
-	logRPCDone(ctx, "CreateMoment", err)
+	logger.InfoContext(ctx, "CreateMoment: response", "res", fmt.Sprintf("%+v", res), "error", err)
 	return res, err
 }
 
 func (h *EgoHandler) GetMoments(ctx context.Context, req *pb.GetMomentsReq) (*pb.GetMomentsRes, error) {
-	logRPCDispatch(ctx, "GetMoments", "writing")
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "GetMoments: request", "req", fmt.Sprintf("%+v", req))
 	res, err := h.writing.GetMoments(ctx, req)
-	logRPCDone(ctx, "GetMoments", err)
+	logger.InfoContext(ctx, "GetMoments: response", "res", fmt.Sprintf("%+v", res), "error", err)
 	return res, err
 }
 
 // Insight — delegated to writing.
 func (h *EgoHandler) GenerateInsight(ctx context.Context, req *pb.GenerateInsightReq) (*pb.GenerateInsightRes, error) {
-	logRPCDispatch(ctx, "GenerateInsight", "writing")
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "GenerateInsight: request", "req", fmt.Sprintf("%+v", req))
 	res, err := h.writing.GenerateInsight(ctx, req)
-	logRPCDone(ctx, "GenerateInsight", err)
+	logger.InfoContext(ctx, "GenerateInsight: response", "res", fmt.Sprintf("%+v", res), "error", err)
 	return res, err
 }
 
 // Trace — delegated to timeline.
 func (h *EgoHandler) ListTraces(ctx context.Context, req *pb.ListTracesReq) (*pb.ListTracesRes, error) {
-	logRPCDispatch(ctx, "ListTraces", "timeline")
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "ListTraces: request", "req", fmt.Sprintf("%+v", req))
 	res, err := h.timeline.ListTraces(ctx, req)
-	logRPCDone(ctx, "ListTraces", err)
+	logger.InfoContext(ctx, "ListTraces: response", "res", fmt.Sprintf("%+v", res), "error", err)
 	return res, err
 }
 
 func (h *EgoHandler) GetTraceDetail(ctx context.Context, req *pb.GetTraceDetailReq) (*pb.GetTraceDetailRes, error) {
-	logRPCDispatch(ctx, "GetTraceDetail", "timeline")
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "GetTraceDetail: request", "req", fmt.Sprintf("%+v", req))
 	res, err := h.timeline.GetTraceDetail(ctx, req)
-	logRPCDone(ctx, "GetTraceDetail", err)
+	logger.InfoContext(ctx, "GetTraceDetail: response", "res", fmt.Sprintf("%+v", res), "error", err)
 	return res, err
 }
 
 // Memory Dot — delegated to timeline.
 func (h *EgoHandler) GetRandomMoments(ctx context.Context, req *pb.GetRandomMomentsReq) (*pb.GetRandomMomentsRes, error) {
-	logRPCDispatch(ctx, "GetRandomMoments", "timeline")
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "GetRandomMoments: request", "req", fmt.Sprintf("%+v", req))
 	res, err := h.timeline.GetRandomMoments(ctx, req)
-	logRPCDone(ctx, "GetRandomMoments", err)
+	logger.InfoContext(ctx, "GetRandomMoments: response", "res", fmt.Sprintf("%+v", res), "error", err)
 	return res, err
 }
 
 // Stash — delegated to starmap.
 func (h *EgoHandler) StashTrace(ctx context.Context, req *pb.StashTraceReq) (*pb.StashTraceRes, error) {
-	logRPCDispatch(ctx, "StashTrace", "starmap")
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "StashTrace: request", "req", fmt.Sprintf("%+v", req))
 	res, err := h.starmap.StashTrace(ctx, req)
-	logRPCDone(ctx, "StashTrace", err)
+	logger.InfoContext(ctx, "StashTrace: response", "res", fmt.Sprintf("%+v", res), "error", err)
 	return res, err
 }
 
 // Constellation — delegated to starmap.
 func (h *EgoHandler) ListConstellations(ctx context.Context, req *pb.ListConstellationsReq) (*pb.ListConstellationsRes, error) {
-	logRPCDispatch(ctx, "ListConstellations", "starmap")
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "ListConstellations: request", "req", fmt.Sprintf("%+v", req))
 	res, err := h.starmap.ListConstellations(ctx, req)
-	logRPCDone(ctx, "ListConstellations", err)
+	logger.InfoContext(ctx, "ListConstellations: response", "res", fmt.Sprintf("%+v", res), "error", err)
 	return res, err
 }
 
 func (h *EgoHandler) GetConstellation(ctx context.Context, req *pb.GetConstellationReq) (*pb.GetConstellationRes, error) {
-	logRPCDispatch(ctx, "GetConstellation", "starmap")
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "GetConstellation: request", "req", fmt.Sprintf("%+v", req))
 	res, err := h.starmap.GetConstellation(ctx, req)
-	logRPCDone(ctx, "GetConstellation", err)
+	logger.InfoContext(ctx, "GetConstellation: response", "res", fmt.Sprintf("%+v", res), "error", err)
 	return res, err
 }
 
 // Chat — delegated to chat.
 func (h *EgoHandler) StartChat(ctx context.Context, req *pb.StartChatReq) (*pb.StartChatRes, error) {
-	logRPCDispatch(ctx, "StartChat", "chat")
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "StartChat: request", "req", fmt.Sprintf("%+v", req))
 	res, err := h.chat.StartChat(ctx, req)
-	logRPCDone(ctx, "StartChat", err)
+	logger.InfoContext(ctx, "StartChat: response", "res", fmt.Sprintf("%+v", res), "error", err)
 	return res, err
 }
 
 func (h *EgoHandler) SendMessage(ctx context.Context, req *pb.SendMessageReq) (*pb.SendMessageRes, error) {
-	logRPCDispatch(ctx, "SendMessage", "chat")
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "SendMessage: request", "req", fmt.Sprintf("%+v", req))
 	res, err := h.chat.SendMessage(ctx, req)
-	logRPCDone(ctx, "SendMessage", err)
+	logger.InfoContext(ctx, "SendMessage: response", "res", fmt.Sprintf("%+v", res), "error", err)
 	return res, err
 }
 

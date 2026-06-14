@@ -8,12 +8,7 @@ import (
 
 func NewStarmapHandler(p *Platform) pb.EgoServer {
 	return starmap.NewHandler(starmap.Deps{
-		DB:                      p.Pool,
-		AIClient:                p.AIClient,
-		ESClient:                p.ESClient,
-		AIEmbeddingDim:          p.AIEmbeddingDim,
-		ConstellationSparseOn:   p.ConstellationSparseOn,
-		ConstellationSparseTopK: p.ConstellationSparseTopK,
-		ConstellationHybridRRFK: p.ConstellationHybridRRFK,
+		DB:       p.Pool,
+		AIClient: p.AIClient,
 	})
 }

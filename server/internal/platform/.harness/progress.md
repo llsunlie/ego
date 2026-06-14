@@ -1,16 +1,6 @@
 # platform Progress
 
-## Current State (2026-06-05)
-
-- Postgres vector support: P1 Echo recall adds migration `010_moment_embedding_vectors.sql`, enabling `vector`, creating `moment_embedding_vectors`, and adding HNSW cosine index for 4096-dim active Moment embeddings.
-- TraceProfile vector support: P4 adds migration `011_trace_profiles.sql`, creating `trace_profiles` for structured Trace images and `trace_profile_vectors` for 4096-dim profile embeddings. P4 stores vectors but does not add an ANN index; pgvector HNSW does not support the current 4096-dim vector shape, so index strategy is deferred to the later constellation matching phase.
-- ConstellationProfile vector and membership support: P7 adds migration `012_constellation_profiles.sql`, creating `constellation_profiles`, `constellation_profile_vectors`, and `constellation_stars` for profile-based star-to-constellation matching. It stores 4096-dim profile and centroid vectors without adding ANN indexes.
-- Profile pattern tag support: P7.1 adds migration `013_profile_pattern_tags.sql`, adding `pattern_tags` JSONB columns to `trace_profiles` and `constellation_profiles` for deterministic constellation matching.
-- Config/bootstrap: platform config now exposes `AI_EMBEDDING_DIM` (default `4096`) and `ECHO_RECALL_TOP_K` (default `10`) so Writing can receive validated embedding dimension and recall limit from process-level bootstrap.
-- Elasticsearch sparse recall support: platform config now exposes `ELASTICSEARCH_URL`, optional basic auth, `ECHO_SPARSE_RECALL_ENABLED`, `ECHO_SPARSE_RECALL_TOP_K`, and `ECHO_HYBRID_RRF_K`. Bootstrap creates a shared ES HTTP client and passes it to Writing.
-- Startup debug logging records the parsed embedding model, embedding dimension, Echo recall topK, sparse recall toggle, sparse topK, and RRF K without exposing secrets.
-
-## Previous State
+## Current State
 
 - Auth: JWT primitives and gRPC interceptor implemented, tests passing.
 - Postgres: Docker Compose configured (pgvector/pgvector:pg16), volume fixed to managed Docker volume. Connection pool (`Connect()`) tested. Migrations applied. sqlc queries tested — 21 tests passing.

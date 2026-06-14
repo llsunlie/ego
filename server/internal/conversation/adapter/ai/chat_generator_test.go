@@ -248,6 +248,24 @@ func TestBuildRefs_Empty(t *testing.T) {
 	}
 }
 
+func TestBuildRefs_TruncatesLongContent(t *testing.T) {
+	longContent := "这是一段很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长的内容"
+	moments := []writingdomain.Moment{
+		{Content: longContent, CreatedAt: time.Date(2026, 5, 11, 0, 0, 0, 0, time.UTC)},
+	}
+
+	refs := buildRefs(moments)
+	if len(refs) != 1 {
+		t.Fatalf("expected 1 ref, got %d", len(refs))
+	}
+	if len([]rune(refs[0].Snippet)) > 30 {
+		t.Fatalf("expected snippet <= 30 runes, got %d", len([]rune(refs[0].Snippet)))
+	}
+	if refs[0].Date != "5月11日" {
+		t.Fatalf("expected '5月11日', got %q", refs[0].Date)
+	}
+}
+
 func TestChatGenerator_GenerateReply_PastSelfRoleMapping(t *testing.T) {
 	// Verify that past_self role in history is mapped to assistant for the API.
 	var receivedRoles []string

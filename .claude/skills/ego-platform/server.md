@@ -27,60 +27,35 @@ server/internal/
 
 ```go
 type Config struct {
-    DatabaseURL                string  // postgres://ego:ego@localhost:5432/ego?sslmode=disable
-    JWTSecret                  string
-    WebPort                    string  // 9080 (plain HTTP: gRPC-web + static files)
-    WebTLSPort                 string  // 9443 (TLS HTTP when TLS_DOMAIN set)
-    GRPCPort                   string  // 9444 (gRPC native, TLS when TLS_DOMAIN set)
-    TLSDomain                  string  // Let's Encrypt domain, empty = TLS disabled
-    CORSAllowedOrigins         string  // CORS_ALLOWED_ORIGINS, comma-separated whitelist
-    WebDir                     string
-    JWTExpHours                string
-    LogLevel                   string
-    LogFormat                  string
-    LogOutput                  string
-    AIAPIKey                   string
-    AIBaseURL                  string
-    AIEmbeddingModel           string  // default model family: BAAI/bge-m3
-    AIEmbeddingDim             string  // default 1024
-    AIEmbeddingAPIKey          string
-    AIEmbeddingBaseURL         string
-    AIChatModel                string
-    AIChatAPIKey               string
-    AIChatBaseURL              string
-    EchoRecallTopK             string
-    ElasticsearchURL           string
-    ElasticsearchUser          string
-    ElasticsearchPass          string
-    EchoSparseEnabled          string
-    EchoSparseTopK             string
-    EchoHybridRRFK             string
-    ConstellationSparseEnabled string
-    ConstellationSparseTopK    string
-    ConstellationHybridRRFK    string
+    DatabaseURL           string  // postgres://ego:ego@localhost:5432/ego?sslmode=disable
+    JWTSecret             string
+    WebPort               string  // 9080 (plain HTTP: gRPC-web + static files)
+    WebTLSPort            string  // 9443 (TLS HTTP when TLS_DOMAIN set)
+    GRPCPort              string  // 9444 (gRPC native, TLS when TLS_DOMAIN set)
+    TLSDomain             string  // Let's Encrypt domain, empty = TLS disabled
+    WebDir                string
+    JWTExpHours           string
+    LogLevel              string
+    LogFormat             string
+    AIAPIKey              string
+    AIBaseURL             string
+    AIEmbeddingModel      string
+    AIEmbeddingAPIKey     string
+    AIEmbeddingBaseURL    string
+    AIChatModel           string
+    AIChatAPIKey          string
+    AIChatBaseURL         string
 }
 ```
 
 从 `.env` 文件加载（`loadEnvFile()` — 从 CWD 向上搜索 `.env`）。支持行内 `#` 注释。OS 环境变量优先级高于 `.env`。
 另有 `RateLimitAuthRate/Burst/PreAuthRate/PreAuthBurst/MaxBuckets` 字段（见 ratelimit 节）。
 
-当前 embedding 默认使用 `BAAI/bge-m3`，输出维度通过 `AI_EMBEDDING_DIM` 配置，默认 `1024`。数据库迁移中的 pgvector 列已固定为 `VECTOR(1024)`，修改模型维度时必须同步迁移：
-
-- `moment_embedding_vectors.embedding`
-- `trace_profile_vectors.embedding`
-- `constellation_profile_vectors.profile_embedding`
-- `constellation_profile_vectors.centroid_embedding`
-
-Echo 和星座画像召回均支持 dense pgvector + Elasticsearch sparse 两路召回，再使用 RRF 融合候选。相关开关和 topK 在 `ECHO_*`、`CONSTELLATION_*` 环境变量中配置。
-
-`CORS_ALLOWED_ORIGINS` 是生产跨域白名单。`TLS_DOMAIN` 为空的本地开发模式会自动允许 `localhost` / `127.0.0.1` origin；生产模式下空白名单会拒绝跨域请求。
-
 ## platform/postgres (`server/internal/platform/postgres/`)
 
 ```
 postgres/
 ├── postgres.go            # pgxpool 连接（Connect 函数）
-├── migrations/            # schema 迁移，含 pgvector/HNSW 向量表
 └── sqlc/                  # sqlc 生成的类型安全 SQL 代码
     ├── db.go              # DBTX 接口 + Queries 结构体
     ├── models.go          # sqlc 数据模型
@@ -97,14 +72,6 @@ postgres/
 
 `Connect(databaseURL)` → 创建 `*pgxpool.Pool`，Ping 验证连通性。
 
-向量检索相关迁移：
-
-| Migration | 表 | 向量列 | 索引 |
-|---|---|---|---|
-| `010_moment_embedding_vectors.sql` | `moment_embedding_vectors` | `embedding VECTOR(1024)` | `idx_moment_embedding_vectors_embedding_hnsw` |
-| `011_trace_profiles.sql` | `trace_profile_vectors` | `embedding VECTOR(1024)` | `idx_trace_profile_vectors_embedding_hnsw` |
-| `012_constellation_profiles.sql` | `constellation_profile_vectors` | `profile_embedding VECTOR(1024)`, `centroid_embedding VECTOR(1024)` | `idx_constellation_profile_vectors_profile_embedding_hnsw` |
-
 ## platform/ai (`server/internal/platform/ai/`)
 
 ```
@@ -118,8 +85,6 @@ ai/
 - `Embed(ctx, texts)` — 文本向量嵌入
 - `Chat(ctx, messages)` — LLM 对话
 - `Similarity(a, b)` — 余弦相似度
-
-Embedding 维度由 `platform.Config.EmbeddingDim` 校验并向下游写库链路传递。当前默认模型为 `BAAI/bge-m3`，因此迁移和回填脚本都以 1024 维为准。
 
 ## platform/auth (`server/internal/platform/auth/`)
 
@@ -192,7 +157,7 @@ ratelimit 在 auth 之后，利用 auth 注入的 `user_id` 做 per-phone 限流
 ```
 bootstrap/
 ├── platform.go    # InitPlatform(cfg) — 初始化 Pool + Logger + AIClient + JWT
-├── server.go      # NewServer(cfg, platform, handler) — 创建 gRPC/gRPC-web server + CORS whitelist
+├── server.go      # NewServer(cfg, platform, handler) — 创建 gRPC server
 ├── composite.go   # EgoHandler — 组合所有 module handler，按 RPC 方法路由
 ├── identity.go    # NewIdentityHandler(platform)
 ├── writing.go     # NewWritingHandler(platform)
@@ -208,12 +173,6 @@ bootstrap/
 4. `bootstrap.NewEgoHandler(...)` — 组合为 composite handler
 5. `bootstrap.NewServer(cfg, p, handler)` — 创建 gRPC server
 6. `server.Serve()` — 启动 gRPC + gRPC-web
-
-`server.go` 使用 `grpcweb.WithOriginFunc(makeOriginChecker(cfg))` 做跨域检查：
-
-- same-origin 请求始终允许。
-- `TLS_DOMAIN` 为空时允许本地开发 origin。
-- 其他跨域请求必须命中 `CORS_ALLOWED_ORIGINS`。
 
 ## DDD 架构约定
 
