@@ -57,7 +57,9 @@ func NewServer(cfg *config.Config, p *Platform, handler pb.EgoServer) *Server {
 		),
 	)
 	pb.RegisterEgoServer(grpcServer, handler)
-	reflection.Register(grpcServer)
+	if cfg.GRPC_REFLECTION == "true" {
+		reflection.Register(grpcServer)
+	}
 
 	wrapped := grpcweb.WrapServer(grpcServer,
 		grpcweb.WithOriginFunc(makeOriginChecker(cfg)),

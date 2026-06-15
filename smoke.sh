@@ -137,6 +137,7 @@ pass "server built"
 
 info "starting server..."
 DATABASE_URL="$DB_URL" \
+GRPC_REFLECTION=true \
 LOG_LEVEL=error \
 JWT_SECRET="smoke-test-secret" \
 JWT_ACCESS_EXP_HOURS="1" \
