@@ -10,6 +10,8 @@ import '../../data/services/ego_client.dart';
 import '../now/widgets/starry_background.dart';
 import '../../data/generated/api.pbgrpc.dart' as grpc;
 
+const String icpRegistrationNumber = '闽ICP备2026020313号';
+
 class SettingPage extends ConsumerStatefulWidget {
   const SettingPage({super.key});
 
@@ -256,6 +258,40 @@ class _SettingPageState extends ConsumerState<SettingPage> {
                               color: Color(0xFFE53935),
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 4),
+                        child: Center(
+                          child: Text(
+                            'Copyright © 2026 Ego 工作室 保留所有权利',
+                            style: TextStyle(
+                              color: AppColors.textHint,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        child: Center(
+                          child: GestureDetector(
+                            onTap: () => _copyToClipboard(
+                              'https://beian.miit.gov.cn/',
+                              '备案号链接已复制',
+                            ),
+                            child: const Padding(
+                              padding: EdgeInsets.all(8),
+                              child: Text(
+                                icpRegistrationNumber,
+                                style: TextStyle(
+                                  color: AppColors.textHint,
+                                  fontSize: 12,
+                                ),
+                              ),
                             ),
                           ),
                         ),
