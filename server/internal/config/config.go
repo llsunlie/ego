@@ -61,6 +61,8 @@ type Config struct {
 	RateLimitMaxBuckets      string
 	RateLimitCleanupInterval string // seconds between cleanup runs
 	RateLimitBucketTTL       string // seconds before an idle bucket is removed
+	// gRPC Reflection
+	GRPC_REFLECTION string
 }
 
 // getEnvWithFallback returns os.Getenv(key), or os.Getenv(fallback) if empty.
@@ -114,6 +116,7 @@ func Load() *Config {
 		RateLimitMaxBuckets:      os.Getenv("RATELIMIT_MAX_BUCKETS"),
 		RateLimitCleanupInterval: os.Getenv("RATELIMIT_CLEANUP_INTERVAL"),
 		RateLimitBucketTTL:       os.Getenv("RATELIMIT_BUCKET_TTL"),
+		GRPC_REFLECTION:          os.Getenv("GRPC_REFLECTION"),
 	}
 }
 
