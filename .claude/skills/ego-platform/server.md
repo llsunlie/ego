@@ -45,6 +45,7 @@ type Config struct {
     AIChatModel           string
     AIChatAPIKey          string
     AIChatBaseURL         string
+    GRPC_REFLECTION       string  // "true" to enable gRPC server reflection, default off
 }
 ```
 
