@@ -4,7 +4,7 @@
 
 ## 路由
 
-`/setting` — 需登录，从 AppShell 左上角齿轮图标通过 `context.push()` 进入。
+`/setting` — 需登录，从 AppShell 左上角齿轮图标通过 `context.push()` 进入。图标仅在 `/now`、`/past`、`/starmap` 三个根路由显示，push 子页面（如 `/past/detail/:traceId`、`/starmap/detail/:constellationId`）不显示。
 `/feedback` — 需登录，从设置页「用户反馈」行 push 进入。
 
 ## 核心文件
@@ -14,7 +14,7 @@
 | `client/lib/features/setting/setting_page.dart` | 设置页 UI: 分区 icon 行 + copy / push 交互，`ConsumerStatefulWidget` |
 | `client/lib/features/setting/feedback_page.dart` | 反馈页: 多行文本输入 + 提交按钮 + loading/error 状态，`ConsumerStatefulWidget` |
 | `client/lib/core/version.dart` | `make version` 生成，`appVersion` 常量来自 `git describe --tags` |
-| `client/lib/shared/widgets/app_shell.dart` | 左上角 `Icons.settings_outlined` 入口 |
+| `client/lib/shared/widgets/app_shell.dart` | 左上角 `Icons.settings_outlined` 入口，通过 `GoRouterState.of(context).uri.path` 判断仅在根路由（`/now`、`/past`、`/starmap`）显示 |
 | `client/lib/features/now/widgets/starry_background.dart` | 星空背景组件 `StarryBackground`，设置页/反馈页复用 |
 | `client/lib/core/router/router.dart` | `/setting`、`/feedback` 路由（GoRoute） |
 | `client/lib/data/services/ego_client.dart` | `getProfile(WidgetRef ref)` + `submitFeedback(WidgetRef ref, {required String content})` — 携带 token 调用 RPC |

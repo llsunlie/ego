@@ -12,23 +12,28 @@ class AppShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tabIndex = ref.watch(tabProvider);
+    final currentPath = GoRouterState.of(context).uri.path;
+    final showSettingsIcon = currentPath == '/now' ||
+        currentPath == '/past' ||
+        currentPath == '/starmap';
 
     return Scaffold(
       body: Stack(
         children: [
           navigationShell,
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            left: 4,
-            child: IconButton(
-              icon: const Icon(
-                Icons.settings_outlined,
-                color: Color(0xFF5A5A70),
-                size: 22,
+          if (showSettingsIcon)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              left: 4,
+              child: IconButton(
+                icon: const Icon(
+                  Icons.settings_outlined,
+                  color: Color(0xFF5A5A70),
+                  size: 22,
+                ),
+                onPressed: () => context.push('/setting'),
               ),
-              onPressed: () => context.push('/setting'),
             ),
-          ),
         ],
       ),
       bottomNavigationBar: ClipRect(
