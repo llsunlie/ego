@@ -8,13 +8,19 @@ import (
 	writingid "ego-server/internal/writing/adapter/id"
 	writingpostgres "ego-server/internal/writing/adapter/postgres"
 	writingapp "ego-server/internal/writing/app"
+	"ego-server/internal/writing/domain"
 )
 
 // Deps contains process-level resources and external capabilities needed to
 // assemble the writing bounded context.
 type Deps struct {
-	DB       sqlc.DBTX
-	AIClient *platformai.Client
+	DB             sqlc.DBTX
+	AIClient       *platformai.Client
+	EmbeddingDim   int
+	EchoRecallTopK int32
+	EchoSparseOn   bool
+	EchoSparseTopK int32
+	EchoHybridRRFK int
 }
 
 // NewHandler wires the writing module's adapters and use cases.
@@ -22,7 +28,8 @@ func NewHandler(deps Deps) *writinggrpc.Handler {
 	queries := sqlc.New(deps.DB)
 
 	traceRepo := writingpostgres.NewTraceRepository(queries)
-	momentRepo := writingpostgres.NewMomentRepository(queries)
+	momentRepo := writingpostgres.NewMomentRepositoryWithVector(queries, deps.DB, deps.EmbeddingDim)
+	echoCandidateReader := writingpostgres.NewEchoCandidateReader(queries, deps.DB, deps.EmbeddingDim)
 	echoRepo := writingpostgres.NewEchoRepository(queries)
 	insightRepo := writingpostgres.NewInsightRepository(queries)
 	reader := writingpostgres.NewReader(queries)
@@ -31,11 +38,19 @@ func NewHandler(deps Deps) *writinggrpc.Handler {
 	embedder := writingai.NewEmbedder(deps.AIClient)
 	echoMatcher := writingapp.NewDefaultEchoMatcher()
 	insightGenerator := writingai.NewInsightGenerator(deps.AIClient, momentRepo, echoRepo)
+	var searchIndexer domain.MomentSearchIndexer
+	var sparseReader domain.EchoSparseCandidateReader
+	if deps.EchoSparseOn {
+		momentSearch := writingpostgres.NewMomentSparseSearch(queries, deps.DB)
+		searchIndexer = momentSearch
+		sparseReader = momentSearch
+	}
 
-	createMoment := writingapp.NewCreateMomentUseCase(
-		traceRepo, momentRepo, echoRepo,
-		embedder, echoMatcher,
-		ids,
+	createMoment := writingapp.NewCreateMomentUseCaseWithHybridCandidates(
+		traceRepo, momentRepo, echoCandidateReader,
+		searchIndexer, sparseReader,
+		echoRepo, embedder, echoMatcher,
+		ids, deps.EchoRecallTopK, deps.EchoSparseTopK, deps.EchoHybridRRFK,
 	)
 
 	generateInsight := writingapp.NewGenerateInsightUseCase(

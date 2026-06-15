@@ -183,7 +183,7 @@ func TestBuildInsightUserPrompt_WithEcho(t *testing.T) {
 	moment := &domain.Moment{Content: "今天感到特别焦虑"}
 	echo := &domain.Echo{MatchedMomentIDs: []string{"a", "b", "c"}}
 
-	result := buildInsightUserPrompt(moment, echo)
+	result := buildInsightUserPrompt(moment, echo, nil)
 
 	if !strings.Contains(result, "当前想法：今天感到特别焦虑") {
 		t.Fatalf("expected moment content in prompt, got %q", result)
@@ -196,7 +196,7 @@ func TestBuildInsightUserPrompt_WithEcho(t *testing.T) {
 func TestBuildInsightUserPrompt_NoEcho(t *testing.T) {
 	moment := &domain.Moment{Content: "只是随便写写"}
 
-	result := buildInsightUserPrompt(moment, nil)
+	result := buildInsightUserPrompt(moment, nil, nil)
 
 	if result != "当前想法：只是随便写写" {
 		t.Fatalf("expected only moment content, got %q", result)

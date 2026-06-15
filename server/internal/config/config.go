@@ -25,34 +25,42 @@ func (c *Config) AllowedOrigins() []string {
 }
 
 type Config struct {
-	DatabaseURL           string
-	JWTSecret             string
-	WebPort               string
-	WebTLSPort            string
-	GRPCPort              string
-	WebDir                string
-	JwtAccessExpHours     string
-	JwtRefreshExpDays     string
-	LogLevel              string
-	LogFormat             string
-	LogOutput             string
-	AIAPIKey              string
-	AIBaseURL             string
-	AIEmbeddingModel      string
-	AIEmbeddingAPIKey     string
-	AIEmbeddingBaseURL    string
-	AIChatModel           string
-	AIChatAPIKey          string
-	AIChatBaseURL         string
-	AliyunAccessKeyID     string
-	AliyunAccessKeySecret string
-	AliyunSmsSignName     string
-	AliyunSmsTemplateCode string
-	AliyunSmsCodeLength   string
-	AliyunSmsValidTime    string
-	AliyunSmsInterval     string
-	TLSDomain             string
-	CORSAllowedOrigins    string
+	DatabaseURL                string
+	JWTSecret                  string
+	WebPort                    string
+	WebTLSPort                 string
+	GRPCPort                   string
+	WebDir                     string
+	JwtAccessExpHours          string
+	JwtRefreshExpDays          string
+	LogLevel                   string
+	LogFormat                  string
+	LogOutput                  string
+	AIAPIKey                   string
+	AIBaseURL                  string
+	AIEmbeddingModel           string
+	AIEmbeddingDim             string
+	AIEmbeddingAPIKey          string
+	AIEmbeddingBaseURL         string
+	AIChatModel                string
+	AIChatAPIKey               string
+	AIChatBaseURL              string
+	EchoRecallTopK             string
+	EchoSparseEnabled          string
+	EchoSparseTopK             string
+	EchoHybridRRFK             string
+	ConstellationSparseEnabled string
+	ConstellationSparseTopK    string
+	ConstellationHybridRRFK    string
+	AliyunAccessKeyID          string
+	AliyunAccessKeySecret      string
+	AliyunSmsSignName          string
+	AliyunSmsTemplateCode      string
+	AliyunSmsCodeLength        string
+	AliyunSmsValidTime         string
+	AliyunSmsInterval          string
+	TLSDomain                  string
+	CORSAllowedOrigins         string
 	// Rate limit
 	RateLimitAuthRate        string
 	RateLimitAuthBurst       string
@@ -80,34 +88,42 @@ func Load() *Config {
 	loadEnvFile()
 
 	return &Config{
-		DatabaseURL:           os.Getenv("DATABASE_URL"),
-		JWTSecret:             os.Getenv("JWT_SECRET"),
-		WebPort:               os.Getenv("WEB_PORT"),
-		WebTLSPort:            os.Getenv("WEB_TLS_PORT"),
-		GRPCPort:              os.Getenv("GRPC_PORT"),
-		WebDir:                os.Getenv("WEB_DIR"),
-		JwtAccessExpHours:     os.Getenv("JWT_ACCESS_EXP_HOURS"),
-		JwtRefreshExpDays:     os.Getenv("JWT_REFRESH_EXP_DAYS"),
-		LogLevel:              os.Getenv("LOG_LEVEL"),
-		LogFormat:             os.Getenv("LOG_FORMAT"),
-		LogOutput:             os.Getenv("LOG_OUTPUT"),
-		AIAPIKey:              os.Getenv("AI_API_KEY"),
-		AIBaseURL:             os.Getenv("AI_BASE_URL"),
-		AIEmbeddingModel:      os.Getenv("AI_EMBEDDING_MODEL"),
-		AIEmbeddingAPIKey:     getEnvWithFallback("AI_EMBEDDING_API_KEY", "AI_API_KEY"),
-		AIEmbeddingBaseURL:    getEnvWithFallback("AI_EMBEDDING_BASE_URL", "AI_BASE_URL"),
-		AIChatModel:           os.Getenv("AI_CHAT_MODEL"),
-		AIChatAPIKey:          getEnvWithFallback("AI_CHAT_API_KEY", "AI_API_KEY"),
-		AIChatBaseURL:         getEnvWithFallback("AI_CHAT_BASE_URL", "AI_BASE_URL"),
-		AliyunAccessKeyID:     os.Getenv("ALIYUN_ACCESS_KEY_ID"),
-		AliyunAccessKeySecret: os.Getenv("ALIYUN_ACCESS_KEY_SECRET"),
-		AliyunSmsSignName:     os.Getenv("ALIYUN_SMS_SIGN_NAME"),
-		AliyunSmsTemplateCode: os.Getenv("ALIYUN_SMS_TEMPLATE_CODE"),
-		AliyunSmsCodeLength:   os.Getenv("ALIYUN_SMS_CODE_LENGTH"),
-		AliyunSmsValidTime:    os.Getenv("ALIYUN_SMS_VALID_TIME"),
-		AliyunSmsInterval:     os.Getenv("ALIYUN_SMS_INTERVAL"),
-		TLSDomain:             os.Getenv("TLS_DOMAIN"),
-		CORSAllowedOrigins:    os.Getenv("CORS_ALLOWED_ORIGINS"),
+		DatabaseURL:                os.Getenv("DATABASE_URL"),
+		JWTSecret:                  os.Getenv("JWT_SECRET"),
+		WebPort:                    os.Getenv("WEB_PORT"),
+		WebTLSPort:                 os.Getenv("WEB_TLS_PORT"),
+		GRPCPort:                   os.Getenv("GRPC_PORT"),
+		WebDir:                     os.Getenv("WEB_DIR"),
+		JwtAccessExpHours:          os.Getenv("JWT_ACCESS_EXP_HOURS"),
+		JwtRefreshExpDays:          os.Getenv("JWT_REFRESH_EXP_DAYS"),
+		LogLevel:                   os.Getenv("LOG_LEVEL"),
+		LogFormat:                  os.Getenv("LOG_FORMAT"),
+		LogOutput:                  os.Getenv("LOG_OUTPUT"),
+		AIAPIKey:                   os.Getenv("AI_API_KEY"),
+		AIBaseURL:                  os.Getenv("AI_BASE_URL"),
+		AIEmbeddingModel:           os.Getenv("AI_EMBEDDING_MODEL"),
+		AIEmbeddingDim:             getEnvDefault("AI_EMBEDDING_DIM", "1024"),
+		AIEmbeddingAPIKey:          getEnvWithFallback("AI_EMBEDDING_API_KEY", "AI_API_KEY"),
+		AIEmbeddingBaseURL:         getEnvWithFallback("AI_EMBEDDING_BASE_URL", "AI_BASE_URL"),
+		AIChatModel:                os.Getenv("AI_CHAT_MODEL"),
+		AIChatAPIKey:               getEnvWithFallback("AI_CHAT_API_KEY", "AI_API_KEY"),
+		AIChatBaseURL:              getEnvWithFallback("AI_CHAT_BASE_URL", "AI_BASE_URL"),
+		EchoRecallTopK:             getEnvDefault("ECHO_RECALL_TOP_K", "10"),
+		EchoSparseEnabled:          getEnvDefault("ECHO_SPARSE_RECALL_ENABLED", "true"),
+		EchoSparseTopK:             getEnvDefault("ECHO_SPARSE_RECALL_TOP_K", "10"),
+		EchoHybridRRFK:             getEnvDefault("ECHO_HYBRID_RRF_K", "60"),
+		ConstellationSparseEnabled: getEnvDefault("CONSTELLATION_SPARSE_RECALL_ENABLED", "true"),
+		ConstellationSparseTopK:    getEnvDefault("CONSTELLATION_SPARSE_RECALL_TOP_K", "10"),
+		ConstellationHybridRRFK:    getEnvDefault("CONSTELLATION_HYBRID_RRF_K", "60"),
+		AliyunAccessKeyID:          os.Getenv("ALIYUN_ACCESS_KEY_ID"),
+		AliyunAccessKeySecret:      os.Getenv("ALIYUN_ACCESS_KEY_SECRET"),
+		AliyunSmsSignName:          os.Getenv("ALIYUN_SMS_SIGN_NAME"),
+		AliyunSmsTemplateCode:      os.Getenv("ALIYUN_SMS_TEMPLATE_CODE"),
+		AliyunSmsCodeLength:        os.Getenv("ALIYUN_SMS_CODE_LENGTH"),
+		AliyunSmsValidTime:         os.Getenv("ALIYUN_SMS_VALID_TIME"),
+		AliyunSmsInterval:          os.Getenv("ALIYUN_SMS_INTERVAL"),
+		TLSDomain:                  os.Getenv("TLS_DOMAIN"),
+		CORSAllowedOrigins:         os.Getenv("CORS_ALLOWED_ORIGINS"),
 		// Rate limit
 		RateLimitAuthRate:        os.Getenv("RATELIMIT_AUTH_RATE"),
 		RateLimitAuthBurst:       os.Getenv("RATELIMIT_AUTH_BURST"),
@@ -118,6 +134,13 @@ func Load() *Config {
 		RateLimitBucketTTL:       os.Getenv("RATELIMIT_BUCKET_TTL"),
 		GRPC_REFLECTION:          os.Getenv("GRPC_REFLECTION"),
 	}
+}
+
+func getEnvDefault(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }
 
 // loadEnvFile searches upward from the current working directory for a

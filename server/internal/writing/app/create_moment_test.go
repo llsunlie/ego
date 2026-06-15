@@ -349,19 +349,3 @@ func TestCreateMoment_EchoMatchingError(t *testing.T) {
 	}
 }
 
-func TestExcludeSelf(t *testing.T) {
-	moments := []domain.Moment{
-		{ID: "a"},
-		{ID: "b"},
-		{ID: "c"},
-	}
-	result := excludeSelf(moments, "b")
-	if len(result) != 2 {
-		t.Fatalf("expected 2, got %d", len(result))
-	}
-	for _, m := range result {
-		if m.ID == "b" {
-			t.Fatal("expected 'b' to be excluded")
-		}
-	}
-}
