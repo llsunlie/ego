@@ -7,4 +7,4 @@ data/
 .playwright-mcp/
 .tmp/
 server/ego
-.superpowers
+.superpowers.tmp/

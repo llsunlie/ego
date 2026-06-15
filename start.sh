@@ -2,10 +2,25 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-GRPC_PORT="${PORT:-9443}"
+
+env_value() {
+    local key="$1"
+    local file="$ROOT/server/.env"
+    if [ -f "$file" ]; then
+        awk -F= -v key="$key" '$1 == key { print substr($0, index($0, "=") + 1); exit }' "$file"
+    fi
+}
+
+GRPC_PORT="${GRPC_PORT:-$(env_value GRPC_PORT)}"
+GRPC_PORT="${GRPC_PORT:-9444}"
+WEB_PORT="${WEB_PORT:-$(env_value WEB_PORT)}"
 WEB_PORT="${WEB_PORT:-9080}"
+WEB_TLS_PORT="${WEB_TLS_PORT:-$(env_value WEB_TLS_PORT)}"
+WEB_TLS_PORT="${WEB_TLS_PORT:-9443}"
 FLUTTER_PORT="${FLUTTER_PORT:-9081}"
 REACT_PORT="${REACT_PORT:-5173}"
+LOG_DIR="$ROOT/.tmp/logs/start"
+STARTUP_COMPLETE=false
 
 # Terminal colors
 RED='\033[0;31m'
@@ -34,14 +49,18 @@ port_pid() {
 }
 
 kill_port() {
+    local port="$1"
     local pid
-    pid="$(port_pid "$1")"
+    pid="$(port_pid "$port")"
     if [ -n "$pid" ]; then
+        log "killing process(es) on port $port: $pid"
         if [ "$IS_WINDOWS" = true ]; then
             for p in $pid; do taskkill //F //PID "$p" 2>/dev/null || true; done
         else
             kill -9 $pid 2>/dev/null || true
         fi
+    else
+        log "port $port is free"
     fi
 }
 
@@ -60,21 +79,36 @@ kill_process() {
 }
 
 # ── cleanup ─────────────────────────────────────────────────────────
-cleanup() {
-    log "shutting down..."
+cleanup_started_processes() {
     [ -n "${GO_PID:-}" ] && kill_process "$GO_PID"
     [ -n "${FLUTTER_PID:-}" ] && kill_process "$FLUTTER_PID"
     [ -n "${REACT_PID:-}" ] && kill_process "$REACT_PID"
-    wait $GO_PID 2>/dev/null || true
-    wait $FLUTTER_PID 2>/dev/null || true
-    wait $REACT_PID 2>/dev/null || true
+    [ -n "${GO_PID:-}" ] && wait "$GO_PID" 2>/dev/null || true
+    [ -n "${FLUTTER_PID:-}" ] && wait "$FLUTTER_PID" 2>/dev/null || true
+    [ -n "${REACT_PID:-}" ] && wait "$REACT_PID" 2>/dev/null || true
+}
+
+cleanup_on_exit() {
+    if [ "$STARTUP_COMPLETE" = true ]; then
+        return
+    fi
+    log "startup interrupted or failed, shutting down started processes..."
+    cleanup_started_processes
     log "done"
 }
-trap cleanup EXIT INT TERM
+
+cleanup_on_signal() {
+    STARTUP_COMPLETE=true
+    cleanup_started_processes
+}
+
+trap cleanup_on_exit EXIT
+trap 'cleanup_on_signal; exit 130' INT
+trap 'cleanup_on_signal; exit 143' TERM
 
 # ── kill stale ports ────────────────────────────────────────────────
-log "clearing ports ${GRPC_PORT} ${WEB_PORT} ${FLUTTER_PORT} ${REACT_PORT}..."
-for port in $GRPC_PORT $WEB_PORT $FLUTTER_PORT $REACT_PORT; do
+log "clearing ports ${GRPC_PORT} ${WEB_PORT} ${WEB_TLS_PORT} ${FLUTTER_PORT} ${REACT_PORT}..."
+for port in $GRPC_PORT $WEB_PORT $WEB_TLS_PORT $FLUTTER_PORT $REACT_PORT; do
     kill_port "$port"
 done
 sleep 0.5
@@ -83,7 +117,13 @@ sleep 0.5
 cd "$ROOT"
 log "starting docker services..."
 docker compose up -d
-sleep 2
+
+log "waiting for postgres..."
+until docker compose exec -T postgres pg_isready -U ego -d ego >/dev/null 2>&1; do
+    sleep 0.5
+done
+log "postgres ready"
+
 log "docker services ready"
 
 # ── go backend ──────────────────────────────────────────────────────
@@ -92,33 +132,54 @@ cd "$ROOT/server"
 go build -o /tmp/ego-server ./cmd/ego/
 
 log "starting backend..."
-/tmp/ego-server &
+mkdir -p "$ROOT/server/.tmp/logs/server" "$LOG_DIR"
+BACKEND_OUT="$ROOT/server/.tmp/logs/server/start-backend.out.log"
+BACKEND_ERR="$ROOT/server/.tmp/logs/server/start-backend.err.log"
+: > "$BACKEND_OUT"
+: > "$BACKEND_ERR"
+nohup /tmp/ego-server >> "$BACKEND_OUT" 2>> "$BACKEND_ERR" < /dev/null &
 GO_PID=$!
 
 for i in $(seq 1 20); do
-    if port_listening "$GRPC_PORT"; then break; fi
+    if port_listening "$GRPC_PORT" && port_listening "$WEB_PORT"; then break; fi
     sleep 0.3
 done
 
-if ! port_listening "$GRPC_PORT"; then
-    err "backend failed to start on :$GRPC_PORT"
+if ! port_listening "$GRPC_PORT" || ! port_listening "$WEB_PORT"; then
+    err "backend failed to start on :$GRPC_PORT/:$WEB_PORT"
+    err "backend stderr:"
+    tail -n 80 "$BACKEND_ERR" || true
     exit 1
 fi
-log "backend ready  gRPC :${GRPC_PORT}  gRPC-web :${WEB_PORT}"
+
+if ! curl -fsS "http://localhost:${WEB_PORT}/health" >/dev/null 2>&1; then
+    err "backend health check failed on http://localhost:${WEB_PORT}/health"
+    tail -n 80 "$BACKEND_ERR" || true
+    exit 1
+fi
+log "backend ready  gRPC :${GRPC_PORT}  gRPC-web :${WEB_PORT}  web TLS :${WEB_TLS_PORT}"
 
 # ── flutter web ─────────────────────────────────────────────────────
 log "starting flutter web-server..."
 cd "$ROOT/client"
-flutter run -d web-server --web-port "$FLUTTER_PORT" --web-hostname 0.0.0.0 &
+FLUTTER_OUT="$LOG_DIR/flutter.out.log"
+FLUTTER_ERR="$LOG_DIR/flutter.err.log"
+: > "$FLUTTER_OUT"
+: > "$FLUTTER_ERR"
+nohup flutter run -d web-server --web-port "$FLUTTER_PORT" --web-hostname 0.0.0.0 >> "$FLUTTER_OUT" 2>> "$FLUTTER_ERR" < /dev/null &
 FLUTTER_PID=$!
 
-for i in $(seq 1 30); do
+for i in $(seq 1 120); do
     if curl -s -o /dev/null "http://localhost:${FLUTTER_PORT}" 2>/dev/null; then break; fi
     sleep 1
 done
 
 if ! curl -s -o /dev/null "http://localhost:${FLUTTER_PORT}" 2>/dev/null; then
     err "flutter web-server failed to start on :$FLUTTER_PORT"
+    err "flutter stdout:"
+    tail -n 120 "$FLUTTER_OUT" || true
+    err "flutter stderr:"
+    tail -n 120 "$FLUTTER_ERR" || true
     exit 1
 fi
 log "flutter ready  http://localhost:${FLUTTER_PORT}"
@@ -127,7 +188,11 @@ log "flutter ready  http://localhost:${FLUTTER_PORT}"
 if [ -f "$ROOT/web/package.json" ]; then
     log "starting react web frontend..."
     cd "$ROOT/web"
-    npx vite --host 0.0.0.0 --port "$REACT_PORT" &
+    REACT_OUT="$LOG_DIR/react.out.log"
+    REACT_ERR="$LOG_DIR/react.err.log"
+    : > "$REACT_OUT"
+    : > "$REACT_ERR"
+    nohup npx vite --host 0.0.0.0 --port "$REACT_PORT" >> "$REACT_OUT" 2>> "$REACT_ERR" < /dev/null &
     REACT_PID=$!
 
     for i in $(seq 1 30); do
@@ -137,6 +202,8 @@ if [ -f "$ROOT/web/package.json" ]; then
 
     if ! curl -s -o /dev/null "http://localhost:${REACT_PORT}" 2>/dev/null; then
         err "react web frontend failed to start on :$REACT_PORT"
+        err "react stderr:"
+        tail -n 80 "$REACT_ERR" || true
         exit 1
     fi
     log "react ready  http://localhost:${REACT_PORT}"
@@ -155,8 +222,19 @@ echo -e "   Flutter:  http://localhost:${FLUTTER_PORT}"
 echo -e "   gRPC:     localhost:${GRPC_PORT}"
 echo -e "   gRPC-web: localhost:${WEB_PORT}"
 echo -e "   Adminer:  http://localhost:10081"
+echo ""
+echo -e "   Backend logs: $BACKEND_OUT"
+echo -e "   Flutter logs: $FLUTTER_OUT"
+if [ -f "$ROOT/web/package.json" ]; then
+    echo -e "   React logs:   $REACT_OUT"
+fi
 echo -e "  ${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
-# ── wait ────────────────────────────────────────────────────────────
-wait
+# ── detach ──────────────────────────────────────────────────────────
+STARTUP_COMPLETE=true
+disown "$GO_PID" 2>/dev/null || true
+disown "$FLUTTER_PID" 2>/dev/null || true
+[ -n "${REACT_PID:-}" ] && disown "$REACT_PID" 2>/dev/null || true
+
+log "startup complete; processes are running in the background"
