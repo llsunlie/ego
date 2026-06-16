@@ -3,6 +3,7 @@
 !.claude/skills/**
 data/
 !client/lib/data/
+!h5-virtual-ego/data
 .playwright-mcp/
 .tmp/
 server/ego
