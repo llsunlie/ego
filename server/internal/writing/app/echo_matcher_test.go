@@ -104,13 +104,13 @@ func TestDefaultEchoMatcher_AboveThreshold_Matched(t *testing.T) {
 
 func TestDefaultEchoMatcher_SortedBySimilarityDescending(t *testing.T) {
 	matcher := NewDefaultEchoMatcher()
-	// vec=[1,0] vs [1,0]=1.0, vs [0.6,0.8]=0.6, vs [0.8,0.6]=0.8
+	// vec=[1,0] vs [1,0]=1.0, vs [0.7,~0.714]=0.7, vs [0.8,0.6]=0.8
 	cur := &domain.Moment{ID: "m1", Embeddings: []domain.EmbeddingEntry{
 		{Model: "test", Embedding: []float32{1, 0}},
 	}}
 	history := []domain.Moment{
 		{ID: "mid", Embeddings: []domain.EmbeddingEntry{
-			{Model: "test", Embedding: []float32{0.6, 0.8}}, // sim = 0.6
+			{Model: "test", Embedding: []float32{0.7, 0.7141428}}, // sim ~= 0.7
 		}},
 		{ID: "high", Embeddings: []domain.EmbeddingEntry{
 			{Model: "test", Embedding: []float32{0.8, 0.6}}, // sim = 0.8
@@ -180,16 +180,13 @@ func TestDefaultEchoMatcher_MixedSkippedAndMatched(t *testing.T) {
 
 func TestDefaultEchoMatcher_SimilarityAtThreshold(t *testing.T) {
 	matcher := NewDefaultEchoMatcher()
-	// cos(θ) where dot product / norms = 0.55:
-	// [1,0] dot [0.55, sqrt(1-0.55^2)] = 0.55
-	// norm of [0.55, ~0.835] → sqrt(0.3025 + 0.6975) = 1.0
-	// So sim = 0.55 / 1.0 = 0.55 → should match (>= threshold)
+	// cos(theta) is slightly above echoSimilarityThreshold to avoid float32 boundary drift.
 	cur := &domain.Moment{ID: "m1", Embeddings: []domain.EmbeddingEntry{
 		{Model: "test", Embedding: []float32{1, 0}},
 	}}
 	history := []domain.Moment{
 		{ID: "threshold", Embeddings: []domain.EmbeddingEntry{
-			{Model: "test", Embedding: []float32{0.55, 0.835164}}, // sim ≈ 0.55
+			{Model: "test", Embedding: []float32{0.6501, 0.7599}},
 		}},
 	}
 	matches, err := matcher.Match(context.Background(), cur, history)
@@ -197,6 +194,6 @@ func TestDefaultEchoMatcher_SimilarityAtThreshold(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(matches) != 1 {
-		t.Fatalf("expected 1 match at threshold (sim >= 0.55), got %d", len(matches))
+		t.Fatalf("expected 1 match at threshold (sim >= %.2f), got %d", echoSimilarityThreshold, len(matches))
 	}
 }
