@@ -79,22 +79,6 @@ func (m *mockConstellationRepo) FindByStarID(ctx context.Context, starID string)
 	return nil, nil
 }
 
-type mockTopicGen struct {
-	generateFn func(ctx context.Context, moments []writingdomain.Moment) (string, error)
-}
-
-func (m *mockTopicGen) Generate(ctx context.Context, moments []writingdomain.Moment) (string, error) {
-	return m.generateFn(ctx, moments)
-}
-
-type mockConstellationMat struct {
-	findMatchFn func(ctx context.Context, topic string, existing []domain.Constellation) (string, error)
-}
-
-func (m *mockConstellationMat) FindMatch(ctx context.Context, topic string, existing []domain.Constellation) (string, error) {
-	return m.findMatchFn(ctx, topic, existing)
-}
-
 type mockAssetGen struct {
 	generateFn func(ctx context.Context, moments []writingdomain.Moment) (string, []float32, string, string, []string, error)
 }
@@ -172,18 +156,6 @@ func TestStashTrace_Success(t *testing.T) {
 		},
 	}
 
-	topicGen := &mockTopicGen{
-		generateFn: func(ctx context.Context, moments []writingdomain.Moment) (string, error) {
-			return "关于一些内容…", nil
-		},
-	}
-
-	constellationMat := &mockConstellationMat{
-		findMatchFn: func(ctx context.Context, topic string, existing []domain.Constellation) (string, error) {
-			return "", nil // no match → lone-star constellation
-		},
-	}
-
 	assetGen := &mockAssetGen{
 		generateFn: func(ctx context.Context, moments []writingdomain.Moment) (string, []float32, string, string, []string, error) {
 			return "关于自我探索", []float32{0.1, 0.2}, "测试星座", "一些洞察", []string{"提示1", "提示2"}, nil
@@ -194,7 +166,7 @@ func TestStashTrace_Success(t *testing.T) {
 
 	uc := NewStashTraceUseCase(
 		traceReader, traceStasher, starRepo, constellationRepo,
-		topicGen, constellationMat, assetGen, idGen,
+		assetGen, idGen,
 	)
 
 	star, err := uc.Execute(ctx, StashTraceInput{TraceID: "tr-1"})
@@ -230,7 +202,7 @@ func TestStashTrace_TraceNotFound(t *testing.T) {
 	}
 
 	uc := NewStashTraceUseCase(
-		traceReader, nil, nil, nil, nil, nil, nil, nil,
+		traceReader, nil, nil, nil, nil, nil,
 	)
 
 	_, err := uc.Execute(ctx, StashTraceInput{TraceID: "nonexistent"})
@@ -254,7 +226,7 @@ func TestStashTrace_AlreadyStashed(t *testing.T) {
 	}
 
 	uc := NewStashTraceUseCase(
-		traceReader, nil, nil, nil, nil, nil, nil, nil,
+		traceReader, nil, nil, nil, nil, nil,
 	)
 
 	_, err := uc.Execute(ctx, StashTraceInput{TraceID: "tr-1"})
@@ -278,7 +250,7 @@ func TestStashTrace_WrongUser(t *testing.T) {
 	}
 
 	uc := NewStashTraceUseCase(
-		traceReader, nil, nil, nil, nil, nil, nil, nil,
+		traceReader, nil, nil, nil, nil, nil,
 	)
 
 	_, err := uc.Execute(ctx, StashTraceInput{TraceID: "tr-1"})

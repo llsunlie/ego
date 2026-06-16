@@ -226,11 +226,23 @@ func buildRefs(moments []writingdomain.Moment) []domain.MomentReference {
 	refs := make([]domain.MomentReference, 0, len(moments))
 	for _, m := range moments {
 		date := m.CreatedAt.Format("1月2日")
-		snippet := m.Content
+		snippet := truncateRefSnippet(m.Content, 30)
 		refs = append(refs, domain.MomentReference{
 			Date:    date,
 			Snippet: snippet,
 		})
 	}
 	return refs
+}
+
+func truncateRefSnippet(content string, limit int) string {
+	content = strings.TrimSpace(content)
+	runes := []rune(content)
+	if limit <= 0 || len(runes) <= limit {
+		return content
+	}
+	if limit <= 3 {
+		return string(runes[:limit])
+	}
+	return string(runes[:limit-3]) + "..."
 }

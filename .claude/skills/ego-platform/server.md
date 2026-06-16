@@ -34,18 +34,28 @@ type Config struct {
     GRPCPort              string  // 9444 (gRPC native, TLS when TLS_DOMAIN set)
     TLSDomain             string  // Let's Encrypt domain, empty = TLS disabled
     WebDir                string
-    JwtAccessExpHours     string  // access token (hours), default 1\n\t    JwtRefreshExpDays     string  // refresh token (days), default 30
+    JwtAccessExpHours     string  // access token (hours), default 1
+    JwtRefreshExpDays     string  // refresh token (days), default 30
     LogLevel              string
     LogFormat             string
+    LogOutput             string
     AIAPIKey              string
     AIBaseURL             string
     AIEmbeddingModel      string
+    AIEmbeddingDim        string  // default 1024; must match VECTOR(1024) migrations
     AIEmbeddingAPIKey     string
     AIEmbeddingBaseURL    string
     AIChatModel           string
     AIChatAPIKey          string
     AIChatBaseURL         string
-    GRPC_REFLECTION       string  // "true" to enable gRPC server reflection, default off
+    EchoRecallTopK             string  // dense Echo recall topK, default 10
+    EchoSparseEnabled          string  // pg_trgm Echo sparse recall, default true
+    EchoSparseTopK             string  // sparse Echo recall topK, default 10
+    EchoHybridRRFK             string  // RRF k, default 60
+    ConstellationSparseEnabled string  // pg_trgm constellation sparse recall, default true
+    ConstellationSparseTopK    string  // default 10
+    ConstellationHybridRRFK    string  // default 60
+    GRPC_REFLECTION            string  // "true" to enable gRPC server reflection, default off
 }
 ```
 
@@ -57,6 +67,8 @@ type Config struct {
 ```
 postgres/
 ├── postgres.go            # pgxpool 连接（Connect 函数）
+├── migrations/            # 001-015 SQL migrations（pgvector + pg_trgm）
+├── queries/               # sqlc source SQL
 └── sqlc/                  # sqlc 生成的类型安全 SQL 代码
     ├── db.go              # DBTX 接口 + Queries 结构体
     ├── models.go          # sqlc 数据模型
@@ -73,18 +85,35 @@ postgres/
 
 `Connect(databaseURL)` → 创建 `*pgxpool.Pool`，Ping 验证连通性。
 
+### Search / Vector migrations
+
+- `012_constellation_profiles.sql`
+  - `CREATE EXTENSION IF NOT EXISTS vector`
+  - `moment_embedding_vectors`: Moment embedding pgvector 索引表，用于 Echo dense recall
+  - `trace_profiles` / `trace_profile_vectors`: Trace 结构化画像与向量
+  - `constellation_profiles` / `constellation_profile_vectors` / `constellation_stars`: 星座长期画像、向量和 membership
+- `015_pgtrgm_search.sql`
+  - `CREATE EXTENSION IF NOT EXISTS pg_trgm`
+  - `idx_moments_content_trgm`: Moment content sparse recall
+  - `constellation_profiles.search_text`: generated searchable text
+  - `idx_constellation_profiles_search_trgm`: 星座画像 sparse recall
+
+当前 vector 列固定为 `VECTOR(1024)`，因此 `.env` 的 `AI_EMBEDDING_DIM` 默认 1024，切换 embedding 模型时必须同步维度和迁移设计。
+
 ## platform/ai (`server/internal/platform/ai/`)
 
 ```
 ai/
 ├── config.go        # AI 配置（Embedding + Chat 分离配置）
 ├── client.go        # 统一 AI 客户端（嵌入 + 对话 + 相似度）
+├── retry.go         # ChatWithRetry + RetryOptions
 └── similarity.go    # 余弦相似度计算
 ```
 
 `Client` 提供：
 - `Embed(ctx, texts)` — 文本向量嵌入
 - `Chat(ctx, messages)` — LLM 对话
+- `ChatWithRetry(ctx, messages, opts)` — 对短暂失败做有限重试
 - `Similarity(a, b)` — 余弦相似度
 
 ## platform/auth (`server/internal/platform/auth/`)
@@ -164,7 +193,7 @@ ratelimit 在 auth 之后，利用 auth 注入的 `user_id` 做 per-phone 限流
 
 ```
 bootstrap/
-├── platform.go    # InitPlatform(cfg) — 初始化 Pool + Logger + AIClient + JWT
+├── platform.go    # InitPlatform(cfg) — 初始化 Pool + Logger + AIClient + JWT + recall 配置
 ├── server.go      # NewServer(cfg, platform, handler) — 创建 gRPC server
 ├── composite.go   # EgoHandler — 组合所有 module handler，按 RPC 方法路由
 ├── identity.go    # NewIdentityHandler(platform)
@@ -176,8 +205,8 @@ bootstrap/
 
 **启动流程** (`cmd/ego/main.go`):
 1. `config.Load()` — 加载配置
-2. `bootstrap.InitPlatform(cfg)` — 创建 Pool + Logger + AIClient + JWT
-3. `bootstrap.NewXxxHandler(p)` — 创建各 module handler
+2. `bootstrap.InitPlatform(cfg)` — 创建 Pool + Logger + AIClient + JWT，并解析 embedding/search 配置
+3. `bootstrap.NewXxxHandler(p)` — 创建各 module handler；writing/starmap 接收 embedding dim、sparse topK、RRF k 等参数
 4. `bootstrap.NewEgoHandler(...)` — 组合为 composite handler
 5. `bootstrap.NewServer(cfg, p, handler)` — 创建 gRPC server
 6. `server.Serve()` — 启动 gRPC + gRPC-web

@@ -40,6 +40,49 @@ type TraceStasher interface {
 	MarkStashed(ctx context.Context, traceID string) error
 }
 
+// ConstellationAssetGenerator generates constellation-level display assets.
+type ConstellationAssetGenerator interface {
+	Generate(ctx context.Context, moments []writingdomain.Moment) (topic string, topicEmbedding []float32, name string, insight string, prompts []string, err error)
+}
+
+// TraceProfileGenerator builds a persistent algorithm profile for a stashed Trace.
+type TraceProfileGenerator interface {
+	Generate(ctx context.Context, trace writingdomain.Trace, moments []writingdomain.Moment) (*TraceProfile, *TraceProfileVector, error)
+}
+
+// ConstellationBorderlineJudge judges ambiguous constellation matches.
+type ConstellationBorderlineJudge interface {
+	Judge(ctx context.Context, input ConstellationBorderlineJudgeInput) (*ConstellationBorderlineJudgement, error)
+}
+
+// ConstellationProfileRefiner rewrites a mature constellation profile at count milestones.
+type ConstellationProfileRefiner interface {
+	Refine(ctx context.Context, input ConstellationProfileRefineInput) (*ConstellationProfileRefinement, error)
+}
+
+// TraceProfileRepository persists TraceProfiles and their optional vectors.
+type TraceProfileRepository interface {
+	Upsert(ctx context.Context, profile *TraceProfile, vector *TraceProfileVector) error
+}
+
+// ConstellationProfileRepository persists long-term constellation algorithm profiles.
+type ConstellationProfileRepository interface {
+	FindCandidates(ctx context.Context, userID string, embedding []float32, limit int) ([]ConstellationProfileCandidate, error)
+	FindCandidatesByIDs(ctx context.Context, userID string, constellationIDs []string) ([]ConstellationProfileCandidate, error)
+	Upsert(ctx context.Context, profile *ConstellationProfile, vector *ConstellationProfileVector) error
+	AddMembership(ctx context.Context, membership ConstellationMembership) error
+}
+
+// ConstellationProfileSearchIndexer writes ConstellationProfiles to an external sparse search index.
+type ConstellationProfileSearchIndexer interface {
+	IndexProfile(ctx context.Context, profile ConstellationProfile) error
+}
+
+// ConstellationProfileSparseCandidateReader returns Constellation IDs ranked by sparse text search.
+type ConstellationProfileSparseCandidateReader interface {
+	SearchCandidates(ctx context.Context, profile TraceProfile, limit int) ([]ConstellationProfileSparseCandidate, error)
+}
+
 // TopicGenerator generates a Star.topic from moments.
 type TopicGenerator interface {
 	Generate(ctx context.Context, moments []writingdomain.Moment) (string, error)
@@ -49,10 +92,4 @@ type TopicGenerator interface {
 // Returns the constellation ID, or empty string if no match.
 type ConstellationMatcher interface {
 	FindMatch(ctx context.Context, topic string, existing []Constellation) (string, error)
-}
-
-// ConstellationAssetGenerator generates constellation-level assets including
-// a topic embedding for fast matching.
-type ConstellationAssetGenerator interface {
-	Generate(ctx context.Context, moments []writingdomain.Moment) (topic string, topicEmbedding []float32, name string, insight string, prompts []string, err error)
 }

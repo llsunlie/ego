@@ -56,6 +56,22 @@ type EchoMatcher interface {
 	Match(ctx context.Context, current *Moment, history []Moment) ([]MatchedMoment, error)
 }
 
+// EchoCandidateReader returns a bounded set of historical Moments that are
+// nearest to the current Moment's content embedding.
+type EchoCandidateReader interface {
+	FindNearestMoments(ctx context.Context, userID string, currentMomentID string, model string, embedding []float32, limit int32) ([]Moment, error)
+}
+
+// MomentSearchIndexer writes Moments to a sparse search index.
+type MomentSearchIndexer interface {
+	IndexMoment(ctx context.Context, moment Moment) error
+}
+
+// EchoSparseCandidateReader returns Moment IDs ranked by sparse text search.
+type EchoSparseCandidateReader interface {
+	SearchMomentIDs(ctx context.Context, current Moment, limit int32) ([]string, error)
+}
+
 // InsightGenerator produces an AI observation from a Moment and its Echo.
 type InsightGenerator interface {
 	Generate(ctx context.Context, momentID, echoID string) (*Insight, error)
