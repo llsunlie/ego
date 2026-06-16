@@ -56,4 +56,5 @@ jobs:
           key: ${{ secrets.TENCENT_SSH_KEY }}
           script: |
             DEPLOY=${{ secrets.TENCENT_DEPLOY_PATH }}
+            sed -i 's|http://localhost:8090/chat|http://myego.online:8090/chat|' "$DEPLOY/h5-virtual-ego/data/example.json"
             sudo systemctl restart h5-virtual-ego-proxy
