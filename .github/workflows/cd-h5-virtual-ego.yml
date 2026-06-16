@@ -1,0 +1,59 @@
+name: CD H5 Virtual Ego
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'h5-virtual-ego/**'
+      - '.github/workflows/cd-h5-virtual-ego.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'h5-virtual-ego/**'
+      - '.github/workflows/cd-h5-virtual-ego.yml'
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: check required files
+        run: |
+          test -f h5-virtual-ego/index.html || { echo "MISSING: index.html"; exit 1; }
+          test -f h5-virtual-ego/css/main.css || { echo "MISSING: css/main.css"; exit 1; }
+          test -f h5-virtual-ego/js/main.js || { echo "MISSING: js/main.js"; exit 1; }
+          test -f h5-virtual-ego/js/background.js || { echo "MISSING: js/background.js"; exit 1; }
+          test -f h5-virtual-ego/js/starmap.js || { echo "MISSING: js/starmap.js"; exit 1; }
+          test -f h5-virtual-ego/js/trace.js || { echo "MISSING: js/trace.js"; exit 1; }
+          test -f h5-virtual-ego/data/example.json || { echo "MISSING: data/example.json"; exit 1; }
+          python3 -c "import json; json.load(open('h5-virtual-ego/data/example.json'))" && echo "JSON valid"
+
+  deploy:
+    name: Deploy
+    if: github.event_name == 'push'
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: scp h5-virtual-ego
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.TENCENT_HOST }}
+          username: ${{ secrets.TENCENT_USER }}
+          key: ${{ secrets.TENCENT_SSH_KEY }}
+          source: h5-virtual-ego/
+          target: ${{ secrets.TENCENT_DEPLOY_PATH }}
+          strip_components: 0
+
+      - name: post-deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.TENCENT_HOST }}
+          username: ${{ secrets.TENCENT_USER }}
+          key: ${{ secrets.TENCENT_SSH_KEY }}
+          script: |
+            DEPLOY=${{ secrets.TENCENT_DEPLOY_PATH }}
+            sudo systemctl restart h5-virtual-ego-proxy
