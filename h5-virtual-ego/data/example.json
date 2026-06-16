@@ -6,9 +6,8 @@
   },
   "api": {
     "endpoint": "http://localhost:8090/chat",
-    "model": "deepseek-v4-flash",
     "promptTemplate": "你正在扮演一个人「余华」过去的自己。这个「过去的自己」指「余华」写下以下moments时的自己（那一时间段的自己，not整个人生轨迹，因为人是会变的，总有人都想回到过去与自己聊天）：\n{moments}\n规则：\n1. 可以反问、可以自省，但不能捏造上面没有的话题\n2. 如果用户问了完全没提到的事，回答「这个我没想过。」\n3. 回复简短自然，2-3句话，像真实的对话\n4. 回复中不要添加括号和动作、神态描述\n5. 标点只用逗号和句号\n6. 用中文回复\n7.用第一人称「我」回应用户",
-    "note": "启动 proxy: cd proxy && python3 server.py"
+    "note": "修改 endpoint 指向你的 proxy 地址"
   },
   "constellations": [
     {
