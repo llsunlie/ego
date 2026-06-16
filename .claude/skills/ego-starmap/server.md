@@ -26,9 +26,7 @@ starmap/
 │   ├── stash_trace.go                       # StashTrace 用例（核心）
 │   ├── list_constellations.go               # ListConstellations 用例
 │   ├── get_constellation.go                 # GetConstellation 用例
-│   ├── constellation_matcher.go             # AI 星座匹配逻辑
-│   ├── constellation_asset_generator.go     # 生成星座名/描述
-│   └── topic_generator.go                   # 生成话题提示
+│   └── stash_trace_test.go                  # 异步聚类/兼容路径测试
 └── adapter/
     ├── grpc/handler.go                      # gRPC Handler
     ├── grpc/mapper.go                       # proto ↔ domain 映射
@@ -37,53 +35,79 @@ starmap/
     │   ├── star_repo.go                     # StarRepository
     │   ├── star_reader.go                   # StarReader（跨模块）
     │   ├── constellation_repo.go            # ConstellationRepository
+    │   ├── trace_profile_repo.go            # TraceProfile + vector 持久化
+    │   ├── constellation_profile_repo.go    # ConstellationProfile + membership 持久化
+    │   ├── constellation_sparse_search.go   # pg_trgm 星座 Profile 稀疏召回
     │   └── trace_stasher.go                 # TraceStasher — 标记 trace 为已 stash
     └── ai/
-        ├── constellation_matcher.go         # AI 判断 moment 归属哪个星座
+        ├── trace_profile_generator.go       # 从 Trace/Moments 生成结构化 Profile + 向量
         ├── constellation_asset_generator.go # AI 生成星座名称和描述
-        └── topic_generator.go               # AI 生成话题提示
+        ├── constellation_borderline_judge.go # 边界归属判断
+        ├── constellation_profile_refiner.go # 星座成熟节点 Profile 重写
+        ├── json_repair.go                   # AI JSON 输出修复
+        └── debug_log.go                     # AI prompt/response 调试日志
 ```
 
 ## 核心领域模型 (`domain/types.go`)
 
 ```go
-Star          { ID, ConstellationID, MomentID, Brightness, CreatedAt }
-Constellation { ID, UserID, Name, Description, StarCount, CreatedAt }
+Star          { ID, UserID, TraceID, Topic, CreatedAt }
+Constellation { ID, UserID, Topic, TopicEmbedding, Name, ConstellationInsight, StarIDs, TopicPrompts, CreatedAt, UpdatedAt }
+TraceProfile  { TraceID, UserID, Topic, Summary, Keywords, Emotions, Scenes, CentralPattern, PatternTags, ProfileText, Status, ... }
+ConstellationProfile { ConstellationID, UserID, Topic, Summary, Keywords, Emotions, Scenes, CentralPattern, PatternTags, ThemeCode, ProfileText, TraceCount, MomentCount, ... }
+ConstellationMembership { ConstellationID, StarID, TraceID, MatchScore, MatchType, MatchDimensions, Weight, CreatedAt }
 ```
 
 ## StashTrace 用例（核心流程）(`app/stash_trace.go`)
 
 1. 查询 trace 的所有 moments
-2. 标记 trace 为 `stashed = true`（通过 `TraceStasher`）
-3. **AI 星座匹配**：判断每个 moment 应归属哪个星座
-4. **同名星座合并**：同名星座下的 stars 合并
-5. **新星座生成**：为新主题的 moment 创建新星座 + AI 生成名称/描述
-6. 创建 Star 实体关联 moment
+2. 创建 Star 占位（topic 初始为「聚合中」），标记 trace 为 `stashed = true`
+3. 后台异步生成 `TraceProfile` + `TraceProfileVector`，持久化到 `trace_profiles` / `trace_profile_vectors`
+4. 候选召回：
+   - dense: `ConstellationProfileRepository.FindCandidates` 通过 pgvector profile embedding 最近邻召回
+   - sparse: `ConstellationSparseSearch` 通过 `constellation_profiles.search_text` + pg_trgm 召回
+   - RRF 融合 dense/sparse 候选，再按画像相似度、centroid、关键词/场景/情绪/模式标签 overlap 重新打分
+5. 主归属决策：
+   - 强匹配直接 attach 到已有星座
+   - 边界候选交给 `ConstellationBorderlineJudge`
+   - 无可用匹配时创建新星座和初始 `ConstellationProfile`
+6. 可附加最多 2 个 secondary 星座 membership；成熟节点（3/5/8/13/之后每 8）可触发 `ConstellationProfileRefiner`
+7. 旧构造路径缺少 profile 依赖时，会走 legacy asset 生成路径，保持历史测试和调用兼容
 
 ## ListConstellations / GetConstellation 用例
 
-- `ListConstellations`: 返回所有星座 + 总 star 数
+- `ListConstellations`: 返回所有星座 + 总 star 数，并优先用 `constellation_profiles.theme_label/theme_code` 丰富展示字段
 - `GetConstellation`: 返回星座详情 + 关联的 moments + stars
 
 ## 跨模块依赖
 
 ```go
 type Deps struct {
-    DB       sqlc.DBTX
-    AIClient *platformai.Client
+    DB                      sqlc.DBTX
+    AIClient                *platformai.Client
+    AIEmbeddingDim          int
+    ConstellationSparseOn   bool
+    ConstellationSparseTopK int
+    ConstellationHybridRRFK int
 }
 ```
 
 依赖：
 - `writing/adapter/postgres` — `Reader`（MomentReader, TraceReader）
 - `writing/adapter/postgres` — `EchoRepository`, `InsightRepository`
-- `platform/ai` — AI Client（用于星座匹配、名称生成、话题生成）
+- `platform/ai` — AI Client（用于 profile 生成、边界判断、profile refine、星座资产生成）
+- `platform/postgres` — pgvector + pg_trgm 支撑 dense/sparse 星座召回
 
 ## 相关文件
 
 | 文件 | 说明 |
 |------|------|
 | `server/internal/platform/ai/client.go` | AI API 客户端 |
+| `server/internal/platform/ai/retry.go` | AI Chat 重试策略 |
+| `server/internal/platform/postgres/migrations/012_constellation_profiles.sql` | trace/constellation profile 与 vector 表 |
+| `server/internal/platform/postgres/migrations/013_profile_pattern_tags.sql` | pattern_tags 字段 |
+| `server/internal/platform/postgres/migrations/014_constellation_theme_codebook.sql` | theme codebook 字段 |
+| `server/internal/platform/postgres/migrations/015_pgtrgm_search.sql` | pg_trgm search_text 与 GIN 索引 |
 | `server/internal/writing/adapter/postgres/reader.go` | Moment/Trace Reader |
 | `server/internal/platform/postgres/sqlc/stars.sql.go` | sqlc star 查询 |
 | `server/internal/platform/postgres/sqlc/constellations.sql.go` | sqlc constellation 查询 |
@@ -125,7 +149,7 @@ conversation/
     │   ├── session_repo.go             # SessionRepository
     │   └── message_repo.go             # MessageRepository
     └── ai/
-        └── chat_generator.go           # LLM Chat 生成实现
+        └── chat_generator.go           # LLM Chat 生成实现 + 引用 snippet 截断
 ```
 
 ## 核心领域模型 (`domain/types.go`)
@@ -141,6 +165,7 @@ Message     { ID, SessionID, Role, Content, CreatedAt }
 - `chatSessionId` 为空 → 创建新 Session（加载 star 关联的 moment 作为上下文）
 - `chatSessionId` 非空 → 继续已有对话
 - 返回 `chatSessionId` + 开场白（AI 生成）
+- `adapter/ai/chat_generator.go` 会把返回的 MomentReference snippet 截断到 30 个 rune，避免前端引用区域过长
 
 ## SendMessage 用例 (`app/send_message.go`)
 

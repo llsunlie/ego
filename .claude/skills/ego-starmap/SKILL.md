@@ -27,6 +27,10 @@ description: 「星图」feature — 前端 client page: /starmap + 后端 starm
 | `server/internal/starmap/app/stash_trace.go` | StashTrace 用例（核心：AI 星座匹配 + 合并） |
 | `server/internal/starmap/app/list_constellations.go` | 星座列表 |
 | `server/internal/starmap/app/get_constellation.go` | 星座详情 |
+| `server/internal/starmap/adapter/ai/trace_profile_generator.go` | 生成 TraceProfile + 向量 |
+| `server/internal/starmap/adapter/ai/constellation_borderline_judge.go` | 边界星座归属判断 |
+| `server/internal/starmap/adapter/postgres/constellation_profile_repo.go` | 星座长期 Profile 持久化 |
+| `server/internal/starmap/adapter/postgres/constellation_sparse_search.go` | pg_trgm 星座 Profile 稀疏召回 |
 | `server/internal/conversation/app/start_chat.go` | 开始 AI 对话 |
 | `server/internal/conversation/app/send_message.go` | 发送消息 + AI 回复 |
 
