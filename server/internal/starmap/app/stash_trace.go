@@ -211,6 +211,7 @@ func (uc *StashTraceUseCase) clusterWithProfileAsync(ctx context.Context, trace 
 			"has_constellation_profile_repository", uc.constellationProf != nil,
 			"recovery", "pending_message_queue",
 		)
+		uc.clusterLegacyAsync(ctx, trace, star, moments)
 		return
 	}
 
@@ -529,6 +530,72 @@ func (uc *StashTraceUseCase) clusterWithProfileAsync(ctx context.Context, trace 
 		"primary_score", primaryScore,
 		"secondary_count", secondaryCount,
 		"candidate_count", len(ranked),
+	)
+}
+
+func (uc *StashTraceUseCase) clusterLegacyAsync(ctx context.Context, trace writingdomain.Trace, star domain.Star, moments []writingdomain.Moment) {
+	logger := logging.FromContext(ctx)
+	if uc.assetGen == nil || uc.constellations == nil || uc.stars == nil {
+		logger.ErrorContext(ctx, "starmap legacy clustering dependency missing",
+			"trace_id", trace.ID,
+			"star_id", star.ID,
+			"has_asset_generator", uc.assetGen != nil,
+			"has_constellation_repository", uc.constellations != nil,
+			"has_star_repository", uc.stars != nil,
+		)
+		return
+	}
+
+	topic, topicEmbedding, name, insight, prompts, err := uc.assetGen.Generate(ctx, moments)
+	if err != nil {
+		logger.ErrorContext(ctx, "starmap legacy clustering asset generation failed",
+			"trace_id", trace.ID,
+			"star_id", star.ID,
+			"error", err,
+		)
+		return
+	}
+	if strings.TrimSpace(topic) != "" {
+		if err := uc.stars.UpdateTopic(ctx, star.ID, topic); err != nil {
+			logger.ErrorContext(ctx, "starmap legacy clustering update star topic failed",
+				"trace_id", trace.ID,
+				"star_id", star.ID,
+				"topic", topic,
+				"error", err,
+			)
+			return
+		}
+	}
+	if strings.TrimSpace(name) == "" {
+		name = topic
+	}
+
+	now := time.Now()
+	constellation := &domain.Constellation{
+		ID:                   uc.ids.New(),
+		UserID:               trace.UserID,
+		Topic:                topic,
+		TopicEmbedding:       append([]float32(nil), topicEmbedding...),
+		Name:                 name,
+		ConstellationInsight: insight,
+		StarIDs:              []string{star.ID},
+		TopicPrompts:         prompts,
+		CreatedAt:            now,
+		UpdatedAt:            now,
+	}
+	if err := uc.constellations.Create(ctx, constellation); err != nil {
+		logger.ErrorContext(ctx, "starmap legacy clustering create constellation failed",
+			"trace_id", trace.ID,
+			"star_id", star.ID,
+			"constellation_id", constellation.ID,
+			"error", err,
+		)
+		return
+	}
+	logger.InfoContext(ctx, "starmap legacy clustering completed",
+		"trace_id", trace.ID,
+		"star_id", star.ID,
+		"constellation_id", constellation.ID,
 	)
 }
 

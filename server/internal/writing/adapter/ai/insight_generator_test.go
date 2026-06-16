@@ -185,7 +185,7 @@ func TestBuildInsightUserPrompt_WithEcho(t *testing.T) {
 
 	result := buildInsightUserPrompt(moment, echo, nil)
 
-	if !strings.Contains(result, "当前想法：今天感到特别焦虑") {
+	if !strings.Contains(result, "当前想法：\n今天感到特别焦虑") {
 		t.Fatalf("expected moment content in prompt, got %q", result)
 	}
 	if !strings.Contains(result, "3") {
@@ -198,7 +198,10 @@ func TestBuildInsightUserPrompt_NoEcho(t *testing.T) {
 
 	result := buildInsightUserPrompt(moment, nil, nil)
 
-	if result != "当前想法：只是随便写写" {
-		t.Fatalf("expected only moment content, got %q", result)
+	if !strings.Contains(result, "当前想法：\n只是随便写写") {
+		t.Fatalf("expected moment content in prompt, got %q", result)
+	}
+	if !strings.Contains(result, "请生成一个具体、不模板化的 insight") {
+		t.Fatalf("expected generation instruction in prompt, got %q", result)
 	}
 }
