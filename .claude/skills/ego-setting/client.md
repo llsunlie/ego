@@ -41,7 +41,7 @@ SettingPage (Scaffold, backgroundColor: AppColors.darkBg)
 │       ├── 退出登录按钮（红色边框 + 红色文字，全宽，无确认弹窗）
 │       ├── Copyright + 备案号（灰色小字居中，由 Spacer 推至页面底部）
 │       │   ├── Copyright © 2026 Ego 工作室 保留所有权利 — 纯文本，不可点击
-│       │   └── 闽ICP备2026020313号 — 点击复制备案链接 https://beian.miit.gov.cn/ 到剪贴板
+│       │   └── [beian-icon.png] 粤公网安备44049002001272号 | 闽ICP备2026020313号 — 同一 Row，各自独立 GestureDetector 复制对应链接
 │       └── 区域间通过 SizedBox 分隔，行间通过 1px 细线分割
 ```
 
@@ -77,6 +77,8 @@ SettingPage (Scaffold, backgroundColor: AppColors.darkBg)
 | 手机号 | 复制原始手机号到剪贴板，SnackBar 提示「手机号已复制」 |
 | 注册时间 | 复制日期文本到剪贴板，SnackBar 提示「注册时间已复制」 |
 | 版本 | 复制版本号到剪贴板，SnackBar 提示「版本号已复制」 |
+| 公安备案号 | 复制 `https://beian.mps.gov.cn/#/query/webSearch?code=44049002001272` 到剪贴板，SnackBar 提示「公安备案号链接已复制」 |
+| 备案号(ICP) | 复制 `https://beian.miit.gov.cn/` 到剪贴板，SnackBar 提示「备案号链接已复制」 |
 | 服务条款 | `context.push('/terms')` → TermsPage（位于 login feature） |
 | 隐私政策 | `context.push('/privacy')` → PrivacyPage（位于 login feature） |
 | 用户反馈 | `context.push('/feedback')` → FeedbackPage（位于 setting feature） |

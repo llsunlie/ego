@@ -11,6 +11,7 @@ import '../now/widgets/starry_background.dart';
 import '../../data/generated/api.pbgrpc.dart' as grpc;
 
 const String icpRegistrationNumber = '闽ICP备2026020313号';
+const String publicSecurityRegistrationNumber = '粤公网安备44049002001272号';
 
 class SettingPage extends ConsumerStatefulWidget {
   const SettingPage({super.key});
@@ -278,20 +279,58 @@ class _SettingPageState extends ConsumerState<SettingPage> {
                       Padding(
                         padding: const EdgeInsets.only(bottom: 24),
                         child: Center(
-                          child: GestureDetector(
-                            onTap: () => _copyToClipboard(
-                              'https://beian.miit.gov.cn/',
-                              '备案号链接已复制',
-                            ),
-                            child: const Padding(
-                              padding: EdgeInsets.all(8),
-                              child: Text(
-                                icpRegistrationNumber,
-                                style: TextStyle(
-                                  color: AppColors.textHint,
-                                  fontSize: 12,
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                GestureDetector(
+                                  onTap: () => _copyToClipboard(
+                                    'https://beian.mps.gov.cn/#/query/webSearch?code=44049002001272',
+                                    '公安备案号链接已复制',
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Image.asset(
+                                        'beian-icon.png',
+                                        width: 16,
+                                        height: 18,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      const Text(
+                                        publicSecurityRegistrationNumber,
+                                        style: TextStyle(
+                                          color: AppColors.textHint,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  '|',
+                                  style: TextStyle(
+                                    color: AppColors.textHint,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                GestureDetector(
+                                  onTap: () => _copyToClipboard(
+                                    'https://beian.miit.gov.cn/',
+                                    '备案号链接已复制',
+                                  ),
+                                  child: const Text(
+                                    icpRegistrationNumber,
+                                    style: TextStyle(
+                                      color: AppColors.textHint,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
