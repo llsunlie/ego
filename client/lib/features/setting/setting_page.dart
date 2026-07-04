@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,7 +11,9 @@ import '../../data/services/ego_client.dart';
 import '../now/widgets/starry_background.dart';
 import '../../data/generated/api.pbgrpc.dart' as grpc;
 
-const String icpRegistrationNumber = '闽ICP备2026020313号';
+const String icpRegistrationNumber = kIsWeb
+    ? '闽ICP备2026020313号-1'
+    : '闽ICP备2026020313号-2A';
 const String publicSecurityRegistrationNumber = '粤公网安备44049002001272号';
 
 class SettingPage extends ConsumerStatefulWidget {
