@@ -26,6 +26,10 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- APP备案号 (工信部要求，2024年起强制执行) -->
+        <meta-data
+            android:name="MIIT_APP_ID"
+            android:value="闽ICP备2026020313号-2A" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
