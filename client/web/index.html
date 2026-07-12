@@ -76,6 +76,23 @@
     <div class="spinner"></div>
     <div class="text">ego</div>
   </div>
+  <script>
+    // Force local CanvasKit instead of downloading from gstatic.com
+    // (gstatic.com is blocked in China, but canvaskit/ is already bundled in build output)
+    (function() {
+      var _flutter = window._flutter = window._flutter || {};
+      var _config = null;
+      Object.defineProperty(_flutter, 'buildConfig', {
+        configurable: true,
+        enumerable: true,
+        get: function() { return _config; },
+        set: function(value) {
+          value.useLocalCanvasKit = true;
+          _config = value;
+        }
+      });
+    })();
+  </script>
   <script src="flutter_bootstrap.js" async></script>
   <script>
     // 当 Flutter 渲染出第一个元素后移除 loading 指示器
