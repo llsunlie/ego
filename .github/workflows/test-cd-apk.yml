@@ -32,17 +32,9 @@ jobs:
           channel: 'stable'
           cache: true
 
-      # 同步版本号：test 分支用 git describe 生成带 commit 的版本号
+      # 同步版本号：test 构建只更新 version.dart（App 内展示），pubspec 不动（需保持 semver 格式）
       - name: sync version
-        run: |
-          VER=$(git describe --tags --always)
-          # 去掉 v 前缀，取纯版本号（如 v1.0.1-3-gabcdef1 → 1.0.1-3-gabcdef1）
-          VER_NUM="${VER#v}"
-          # 同步 pubspec.yaml（用于 APK versionName）
-          sed -i "s/^version: .*/version: ${VER_NUM}/" client/pubspec.yaml
-          # 同步 version.dart（用于 App 内展示）
-          make version
-          echo "Synced to version $VER_NUM"
+        run: make version
 
       # 安装 Dart 依赖
       - name: pub get
