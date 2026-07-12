@@ -44,13 +44,24 @@ jobs:
           channel: 'stable'
           cache: true
 
+      # 同步版本号：从 tag 或 workflow_dispatch 提取，更新 pubspec.yaml 和 version.dart
+      - name: sync version
+        run: |
+          VERSION="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || github.ref_name }}"
+          # 去掉 v 前缀，得到纯版本号（如 v1.0.1 → 1.0.1）
+          VERSION_NUM="${VERSION#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          # 同步 pubspec.yaml（用于 APK versionName）
+          sed -i "s/^version: .*/version: ${VERSION_NUM}+1/" client/pubspec.yaml
+          # 同步 version.dart（用于 App 内展示）
+          make version
+          echo "Synced to version $VERSION_NUM"
+
       # 安装 Dart 依赖
       - name: pub get
         run: cd client && flutter pub get
 
       # 构建 release APK（从 secret 解码 keystore，通过环境变量传入签名参数）
-      - name: sync version
-        run: make version
       - name: build apk
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > client/android/app/upload-keystore.jks
@@ -65,12 +76,11 @@ jobs:
       - name: rename apk
         id: rename
         run: |
-          VERSION="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || github.ref_name }}"
           APK_PATH="client/build/app/outputs/flutter-apk/app-release.apk"
           NEW_NAME="ego-android-${VERSION}.apk"
           mv "$APK_PATH" "$NEW_NAME"
           echo "apk_path=$NEW_NAME" >> $GITHUB_OUTPUT
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
       # 创建 GitHub Release 并上传 APK
       - name: create release
