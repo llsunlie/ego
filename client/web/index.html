@@ -32,8 +32,10 @@
   <title>ego</title>
   <link rel="manifest" href="manifest.json">
 
-  <link rel="preload" href="assets/fonts/noto-sans-sc-v40-chinese-simplified-regular.woff2" as="fetch" type="font/woff2" crossorigin="anonymous">
-  <link rel="preload" href="assets/fonts/noto-sans-symbols-2-v25-symbols-regular.woff2" as="fetch" type="font/woff2" crossorigin="anonymous">
+  <!-- Preload critical assets: start downloading during HTML parse, before scripts run -->
+  <link rel="preload" href="canvaskit/chromium/canvaskit.wasm" as="fetch" crossorigin="anonymous">
+  <link rel="preload" href="main.dart.js" as="script">
+  <!-- ego-logo.webp loaded by Flutter asset system, no preload needed -->
 
   <style>
     @font-face {
@@ -72,42 +74,155 @@
   </style>
 </head>
 <body>
+  <script>window._egoPerf={t0:performance.now()};</script>
   <div id="ego-loading">
     <div class="spinner"></div>
     <div class="text">ego</div>
   </div>
   <script>
-    // Force local CanvasKit instead of downloading from gstatic.com
-    // (gstatic.com is blocked in China, but canvaskit/ is already bundled in build output)
+    // Force local CanvasKit and fonts instead of downloading from gstatic.com
     (function() {
-      var _flutter = window._flutter = window._flutter || {};
-      var _config = null;
-      Object.defineProperty(_flutter, 'buildConfig', {
-        configurable: true,
-        enumerable: true,
-        get: function() { return _config; },
-        set: function(value) {
-          value.useLocalCanvasKit = true;
-          _config = value;
+      // ── 0. Eagerly fetch bundled fonts once, serve all subsequent requests from memory ──
+      var fontCache = {};    // Uint8Array — populated when first real fetch completes
+      var fontInflight = {}; // Promise  — dedup concurrent fetches for same font
+      var fontPaths = {
+        notosanssc:      '/assets/fonts/noto-sans-sc-v40-chinese-simplified-regular.woff2',
+        notosanssymbols2:'/assets/fonts/noto-sans-symbols-2-v25-symbols-regular.woff2',
+        materialicons:   '/assets/fonts/MaterialIcons-Regular.otf',
+      };
+      var robotoKey = 'notosanssc';
+
+      // Build filename→key lookup so we match URLs regardless of leading-slash / base-href
+      var fileNameKeys = {};
+      Object.keys(fontPaths).forEach(function(k) {
+        fileNameKeys[fontPaths[k].split('/').pop()] = k;
+      });
+
+      // Intercept ALL fetch before anything else
+      var origFetch = window.fetch;
+      window.fetch = function(url, opts) {
+        if (typeof url !== 'string') return origFetch.apply(this, arguments);
+
+        // Resolve font key by filename (works for absolute, relative, and subset URLs)
+        var key = null;
+        for (var fname in fileNameKeys) {
+          if (url.indexOf(fname) !== -1) { key = fileNameKeys[fname]; break; }
+        }
+        // Also match Google Fonts subset prefix (e.g. /assets/fonts/notosanssc/v37/...)
+        if (!key) {
+          for (var k in fontPaths) {
+            if (url.indexOf('/assets/fonts/' + k + '/') !== -1) { key = k; break; }
+          }
+        }
+        if (!key && url.indexOf('/assets/fonts/roboto/') !== -1) key = robotoKey;
+        if (!key) return origFetch.apply(this, arguments);
+
+        // Already cached → serve from memory
+        if (fontCache[key]) {
+          return Promise.resolve(new Response(
+            fontCache[key].slice(),
+            { status: 200, headers: { 'Content-Type': 'font/woff2' } }
+          ));
+        }
+
+        // Dedup concurrent fetches: share a single in-flight promise per font
+        if (!fontInflight[key]) {
+          fontInflight[key] = origFetch(fontPaths[key])
+            .then(function(r) { return r.arrayBuffer(); })
+            .then(function(buf) { fontCache[key] = new Uint8Array(buf); return fontCache[key]; });
+        }
+        return fontInflight[key].then(function(buf) {
+          return new Response(buf.slice(), { status: 200, headers: { 'Content-Type': 'font/woff2' } });
+        });
+      };
+
+      // Kick off preload now — first fetch wins, concurrent ones wait on same promise
+      var _fontCount = Object.keys(fontPaths).length;
+      var _fontDone = 0;
+      Object.keys(fontPaths).forEach(function(key) {
+        fetch(fontPaths[key]).then(function() {
+          _fontDone++;
+          if (_fontDone >= _fontCount) window._egoFontReady = true;
+        });
+      });
+
+      // ── 1. Intercept Flutter loader to inject local URLs ──
+      window._flutter = window._flutter || {};
+      var _loader = null;
+      Object.defineProperty(window._flutter, 'loader', {
+        configurable: true, enumerable: true,
+        get: function() { return _loader; },
+        set: function(loader) {
+          if (loader && loader.load) {
+            var origLoad = loader.load.bind(loader);
+            loader.load = function(opts) {
+              opts = opts || {};
+              opts.config = opts.config || {};
+              opts.config.canvasKitBaseUrl = '/canvaskit/';
+              opts.config.fontFallbackBaseUrl = '/assets/fonts/';
+              return origLoad(opts);
+            };
+          }
+          _loader = loader;
         }
       });
     })();
   </script>
   <script src="flutter_bootstrap.js" async></script>
   <script>
-    // 当 Flutter 渲染出第一个元素后移除 loading 指示器
+    // ── First-screen load timer (t0 already recorded at <body> top) ──
+    var _egoPerf = window._egoPerf;
+    _egoPerf.fontsReady = null;
+    _egoPerf.firstFrame = null;
+
+    // If fonts were already preloaded in the script above, capture that time
+    if (window._egoFontReady && !_egoPerf.fontsReady) {
+      _egoPerf.fontsReady = performance.now();
+      console.log(
+        '%c[ego] fonts ready %c' + (_egoPerf.fontsReady - _egoPerf.t0).toFixed(0) + 'ms',
+        'color:#6366f1', 'color:inherit'
+      );
+    }
+
+    // Poll font cache until ready
+    var _fontCheck = setInterval(function() {
+      if (window._egoFontReady && !_egoPerf.fontsReady) {
+        _egoPerf.fontsReady = performance.now();
+        console.log(
+          '%c[ego] fonts ready %c' + (_egoPerf.fontsReady - _egoPerf.t0).toFixed(0) + 'ms',
+          'color:#6366f1', 'color:inherit'
+        );
+        clearInterval(_fontCheck);
+      }
+    }, 10);
+
+    // When Flutter renders the first element, remove the loading indicator and log timing
     var observer = new MutationObserver(function(mutations, obs) {
       if (document.querySelector('flt-glass-pane, flt-scene, flutter-view')) {
+        _egoPerf.firstFrame = performance.now();
+        var total = (_egoPerf.firstFrame - _egoPerf.t0).toFixed(0);
+        var fontT = _egoPerf.fontsReady ? (_egoPerf.fontsReady - _egoPerf.t0).toFixed(0) : '—';
+        console.log(
+          '%c[ego] first frame %c' + total + 'ms %c(fonts ' + fontT + 'ms)',
+          'color:#22c55e;font-weight:bold', 'color:inherit', 'color:#888'
+        );
+        // Expose on window so user can type _egoPerf in console anytime
+        window._egoPerf = _egoPerf;
+
         var el = document.getElementById('ego-loading');
         if (el) el.remove();
         obs.disconnect();
       }
     });
     observer.observe(document.body, { childList: true, subtree: true });
-    // 兜底：15 秒后渐隐，避免一直卡在 loading
+
+    // Fallback: fade out loading after 15s to avoid being stuck forever
     setTimeout(function() {
       var el = document.getElementById('ego-loading');
-      if (el) { el.style.opacity = '0'; el.style.pointerEvents = 'none'; }
+      if (el) {
+        el.style.opacity = '0'; el.style.pointerEvents = 'none';
+        console.warn('[ego] loading timed out after 15s — first frame never rendered');
+      }
       observer.disconnect();
     }, 15000);
   </script>

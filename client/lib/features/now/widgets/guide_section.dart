@@ -154,8 +154,6 @@ class WriteButton extends StatelessWidget {
                 fontSize: 13,
                 fontWeight: FontWeight.w300,
                 letterSpacing: 2,
-                fontFamily: 'NotoSansSC',
-                fontFamilyFallback: ['NotoSansSymbols2'],
               ),
             ),
             child: const Text('写下此刻'),
