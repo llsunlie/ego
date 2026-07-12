@@ -2,6 +2,14 @@ import 'package:flutter/material.dart';
 import 'colors.dart';
 
 ThemeData darkTheme() {
+  // Get Material 3 dark defaults and apply local fonts to ALL text styles.
+  // This ensures every TextStyle (bodyLarge, headlineLarge, titleMedium, etc.)
+  // inherits NotoSansSC + NotoSansSymbols2 without per-widget declarations.
+  final baseTextTheme = ThemeData(brightness: Brightness.dark).textTheme.apply(
+    fontFamily: 'NotoSansSC',
+    fontFamilyFallback: const ['NotoSansSymbols2'],
+  );
+
   return ThemeData(
     fontFamily: 'NotoSansSC',
     fontFamilyFallback: const ['NotoSansSymbols2'],
@@ -12,9 +20,9 @@ ThemeData darkTheme() {
       secondary: AppColors.coldBlue,
       surface: AppColors.surface,
     ),
-    textTheme: const TextTheme(
-      bodyLarge: TextStyle(color: AppColors.textPrimary, fontSize: 16),
-      bodyMedium: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+    textTheme: baseTextTheme.copyWith(
+      bodyLarge: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
+      bodyMedium: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
