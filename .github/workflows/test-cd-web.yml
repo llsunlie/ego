@@ -27,7 +27,7 @@ jobs:
       - name: sync version
         run: make version
       - name: build web
-        run: cd client && flutter build web --release -O4 --no-source-maps --base-href / --web-renderer canvaskit --dart-define=SERVER_HOST=${{ secrets.TEST_SERVER_HOST }} --dart-define=SERVER_PORT=${{ vars.SERVER_PORT }} --dart-define=SERVER_WEB_PORT=${{ vars.SERVER_WEB_PORT }} --dart-define=SERVER_TLS=${{ vars.TEST_SERVER_TLS }}
+        run: cd client && flutter build web --release -O4 --no-source-maps --base-href / --dart-define=SERVER_HOST=${{ secrets.TEST_SERVER_HOST }} --dart-define=SERVER_PORT=${{ vars.SERVER_PORT }} --dart-define=SERVER_WEB_PORT=${{ vars.SERVER_WEB_PORT }} --dart-define=SERVER_TLS=${{ vars.TEST_SERVER_TLS }}
 
       - name: scp web
         uses: appleboy/scp-action@v0.1.7
