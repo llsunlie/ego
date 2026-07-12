@@ -398,10 +398,6 @@ class _EchoActions extends StatelessWidget {
           color: AppColors.gold.withValues(alpha: 0.35),
         ),
       ),
-      textStyle: const TextStyle(
-        fontFamily: 'NotoSansSC',
-        fontFamilyFallback: ['NotoSansSymbols2'],
-      ),
     );
 
     return Column(
@@ -418,8 +414,6 @@ class _EchoActions extends StatelessWidget {
                       fontSize: 14,
                       fontWeight: FontWeight.w300,
                       letterSpacing: 1,
-                      fontFamily: 'NotoSansSC',
-                      fontFamilyFallback: ['NotoSansSymbols2'],
                     ),
                   ),
                 ),
@@ -437,8 +431,6 @@ class _EchoActions extends StatelessWidget {
                       fontSize: 13,
                       fontWeight: FontWeight.w300,
                       letterSpacing: 1,
-                      fontFamily: 'NotoSansSC',
-                      fontFamilyFallback: ['NotoSansSymbols2'],
                     ),
                   ),
                 ),
@@ -456,8 +448,6 @@ class _EchoActions extends StatelessWidget {
               fontSize: 11,
               fontWeight: FontWeight.w200,
               letterSpacing: 1.5,
-              fontFamily: 'NotoSansSC',
-              fontFamilyFallback: ['NotoSansSymbols2'],
             ),
           ),
           child: const Text('嗯，先这样'),

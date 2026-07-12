@@ -216,8 +216,6 @@ class _EnvelopeCard extends StatelessWidget {
                       child: Text(
                         '✦',
                         style: TextStyle(
-                          fontFamily: 'NotoSansSC',
-                          fontFamilyFallback: const ['NotoSansSymbols2'],
                           fontSize: 10,
                           color: Color(0x80FFDC96),
                         ),
@@ -257,8 +255,6 @@ class _EnvelopeCard extends StatelessWidget {
                       Text(
                         dateStr,
                         style: const TextStyle(
-                          fontFamily: 'NotoSansSC',
-                          fontFamilyFallback: ['NotoSansSymbols2'],
                           fontSize: 10,
                           color: Color(0xFF8A7A60),
                           letterSpacing: 2,
@@ -270,8 +266,6 @@ class _EnvelopeCard extends StatelessWidget {
                         moment.content,
                         textAlign: TextAlign.center,
                         style: const TextStyle(
-                          fontFamily: 'NotoSansSC',
-                          fontFamilyFallback: ['NotoSansSymbols2'],
                           fontSize: 15,
                           color: Color(0xFFF0E6D0),
                           height: 1.9,
@@ -285,8 +279,6 @@ class _EnvelopeCard extends StatelessWidget {
                         child: const Text(
                           '轻轻合上',
                           style: TextStyle(
-                            fontFamily: 'NotoSansSC',
-                            fontFamilyFallback: const ['NotoSansSymbols2'],
                             fontSize: 11,
                             color: Color(0xFF8A7A60),
                             letterSpacing: 2,

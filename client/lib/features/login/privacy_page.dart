@@ -24,13 +24,12 @@ class PrivacyPage extends StatelessWidget {
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: AppColors.textPrimary,
-                fontFamily: 'NotoSansSC',
               ),
             ),
             SizedBox(height: 8),
             Text(
               '更新日期：2026年6月9日',
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary, fontFamily: 'NotoSansSC'),
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),
             SizedBox(height: 16),
             _Section(
@@ -116,7 +115,7 @@ class _Section extends StatelessWidget {
               fontSize: 15,
               fontWeight: FontWeight.w600,
               color: AppColors.textPrimary,
-              fontFamily: 'NotoSansSC',
+
             ),
           ),
           const SizedBox(height: 8),
@@ -126,7 +125,7 @@ class _Section extends StatelessWidget {
               fontSize: 14,
               color: AppColors.textSecondary,
               height: 1.6,
-              fontFamily: 'NotoSansSC',
+
             ),
           ),
         ],

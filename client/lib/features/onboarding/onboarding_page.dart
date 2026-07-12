@@ -460,8 +460,6 @@ class _StepInsightState extends State<_StepInsight> {
                       fontSize: 14,
                       color: Color(0xFFD8D8E8),
                       height: 1.7,
-                      fontFamily: 'NotoSansSC',
-                      fontFamilyFallback: ['NotoSansSymbols2'],
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -595,8 +593,6 @@ class _PrimaryButton extends StatelessWidget {
           fontSize: 15,
           fontWeight: FontWeight.w500,
           letterSpacing: 2,
-          fontFamily: 'NotoSansSC',
-          fontFamilyFallback: ['NotoSansSymbols2'],
         ),
       ),
       child: Text(label),
@@ -714,10 +710,6 @@ class _OutlineButton extends StatelessWidget {
           side: BorderSide(
             color: AppColors.gold.withValues(alpha: 0.35),
           ),
-        ),
-        textStyle: const TextStyle(
-          fontFamily: 'NotoSansSC',
-          fontFamilyFallback: ['NotoSansSymbols2'],
         ),
       ),
       child: Text(label),
