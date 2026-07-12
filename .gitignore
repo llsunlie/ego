@@ -9,3 +9,4 @@ data/
 server/ego
 server/.tmp*
 .superpowers.tmp/
+.superpowers/
