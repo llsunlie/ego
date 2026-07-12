@@ -32,11 +32,23 @@ jobs:
           channel: 'stable'
           cache: true
 
+      # 同步版本号：test 分支用 git describe 生成带 commit 的版本号
+      - name: sync version
+        run: |
+          VER=$(git describe --tags --always)
+          # 去掉 v 前缀，取纯版本号（如 v1.0.1-3-gabcdef1 → 1.0.1-3-gabcdef1）
+          VER_NUM="${VER#v}"
+          # 同步 pubspec.yaml（用于 APK versionName）
+          sed -i "s/^version: .*/version: ${VER_NUM}/" client/pubspec.yaml
+          # 同步 version.dart（用于 App 内展示）
+          make version
+          echo "Synced to version $VER_NUM"
+
+      # 安装 Dart 依赖
       - name: pub get
         run: cd client && flutter pub get
 
-      - name: sync version
-        run: make version
+      # 构建 release APK
       - name: build apk
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > client/android/app/upload-keystore.jks
