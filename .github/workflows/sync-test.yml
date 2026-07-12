@@ -1,0 +1,17 @@
+name: Sync test after main merge
+
+# 当 PR 合入 main 后，自动将 main 强制同步到 test
+# 这样 test 与 main 始终保持一致，下次从 test 开 PR 到 main 不会冲突
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: push main to test
+        run: git push origin main:test --force
