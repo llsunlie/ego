@@ -71,6 +71,27 @@
       font-size: 14px;
       letter-spacing: 0.05em;
     }
+    #ego-loading .progress-track {
+      margin-top: 20px;
+      width: 220px;
+      height: 3px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    #ego-loading .progress-fill {
+      width: 0%;
+      height: 100%;
+      background: #6366f1;
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+    #ego-loading .progress-label {
+      margin-top: 8px;
+      color: rgba(255,255,255,0.3);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+    }
   </style>
 </head>
 <body>
@@ -78,6 +99,8 @@
   <div id="ego-loading">
     <div class="spinner"></div>
     <div class="text">ego</div>
+    <div class="progress-track"><div id="ego-progress-fill" class="progress-fill"></div></div>
+    <div id="ego-progress-label" class="progress-label">启动中...</div>
   </div>
   <script>
     // Force local CanvasKit and fonts instead of downloading from gstatic.com
@@ -170,61 +193,68 @@
   </script>
   <script src="flutter_bootstrap.js" async></script>
   <script>
-    // ── First-screen load timer (t0 already recorded at <body> top) ──
+    // ── First-screen load timer + real progress bar (t0 already at <body> top) ──
     var _egoPerf = window._egoPerf;
     _egoPerf.fontsReady = null;
     _egoPerf.firstFrame = null;
 
-    // If fonts were already preloaded in the script above, capture that time
-    if (window._egoFontReady && !_egoPerf.fontsReady) {
-      _egoPerf.fontsReady = performance.now();
-      console.log(
-        '%c[ego] fonts ready %c' + (_egoPerf.fontsReady - _egoPerf.t0).toFixed(0) + 'ms',
-        'color:#6366f1', 'color:inherit'
-      );
+    var _pFill = document.getElementById('ego-progress-fill');
+    var _pLabel = document.getElementById('ego-progress-label');
+
+    // 4 milestones, any order; progress = completed / total (× 90%, last 10% = first frame)
+    var _pDone = { engine: false, main: false, canvas: false, fonts: false };
+    var _pCount = Object.keys(_pDone).length;
+    var _pDoneCnt = 0;
+    var _pLabels = { engine: '引擎就绪', main: '应用加载', canvas: '渲染器就绪', fonts: '字体就绪' };
+    var _pPcts  = [5, 25, 50, 75, 90];
+
+    function _egoMarkDone(key) {
+      if (_pDone[key]) return;
+      _pDone[key] = true;
+      _pDoneCnt++;
+      _pFill.style.width = _pPcts[_pDoneCnt] + '%';
+      _pLabel.textContent = _pLabels[key];
+      if (key === 'fonts') {
+        _egoPerf.fontsReady = performance.now();
+        console.log('%c[ego] fonts ready %c' + (_egoPerf.fontsReady - _egoPerf.t0).toFixed(0) + 'ms', 'color:#6366f1', 'color:inherit');
+      }
     }
 
-    // Poll font cache until ready
-    var _fontCheck = setInterval(function() {
-      if (window._egoFontReady && !_egoPerf.fontsReady) {
-        _egoPerf.fontsReady = performance.now();
-        console.log(
-          '%c[ego] fonts ready %c' + (_egoPerf.fontsReady - _egoPerf.t0).toFixed(0) + 'ms',
-          'color:#6366f1', 'color:inherit'
-        );
-        clearInterval(_fontCheck);
-      }
-    }, 10);
+    var _egoPoll = setInterval(function() {
+      if (!_pDone.engine && window._flutter && window._flutter.loader)    _egoMarkDone('engine');
+      if (!_pDone.main   && document.querySelector('script[src$="main.dart.js"]')) _egoMarkDone('main');
+      if (!_pDone.canvas && (window.flutterCanvasKit || window._flutter_skwasmInstance)) _egoMarkDone('canvas');
+      if (!_pDone.fonts  && window._egoFontReady)                                   _egoMarkDone('fonts');
 
-    // When Flutter renders the first element, remove the loading indicator and log timing
+      if (_pDoneCnt >= _pCount) {
+        var w = parseFloat(_pFill.style.width);
+        if (w < 88) { _pFill.style.width = (w + 0.8) + '%'; _pLabel.textContent = '即将完成...'; }
+      }
+    }, 80);
+
+    // First frame: jump to 100%, log, remove loading after a brief moment
     var observer = new MutationObserver(function(mutations, obs) {
       if (document.querySelector('flt-glass-pane, flt-scene, flutter-view')) {
+        clearInterval(_egoPoll);
         _egoPerf.firstFrame = performance.now();
+        _pFill.style.width = '100%';
+        _pLabel.textContent = '';
         var total = (_egoPerf.firstFrame - _egoPerf.t0).toFixed(0);
         var fontT = _egoPerf.fontsReady ? (_egoPerf.fontsReady - _egoPerf.t0).toFixed(0) : '—';
         console.log(
           '%c[ego] first frame %c' + total + 'ms %c(fonts ' + fontT + 'ms)',
           'color:#22c55e;font-weight:bold', 'color:inherit', 'color:#888'
         );
-        // Expose on window so user can type _egoPerf in console anytime
         window._egoPerf = _egoPerf;
-
-        var el = document.getElementById('ego-loading');
-        if (el) el.remove();
         obs.disconnect();
+
+        setTimeout(function() {
+          var el = document.getElementById('ego-loading');
+          if (el) el.remove();
+        }, 200);
       }
     });
     observer.observe(document.body, { childList: true, subtree: true });
-
-    // Fallback: fade out loading after 15s to avoid being stuck forever
-    setTimeout(function() {
-      var el = document.getElementById('ego-loading');
-      if (el) {
-        el.style.opacity = '0'; el.style.pointerEvents = 'none';
-        console.warn('[ego] loading timed out after 15s — first frame never rendered');
-      }
-      observer.disconnect();
-    }, 15000);
   </script>
 </body>
 </html>
