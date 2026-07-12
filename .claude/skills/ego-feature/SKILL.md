@@ -260,7 +260,7 @@ flutter run -d <device_id>
 git push origin <current-branch>
 ```
 
-2. **创建 PR**：
+2. **创建 PR（test）**：
 
 ```bash
 gh pr create \
@@ -270,9 +270,27 @@ gh pr create \
   --body "<PR body>"
 ```
 
+3. **测试通过后，再创建 PR（main）**：
+
+```bash
+gh pr create \
+  --base main \
+  --head test \
+  --title "<PR title>" \
+  --body "<PR body>"
+```
+
+4. **PR 合入 main 后，同步本地**（workflow 已自动同步远程 test，本地需手动拉）：
+
+```bash
+git checkout main && git pull origin main \
+  && git checkout test && git reset --hard origin/test
+```
+
 ### 约定
 
-- **Base branch**: `test`（开发集成分支），最终合入 `main`
+- **Base branch**: 先 `test`，测试通过后 `test` → `main`
+- **自动同步**：`.github/workflows/sync-test.yml` 在 PR 合入 `main` 后自动将 `main` force-push 到 `test`，保持两分支 commit 历史一致，无需手动 rebase 同步
 - **PR body** 末尾附带 `🤖 Generated with [Claude Code](https://claude.com/claude-code)`
 - 如果 `gh` CLI 未认证，提示用户自行创建 PR
 
